@@ -9,7 +9,7 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border-subtle bg-bg-primary/95 backdrop-blur-sm">
-      <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center gap-4">
+      <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center gap-4">
         {/* Logo */}
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-lg font-bold tracking-tight text-text-primary">LevTrade</span>
@@ -26,7 +26,7 @@ export function TopBar() {
         <div className="flex items-center gap-3 shrink-0">
           <ConnectionIndicator />
           {lastUpdate && (
-            <span className="text-xs text-text-muted">{timeAgo(lastUpdate)}</span>
+            <span className="text-sm text-text-muted">{timeAgo(lastUpdate)}</span>
           )}
         </div>
       </div>

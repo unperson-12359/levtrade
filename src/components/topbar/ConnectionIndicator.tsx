@@ -14,7 +14,7 @@ export function ConnectionIndicator() {
   return (
     <div className="flex items-center gap-1.5" title={config.label}>
       <span className={`w-2 h-2 rounded-full ${config.color}`} />
-      <span className="text-xs text-text-muted hidden sm:inline">{config.label}</span>
+      <span className="text-sm text-text-muted hidden sm:inline">{config.label}</span>
     </div>
   )
 }

@@ -94,12 +94,12 @@ export function SemiCircleGauge({
 
         {/* Extreme labels */}
         {leftLabel && (
-          <text x={12} y={cy + 16} fill="var(--color-text-muted)" fontSize={10} textAnchor="start">
+          <text x={12} y={cy + 16} fill="var(--color-text-muted)" fontSize={12} textAnchor="start">
             {leftLabel}
           </text>
         )}
         {rightLabel && (
-          <text x={size - 12} y={cy + 16} fill="var(--color-text-muted)" fontSize={10} textAnchor="end">
+          <text x={size - 12} y={cy + 16} fill="var(--color-text-muted)" fontSize={12} textAnchor="end">
             {rightLabel}
           </text>
         )}
@@ -107,9 +107,9 @@ export function SemiCircleGauge({
 
       {/* Labels */}
       <div className="text-center -mt-2">
-        <div className="text-sm font-medium text-text-primary">{label}</div>
+        <div className="text-base font-medium text-text-primary">{label}</div>
         {subLabel && (
-          <div className="text-xs text-text-muted font-mono mt-0.5">{subLabel}</div>
+          <div className="text-sm text-text-muted font-mono mt-0.5">{subLabel}</div>
         )}
       </div>
     </div>

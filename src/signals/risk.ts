@@ -4,7 +4,7 @@ import type { SignalColor } from '../types/signals'
 /**
  * Compute all risk metrics for a trade.
  *
- * Liquidation: long = entry * (1 - 1/leverage), short = entry * (1 + 1/leverage)
+ * Liquidation: cross-margin formula where entire account backs the position.
  * Stop suggestion: 1.5x ATR from entry
  * R:R ratio: distance to target / distance to stop
  */
@@ -15,14 +15,32 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
     return emptyOutputs()
   }
 
-  // --- Liquidation ---
+  // --- Liquidation (cross-margin: entire account backs the position) ---
   const maintenanceMarginRate = 0.005 // 0.5% typical
-  const liquidationPrice =
-    direction === 'long'
-      ? entryPrice * (1 - (1 / leverage) + maintenanceMarginRate)
-      : entryPrice * (1 + (1 / leverage) - maintenanceMarginRate)
+  const effectivePos = positionSize > 0 ? positionSize : accountSize * leverage
+  const marginUsed = effectivePos / leverage
+  const availableMargin = accountSize - marginUsed
+  const maintenanceMargin = effectivePos * maintenanceMarginRate
+  const marginBuffer = availableMargin - maintenanceMargin
 
-  const liquidationDistance = Math.abs(liquidationPrice - entryPrice) / entryPrice * 100
+  let liquidationPrice: number
+  if (marginBuffer <= 0) {
+    liquidationPrice = entryPrice
+  } else if (marginBuffer >= effectivePos) {
+    liquidationPrice = direction === 'long' ? 0 : Infinity
+  } else {
+    liquidationPrice = direction === 'long'
+      ? entryPrice * (1 - marginBuffer / effectivePos)
+      : entryPrice * (1 + marginBuffer / effectivePos)
+  }
+
+  if (direction === 'long') {
+    liquidationPrice = Math.max(0, liquidationPrice)
+  }
+
+  const liquidationDistance = liquidationPrice === Infinity || liquidationPrice <= 0
+    ? 100
+    : Math.abs(liquidationPrice - entryPrice) / entryPrice * 100
 
   // --- Suggested Stop (1.5x ATR) ---
   const atrStop = atr > 0 ? atr * 1.5 : entryPrice * 0.02 // fallback: 2%
@@ -110,8 +128,9 @@ function gradeTradeSetup(input: GradeInput): {
   const issues: string[] = []
   let score = 0
 
-  // Liquidation distance check
-  if (input.liquidationDistance > 20) score += 2
+  // Liquidation distance check (cross-margin can produce 100%+ distances)
+  if (input.liquidationDistance >= 100) score += 2
+  else if (input.liquidationDistance > 20) score += 2
   else if (input.liquidationDistance > 10) score += 1
   else {
     issues.push(`Liquidation is only ${input.liquidationDistance.toFixed(1)}% away — very tight`)

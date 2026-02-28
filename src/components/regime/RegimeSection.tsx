@@ -3,7 +3,7 @@ import { useSignals } from '../../hooks/useSignals'
 import { CollapsibleSection } from '../shared/CollapsibleSection'
 import { SignalBadge } from '../shared/SignalBadge'
 import { Tooltip } from '../shared/Tooltip'
-import { SIGNAL_TEXT_CLASSES, SIGNAL_BG_CLASSES, SIGNAL_BORDER_CLASSES, SIGNAL_COLORS } from '../../utils/colors'
+import { SIGNAL_TEXT_CLASSES, SIGNAL_COLORS } from '../../utils/colors'
 import { regimeVerdict } from '../../utils/explanations'
 
 const regimeLabels = {
@@ -30,9 +30,9 @@ export function RegimeSection() {
         subtitle="What kind of market is this?"
         defaultExpanded
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[1, 2].map((i) => (
-            <div key={i} className="rounded-lg border border-border-subtle bg-bg-card p-5 space-y-3">
+            <div key={i} className="rounded-lg border border-border-subtle bg-bg-card p-6 space-y-3">
               <div className="animate-pulse rounded bg-border-subtle/30 h-3 w-24" />
               <div className="animate-pulse rounded bg-border-subtle/30 h-8 w-40" />
               <div className="animate-pulse rounded bg-border-subtle/30 h-3 w-full" />
@@ -56,11 +56,11 @@ export function RegimeSection() {
     >
       <div className="space-y-5">
         {/* Market Type + Volatility side by side */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Market Type Badge */}
-          <div className={`rounded-lg border p-5 ${SIGNAL_BG_CLASSES[hurst.color]} ${SIGNAL_BORDER_CLASSES[hurst.color]}`}>
+          <div className="rounded-lg border border-border-subtle bg-bg-card p-6">
             <Tooltip content="This measures whether the market is moving in a clear direction (trending), bouncing between levels (mean-reverting), or moving randomly (choppy). Our signals work best in mean-reverting markets.">
-              <span className="text-xs font-medium text-text-muted uppercase tracking-wider cursor-help">
+              <span className="text-sm font-medium text-text-muted uppercase tracking-wider cursor-help">
                 Market Type
               </span>
             </Tooltip>
@@ -72,15 +72,15 @@ export function RegimeSection() {
               {hurst.explanation}
             </p>
             {/* Detail: Hurst value */}
-            <div className="mt-3 text-xs text-text-muted font-mono">
+            <div className="mt-3 text-sm text-text-muted font-mono">
               Hurst: {hurst.value.toFixed(3)} | Confidence: {(hurst.confidence * 100).toFixed(0)}%
             </div>
           </div>
 
           {/* Volatility Meter */}
-          <div className={`rounded-lg border p-5 ${SIGNAL_BG_CLASSES[volatility.color]} ${SIGNAL_BORDER_CLASSES[volatility.color]}`}>
+          <div className="rounded-lg border border-border-subtle bg-bg-card p-6">
             <Tooltip content="How much the price is swinging. Low volatility means calm markets (tighter stops OK). High volatility means wild swings (use lower leverage, wider stops).">
-              <span className="text-xs font-medium text-text-muted uppercase tracking-wider cursor-help">
+              <span className="text-sm font-medium text-text-muted uppercase tracking-wider cursor-help">
                 Price Swing Level
               </span>
             </Tooltip>
@@ -101,7 +101,7 @@ export function RegimeSection() {
                 }}
               />
             </div>
-            <div className="mt-1 flex justify-between text-[10px] text-text-muted">
+            <div className="mt-1 flex justify-between text-sm text-text-muted">
               <span>Low</span>
               <span>Normal</span>
               <span>High</span>
@@ -110,14 +110,14 @@ export function RegimeSection() {
             <p className="mt-3 text-sm text-text-secondary leading-relaxed">
               {volatility.explanation}
             </p>
-            <div className="mt-3 text-xs text-text-muted font-mono">
+            <div className="mt-3 text-sm text-text-muted font-mono">
               Realized Vol: {volatility.realizedVol.toFixed(1)}% annualized | ATR: {volatility.atr.toFixed(2)}
             </div>
           </div>
         </div>
 
         {/* Regime Verdict */}
-        <div className={`rounded-lg border-l-4 p-4 ${SIGNAL_BG_CLASSES[hurst.color]}`} style={{ borderLeftColor: SIGNAL_COLORS[hurst.color] }}>
+        <div className="rounded-lg border-l-4 p-6 bg-bg-card" style={{ borderLeftColor: SIGNAL_COLORS[hurst.color] }}>
           <p className="text-base text-text-primary leading-relaxed font-medium">
             {verdict}
           </p>

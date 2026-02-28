@@ -13,10 +13,10 @@ export function RiskForm() {
   const levColor = leverageColor(inputs.leverage)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Asset Selector */}
       <div>
-        <label className="block text-xs font-medium text-text-muted mb-1.5">Asset</label>
+        <label className="block text-sm font-medium text-text-muted mb-1.5">Asset</label>
         <div className="flex gap-2">
           {TRACKED_COINS.map((coin) => (
             <button
@@ -39,7 +39,7 @@ export function RiskForm() {
 
       {/* Direction Toggle */}
       <div>
-        <label className="block text-xs font-medium text-text-muted mb-1.5">Direction</label>
+        <label className="block text-sm font-medium text-text-muted mb-1.5">Direction</label>
         <div className="flex gap-2">
           {(['long', 'short'] as TradeDirection[]).map((dir) => (
             <button
@@ -61,12 +61,12 @@ export function RiskForm() {
 
       {/* Entry Price */}
       <div>
-        <label className="block text-xs font-medium text-text-muted mb-1.5">
+        <label className="block text-sm font-medium text-text-muted mb-1.5">
           Entry Price
           {price && (
             <button
               onClick={() => updateInput('entryPrice', price)}
-              className="ml-2 text-signal-blue text-[10px] hover:underline"
+              className="ml-2 text-signal-blue text-sm hover:underline"
             >
               Use current ({formatPrice(price, inputs.coin)})
             </button>
@@ -76,31 +76,31 @@ export function RiskForm() {
           type="number"
           value={inputs.entryPrice || ''}
           onChange={(e) => updateInput('entryPrice', parseFloat(e.target.value) || 0)}
-          className="w-full px-3 py-2 rounded-lg border border-border-subtle bg-bg-input text-text-primary font-mono text-sm focus:border-border-focus focus:outline-none"
+          className="w-full px-3 py-2 rounded-lg border border-border-subtle bg-bg-input text-text-primary font-mono text-base focus:border-border-focus focus:outline-none"
           placeholder="0.00"
         />
       </div>
 
       {/* Account Size */}
       <div>
-        <label className="block text-xs font-medium text-text-muted mb-1.5">Account Size (USD)</label>
+        <label className="block text-sm font-medium text-text-muted mb-1.5">Account Size (USD)</label>
         <input
           type="number"
           value={inputs.accountSize || ''}
           onChange={(e) => updateInput('accountSize', parseFloat(e.target.value) || 0)}
-          className="w-full px-3 py-2 rounded-lg border border-border-subtle bg-bg-input text-text-primary font-mono text-sm focus:border-border-focus focus:outline-none"
+          className="w-full px-3 py-2 rounded-lg border border-border-subtle bg-bg-input text-text-primary font-mono text-base focus:border-border-focus focus:outline-none"
           placeholder="1000"
         />
       </div>
 
       {/* Position Size */}
       <div>
-        <label className="block text-xs font-medium text-text-muted mb-1.5">Position Size (USD)</label>
+        <label className="block text-sm font-medium text-text-muted mb-1.5">Position Size (USD)</label>
         <input
           type="number"
           value={inputs.positionSize || ''}
           onChange={(e) => updateInput('positionSize', parseFloat(e.target.value) || 0)}
-          className="w-full px-3 py-2 rounded-lg border border-border-subtle bg-bg-input text-text-primary font-mono text-sm focus:border-border-focus focus:outline-none"
+          className="w-full px-3 py-2 rounded-lg border border-border-subtle bg-bg-input text-text-primary font-mono text-base focus:border-border-focus focus:outline-none"
           placeholder="100"
         />
       </div>
@@ -108,7 +108,7 @@ export function RiskForm() {
       {/* Leverage Slider */}
       <div>
         <div className="flex justify-between items-center mb-1.5">
-          <label className="text-xs font-medium text-text-muted">Leverage</label>
+          <label className="text-sm font-medium text-text-muted">Leverage</label>
           <span
             className="font-mono text-sm font-bold"
             style={{ color: SIGNAL_COLORS[levColor] }}
@@ -135,13 +135,13 @@ export function RiskForm() {
         </div>
         {/* Tick marks */}
         <div className="relative mt-1 h-4">
-          {[1, 5, 10, 25, 50].map((tick) => {
+          {[1, 25, 50].map((tick) => {
             const pct = ((tick - 1) / 49) * 100
             return (
               <button
                 key={tick}
                 onClick={() => updateInput('leverage', tick)}
-                className="absolute -translate-x-1/2 text-[10px] text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
+                className="absolute -translate-x-1/2 text-sm text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
                 style={{ left: `${pct}%` }}
               >
                 {tick}x
@@ -153,7 +153,7 @@ export function RiskForm() {
 
       {/* Stop Price (optional) */}
       <div>
-        <label className="block text-xs font-medium text-text-muted mb-1.5">
+        <label className="block text-sm font-medium text-text-muted mb-1.5">
           Stop Loss Price <span className="text-text-muted">(optional)</span>
         </label>
         <input
@@ -163,14 +163,14 @@ export function RiskForm() {
             const val = parseFloat(e.target.value)
             updateInput('stopPrice', isNaN(val) ? null : val)
           }}
-          className="w-full px-3 py-2 rounded-lg border border-border-subtle bg-bg-input text-text-primary font-mono text-sm focus:border-border-focus focus:outline-none"
+          className="w-full px-3 py-2 rounded-lg border border-border-subtle bg-bg-input text-text-primary font-mono text-base focus:border-border-focus focus:outline-none"
           placeholder="Auto (1.5x ATR)"
         />
       </div>
 
       {/* Target Price (optional) */}
       <div>
-        <label className="block text-xs font-medium text-text-muted mb-1.5">
+        <label className="block text-sm font-medium text-text-muted mb-1.5">
           Target Price <span className="text-text-muted">(optional)</span>
         </label>
         <input
@@ -180,7 +180,7 @@ export function RiskForm() {
             const val = parseFloat(e.target.value)
             updateInput('targetPrice', isNaN(val) ? null : val)
           }}
-          className="w-full px-3 py-2 rounded-lg border border-border-subtle bg-bg-input text-text-primary font-mono text-sm focus:border-border-focus focus:outline-none"
+          className="w-full px-3 py-2 rounded-lg border border-border-subtle bg-bg-input text-text-primary font-mono text-base focus:border-border-focus focus:outline-none"
           placeholder="Auto (2:1 R:R)"
         />
       </div>

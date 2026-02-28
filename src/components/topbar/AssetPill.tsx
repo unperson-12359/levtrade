@@ -22,7 +22,7 @@ export function AssetPill({ coin }: AssetPillProps) {
   return (
     <button
       onClick={() => selectCoin(coin)}
-      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-200 shrink-0 ${
+      className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 shrink-0 ${
         isSelected
           ? 'border-signal-blue/40 bg-signal-blue/5'
           : 'border-border-subtle bg-bg-card hover:bg-bg-card-hover'
@@ -31,14 +31,14 @@ export function AssetPill({ coin }: AssetPillProps) {
       {/* Coin name & price */}
       <div className="text-left">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold text-text-primary">{coin}</span>
+          <span className="text-sm font-semibold text-text-primary">{coin}</span>
           {dayChange !== null && (
-            <span className={`font-mono text-[10px] ${changeColor}`}>
+            <span className={`font-mono text-sm ${changeColor}`}>
               {formatPercent(dayChange, 1)}
             </span>
           )}
         </div>
-        <div className="font-mono text-[11px] text-text-secondary">
+        <div className="font-mono text-sm text-text-secondary">
           {isLoading ? '...' : price ? formatPrice(price, coin) : '—'}
         </div>
       </div>
@@ -52,7 +52,7 @@ export function AssetPill({ coin }: AssetPillProps) {
 
       {/* Overall status */}
       {overallStatus && (
-        <span className={`text-[9px] font-bold tracking-wider ${SIGNAL_TEXT_CLASSES[overallStatusColor]}`}>
+        <span className={`text-xs font-bold tracking-wider ${SIGNAL_TEXT_CLASSES[overallStatusColor]}`}>
           {overallStatus}
         </span>
       )}

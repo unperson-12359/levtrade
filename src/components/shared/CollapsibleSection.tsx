@@ -36,7 +36,7 @@ export function CollapsibleSection({
         <div>
           <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
           {subtitle && (
-            <p className="text-sm text-text-secondary mt-0.5">{subtitle}</p>
+            <p className="text-base text-text-secondary mt-0.5">{subtitle}</p>
           )}
         </div>
         <svg
