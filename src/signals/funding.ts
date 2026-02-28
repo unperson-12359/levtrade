@@ -77,18 +77,19 @@ function classifyFunding(z: number, _rate: number): { label: string; color: Sign
 function buildExplanation(z: number, rate: number): string {
   const abs = Math.abs(z)
   const rateStr = (rate * 100).toFixed(4)
+  const zStr = z.toFixed(2)
 
   if (abs > 2) {
     if (z > 0) {
-      return `The crowd is extremely long right now (funding: ${rateStr}%). When everyone bets the same way, the market often moves against them. Strong contrarian signal for SHORT.`
+      return `The crowd is extremely long (funding: ${rateStr}%, z-score: ${zStr}). When everyone bets the same way, the market often moves against them. Strong contrarian SHORT signal.`
     }
-    return `The crowd is extremely short right now (funding: ${rateStr}%). This extreme bearish positioning often leads to a squeeze upward. Strong contrarian signal for LONG.`
+    return `The crowd is extremely short (funding: ${rateStr}%, z-score: ${zStr}). Extreme bearish positioning often leads to a squeeze upward. Strong contrarian LONG signal.`
   }
   if (abs > 1) {
     if (z > 0) {
-      return `More traders are long than usual (funding: ${rateStr}%). Mild contrarian signal — the crowd could be wrong.`
+      return `More traders are long than usual (funding: ${rateStr}%, z-score: ${zStr}). Mild contrarian signal — the crowd could be wrong.`
     }
-    return `More traders are short than usual (funding: ${rateStr}%). Mild contrarian signal — shorts may get squeezed.`
+    return `More traders are short than usual (funding: ${rateStr}%, z-score: ${zStr}). Mild contrarian signal — shorts may get squeezed.`
   }
-  return `Crowd positioning is balanced (funding: ${rateStr}%). No strong contrarian signal — the crowd isn't extreme in either direction.`
+  return `Crowd positioning is balanced (funding: ${rateStr}%, z-score: ${zStr}). No strong contrarian signal — the crowd isn't extreme.`
 }

@@ -30,8 +30,15 @@ export function RegimeSection() {
         subtitle="What kind of market is this?"
         defaultExpanded
       >
-        <div className="text-text-muted text-sm py-8 text-center">
-          Loading market data...
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2].map((i) => (
+            <div key={i} className="rounded-lg border border-border-subtle bg-bg-card p-5 space-y-3">
+              <div className="animate-pulse rounded bg-border-subtle/30 h-3 w-24" />
+              <div className="animate-pulse rounded bg-border-subtle/30 h-8 w-40" />
+              <div className="animate-pulse rounded bg-border-subtle/30 h-3 w-full" />
+              <div className="animate-pulse rounded bg-border-subtle/30 h-3 w-3/4" />
+            </div>
+          ))}
         </div>
       </CollapsibleSection>
     )
@@ -49,7 +56,7 @@ export function RegimeSection() {
     >
       <div className="space-y-5">
         {/* Market Type + Volatility side by side */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Market Type Badge */}
           <div className={`rounded-lg border p-5 ${SIGNAL_BG_CLASSES[hurst.color]} ${SIGNAL_BORDER_CLASSES[hurst.color]}`}>
             <Tooltip content="This measures whether the market is moving in a clear direction (trending), bouncing between levels (mean-reverting), or moving randomly (choppy). Our signals work best in mean-reverting markets.">

@@ -116,20 +116,38 @@ export function RiskForm() {
             {formatLeverage(inputs.leverage)}
           </span>
         </div>
-        <input
-          type="range"
-          min={1}
-          max={50}
-          step={0.5}
-          value={inputs.leverage}
-          onChange={(e) => updateInput('leverage', parseFloat(e.target.value))}
-          className="w-full accent-signal-blue"
-        />
-        <div className="flex justify-between text-[10px] text-text-muted mt-1">
-          <span>1x</span>
-          <span>10x</span>
-          <span>25x</span>
-          <span>50x</span>
+        {/* Gradient track behind slider */}
+        <div className="relative">
+          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full" style={{
+            background: 'linear-gradient(to right, var(--color-signal-green) 0%, var(--color-signal-yellow) 30%, var(--color-signal-red) 100%)',
+            opacity: 0.3,
+          }} />
+          <input
+            type="range"
+            min={1}
+            max={50}
+            step={0.5}
+            value={inputs.leverage}
+            onChange={(e) => updateInput('leverage', parseFloat(e.target.value))}
+            className="relative w-full leverage-slider"
+            style={{ '--lev-pct': `${((inputs.leverage - 1) / 49) * 100}%` } as React.CSSProperties}
+          />
+        </div>
+        {/* Tick marks */}
+        <div className="relative mt-1 h-4">
+          {[1, 5, 10, 25, 50].map((tick) => {
+            const pct = ((tick - 1) / 49) * 100
+            return (
+              <button
+                key={tick}
+                onClick={() => updateInput('leverage', tick)}
+                className="absolute -translate-x-1/2 text-[10px] text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
+                style={{ left: `${pct}%` }}
+              >
+                {tick}x
+              </button>
+            )
+          })}
         </div>
       </div>
 

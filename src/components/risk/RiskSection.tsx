@@ -10,7 +10,7 @@ export function RiskSection() {
       subtitle="What happens if I'm wrong?"
       defaultExpanded
     >
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RiskForm />
         <RiskResults />
       </div>

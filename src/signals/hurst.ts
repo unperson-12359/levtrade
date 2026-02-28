@@ -108,7 +108,7 @@ function buildExplanation(H: number, regime: MarketRegime, confidence: number): 
         ? 'The market is trending strongly in one direction — mean-reversion signals are unreliable here. Consider sitting this one out or trading with the trend.'
         : 'The market is showing mild trending behavior — signals may be less reliable than usual.'
     case 'mean-reverting':
-      return H < 0.35
+      return H < 0.40
         ? 'The market is strongly bouncing between levels — this is ideal for our signals. Prices that stretch far from average tend to snap back.'
         : 'The market is bouncing between levels — good conditions for our signals.'
     case 'choppy':

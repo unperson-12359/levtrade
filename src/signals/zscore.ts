@@ -79,16 +79,18 @@ function classifyZScore(z: number): { label: string; color: SignalColor } {
   }
 }
 
-function buildExplanation(z: number, _current: number, _mean: number): string {
+function buildExplanation(z: number, current: number, mean: number): string {
   const abs = Math.abs(z)
   const direction = z > 0 ? 'above' : 'below'
   const reverseAction = z > 0 ? 'drop back down' : 'bounce back up'
+  const priceStr = current.toLocaleString('en-US', { maximumFractionDigits: 2 })
+  const meanStr = mean.toLocaleString('en-US', { maximumFractionDigits: 2 })
 
   if (abs > 2) {
-    return `Price is far ${direction} its recent average — it's unusually ${z > 0 ? 'expensive' : 'cheap'} right now, which often means it will ${reverseAction}. Strong contrarian signal.`
+    return `Price ($${priceStr}) is ${abs.toFixed(1)} std devs ${direction} the 20-period average ($${meanStr}) — unusually ${z > 0 ? 'expensive' : 'cheap'}, often means it will ${reverseAction}. Strong contrarian signal.`
   }
   if (abs > 1) {
-    return `Price is moderately ${direction} its recent average — starting to look ${z > 0 ? 'expensive' : 'cheap'}, but not extreme yet.`
+    return `Price ($${priceStr}) is ${abs.toFixed(1)} std devs ${direction} the average ($${meanStr}) — starting to look ${z > 0 ? 'expensive' : 'cheap'}, but not extreme yet.`
   }
-  return `Price is close to its recent average — nothing unusual happening. No strong signal from price position.`
+  return `Price ($${priceStr}) is near its 20-period average ($${meanStr}) — nothing unusual. No signal from price position.`
 }

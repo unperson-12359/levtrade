@@ -12,8 +12,10 @@ import type { OISnapshot } from '../types/market'
 export function computeOIDelta(
   oiHistory: OISnapshot[],
   closes: number[],
+  windowSize: number = 5,
 ): OIDeltaResult {
-  if (oiHistory.length < 2 || closes.length < 2) {
+  const minRequired = Math.max(2, windowSize + 1)
+  if (oiHistory.length < minRequired || closes.length < minRequired) {
     return {
       oiChangePct: 0,
       priceChangePct: 0,
@@ -21,22 +23,30 @@ export function computeOIDelta(
       normalizedSignal: 0,
       label: 'Insufficient Data',
       color: 'yellow',
-      explanation: 'Need more data to measure money flow.',
+      explanation: `Need at least ${minRequired} data points to measure money flow. Currently have ${oiHistory.length}.`,
     }
   }
 
-  const prevOI = oiHistory[oiHistory.length - 2]!.oi
-  const currOI = oiHistory[oiHistory.length - 1]!.oi
-  const prevPrice = closes[closes.length - 2]!
-  const currPrice = closes[closes.length - 1]!
+  // Use rolling window average for noise reduction instead of just 2 points
+  const recentOI = oiHistory.slice(-windowSize)
+  const olderOI = oiHistory.slice(-(windowSize * 2), -windowSize)
 
-  const oiChangePct = prevOI > 0 ? (currOI - prevOI) / prevOI : 0
-  const priceChangePct = prevPrice > 0 ? (currPrice - prevPrice) / prevPrice : 0
+  const avgRecentOI = recentOI.reduce((s, v) => s + v.oi, 0) / recentOI.length
+  const avgOlderOI = olderOI.length > 0
+    ? olderOI.reduce((s, v) => s + v.oi, 0) / olderOI.length
+    : oiHistory[oiHistory.length - minRequired]!.oi
 
-  const oiUp = oiChangePct > 0.001   // >0.1% change threshold
-  const oiDown = oiChangePct < -0.001
-  const priceUp = priceChangePct > 0.0005
-  const priceDown = priceChangePct < -0.0005
+  const recentCloses = closes.slice(-windowSize)
+  const olderClose = closes[closes.length - minRequired]!
+  const avgRecentPrice = recentCloses.reduce((s, v) => s + v, 0) / recentCloses.length
+
+  const oiChangePct = avgOlderOI > 0 ? (avgRecentOI - avgOlderOI) / avgOlderOI : 0
+  const priceChangePct = olderClose > 0 ? (avgRecentPrice - olderClose) / olderClose : 0
+
+  const oiUp = oiChangePct > 0.005    // >0.5% change threshold (smoothed)
+  const oiDown = oiChangePct < -0.005
+  const priceUp = priceChangePct > 0.002  // >0.2% change threshold
+  const priceDown = priceChangePct < -0.002
 
   // Determine confirmation and direction
   let confirmation: boolean

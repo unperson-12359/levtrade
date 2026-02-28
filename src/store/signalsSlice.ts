@@ -62,7 +62,7 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
       volatility,
       composite,
       updatedAt: Date.now(),
-      isStale: false,
+      isStale: candles.length > 0 ? (Date.now() - candles[candles.length - 1]!.time) > 5 * 60 * 1000 : false,
       isWarmingUp,
       warmupProgress,
     }

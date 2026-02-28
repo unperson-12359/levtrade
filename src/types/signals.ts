@@ -51,11 +51,16 @@ export interface CompositeSignal {
   value: number               // -1 to +1
   direction: 'long' | 'short' | 'neutral'
   strength: 'strong' | 'moderate' | 'weak'
-  agreementCount: number      // how many of 4 sub-signals agree
-  agreementTotal: number      // total sub-signals (4)
+  agreementCount: number      // how many sub-signals agree
+  agreementTotal: number      // total sub-signals counted
   color: SignalColor
   label: string
   explanation: string
+  signalBreakdown: Array<{
+    name: string
+    direction: 'long' | 'short' | 'neutral'
+    agrees: boolean
+  }>
 }
 
 /** Full signal output per asset */

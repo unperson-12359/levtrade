@@ -16,7 +16,7 @@ export function TopBar() {
         </div>
 
         {/* Asset Pills */}
-        <div className="flex items-center gap-2 flex-1 justify-center min-w-0">
+        <div className="flex items-center gap-2 flex-1 justify-center min-w-0 overflow-x-auto scrollbar-hide">
           {TRACKED_COINS.map((coin) => (
             <AssetPill key={coin} coin={coin} />
           ))}
