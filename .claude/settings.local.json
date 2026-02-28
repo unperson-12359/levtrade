@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:hyperliquid.gitbook.io)",
+      "WebFetch(domain:docs.chainstack.com)",
+      "Bash(node --version)",
+      "Bash(npm --version)",
+      "WebFetch(domain:tradingview.github.io)",
+      "Bash(npm create vite@latest . -- --template react-ts)",
+      "Bash(npx --yes create-vite@latest . --template react-ts)",
+      "Bash(npm init -y)",
+      "Bash(npm install react react-dom)",
+      "Bash(npm install -D typescript @types/react @types/react-dom vite @vitejs/plugin-react)",
+      "Bash(npm install lightweight-charts zustand tailwindcss @tailwindcss/vite)",
+      "Bash(npx tsc -b)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(ls /c/Users/mauri/OneDrive/Desktop/levtrade/node_modules/.bin/vite*)",
+      "Bash(where npm.cmd)",
+      "Bash(npm ls react)",
+      "Bash(npm run build)",
+      "Bash(git init)"
+    ]
+  }
+}

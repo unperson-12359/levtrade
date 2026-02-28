@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #0a0a0f;
+  --color-bg-secondary: #0e0e16;
+  --color-bg-card: #12121a;
+  --color-bg-card-hover: #1a1a28;
+  --color-bg-input: #16161f;
+  --color-border-subtle: #2a2a3a;
+  --color-border-focus: #4a4a6a;
+
+  --color-text-primary: #e8e8f0;
+  --color-text-secondary: #8888a0;
+  --color-text-muted: #555570;
+
+  --color-signal-green: #22c55e;
+  --color-signal-yellow: #eab308;
+  --color-signal-red: #ef4444;
+  --color-signal-blue: #3b82f6;
+
+  --color-signal-green-bg: #22c55e1a;
+  --color-signal-yellow-bg: #eab3081a;
+  --color-signal-red-bg: #ef44441a;
+  --color-signal-blue-bg: #3b82f61a;
+
+  --color-signal-green-border: #22c55e33;
+  --color-signal-yellow-border: #eab30833;
+  --color-signal-red-border: #ef444433;
+
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* Global scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-subtle);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-focus);
+}
