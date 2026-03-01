@@ -18,14 +18,28 @@ export interface RiskOutputs {
   // Liquidation
   liquidationPrice: number
   liquidationDistance: number      // % from entry
+  hasLiquidation: boolean
+  effectiveImmune: boolean
+  minLeverageForLiquidation: number | null
+  liquidationPriceAtMinLeverage: number | null
+  liquidationDistanceAtMinLeverage: number | null
+  liquidationFallbackExplanation: string | null
+  hasInputError: boolean
+  inputErrorMessage: string | null
 
   // Stop loss
   suggestedStopPrice: number      // 1.5x ATR
+  effectiveStopPrice: number
+  usedCustomStop: boolean
+  stopValidationMessage: string | null
   lossAtStop: number              // USD
   lossAtStopPercent: number       // % of account
 
   // Target / reward
   suggestedTargetPrice: number    // 2:1 R:R from suggested stop
+  effectiveTargetPrice: number
+  usedCustomTarget: boolean
+  targetValidationMessage: string | null
   profitAtTarget: number          // USD
   profitAtTargetPercent: number   // % of account
 

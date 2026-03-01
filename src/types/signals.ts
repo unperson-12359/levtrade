@@ -47,6 +47,23 @@ export interface VolatilityResult {
   explanation: string
 }
 
+export type EntryQuality = 'ideal' | 'early' | 'extended' | 'chasing' | 'no-edge'
+export type DecisionAction = 'long' | 'short' | 'wait' | 'avoid'
+export type RiskStatus = 'safe' | 'borderline' | 'danger' | 'unknown'
+
+export interface EntryGeometryResult {
+  distanceFromMeanPct: number
+  stretchZEquivalent: number
+  atrDislocation: number
+  bandPosition: number
+  reversionPotential: number
+  chaseRisk: number
+  entryQuality: EntryQuality
+  directionBias: 'long' | 'short' | 'neutral'
+  color: SignalColor
+  explanation: string
+}
+
 export interface CompositeSignal {
   value: number               // -1 to +1
   direction: 'long' | 'short' | 'neutral'
@@ -71,7 +88,12 @@ export interface AssetSignals {
   funding: FundingResult
   oiDelta: OIDeltaResult
   volatility: VolatilityResult
+  entryGeometry: EntryGeometryResult
   composite: CompositeSignal
+  decisionAction: DecisionAction
+  decisionLabel: string
+  decisionReasons: string[]
+  riskStatus: RiskStatus
   updatedAt: number
   isStale: boolean            // data > 5 min old
   isWarmingUp: boolean        // insufficient candles

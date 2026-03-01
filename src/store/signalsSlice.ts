@@ -2,7 +2,17 @@ import type { StateCreator } from 'zustand'
 import { TRACKED_COINS, type TrackedCoin } from '../types/market'
 import type { AssetSignals } from '../types/signals'
 import type { AppStore } from '.'
-import { computeHurst, computeZScore, computeFundingZScore, computeOIDelta, computeATR, computeRealizedVol, computeComposite } from '../signals'
+import {
+  computeATR,
+  computeComposite,
+  computeDecisionState,
+  computeEntryGeometry,
+  computeFundingZScore,
+  computeHurst,
+  computeOIDelta,
+  computeRealizedVol,
+  computeZScore,
+} from '../signals'
 
 export interface SignalsSlice {
   signals: Record<TrackedCoin, AssetSignals | null>
@@ -21,6 +31,7 @@ function initSignals(): Record<TrackedCoin, AssetSignals | null> {
 
 const MIN_CANDLES_HURST = 100
 const MIN_CANDLES_ZSCORE = 20
+const STALE_AFTER_MS = 3 * 60 * 1000
 
 export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = (set, get) => ({
   signals: initSignals(),
@@ -46,12 +57,26 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
     const atr = computeATR(candles)
     const volatility = { ...volResult, atr }
 
+    // Entry timing geometry
+    const entryGeometry = computeEntryGeometry(closes, atr, MIN_CANDLES_ZSCORE)
+
     // Composite
     const composite = computeComposite(hurst, zScore, funding, oiDelta)
 
     // Warmup status
     const isWarmingUp = candles.length < MIN_CANDLES_HURST
     const warmupProgress = Math.min(1, candles.length / MIN_CANDLES_HURST)
+    const isStale = state.lastUpdate === null
+      ? true
+      : (Date.now() - state.lastUpdate) > STALE_AFTER_MS
+
+    const decision = computeDecisionState({
+      composite,
+      entryGeometry,
+      hurst,
+      isStale,
+      isWarmingUp,
+    })
 
     const result: AssetSignals = {
       coin,
@@ -60,9 +85,14 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
       funding,
       oiDelta,
       volatility,
+      entryGeometry,
       composite,
+      decisionAction: decision.action,
+      decisionLabel: decision.label,
+      decisionReasons: decision.reasons,
+      riskStatus: 'unknown',
       updatedAt: Date.now(),
-      isStale: candles.length > 0 ? (Date.now() - candles[candles.length - 1]!.time) > 5 * 60 * 1000 : false,
+      isStale,
       isWarmingUp,
       warmupProgress,
     }
@@ -70,6 +100,9 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
     set((state) => ({
       signals: { ...state.signals, [coin]: result },
     }))
+
+    const referencePrice = state.prices[coin] ?? closes[closes.length - 1] ?? 0
+    get().trackSignals(coin, result, referencePrice)
   },
 
   computeAllSignals: () => {

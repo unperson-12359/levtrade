@@ -15,6 +15,10 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
     return emptyOutputs()
   }
 
+  if (stopPrice !== null && stopPrice === entryPrice) {
+    return invalidInputOutputs('Stop cannot equal entry price.')
+  }
+
   // --- Liquidation (cross-margin: entire account backs the position) ---
   const maintenanceMarginRate = 0.005 // 0.5% typical
   const effectivePos = positionSize > 0 ? positionSize : accountSize * leverage
@@ -38,9 +42,14 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
     liquidationPrice = Math.max(0, liquidationPrice)
   }
 
+  const hasLiquidation = Number.isFinite(liquidationPrice) && liquidationPrice > 0
+  const effectiveImmune = !hasLiquidation
   const liquidationDistance = liquidationPrice === Infinity || liquidationPrice <= 0
     ? 100
     : Math.abs(liquidationPrice - entryPrice) / entryPrice * 100
+  const liquidationFallback = effectiveImmune
+    ? findMinimumLiquidationScenario(inputs)
+    : null
 
   // --- Suggested Stop (1.5x ATR) ---
   const atrStop = atr > 0 ? atr * 1.5 : entryPrice * 0.02 // fallback: 2%
@@ -49,9 +58,10 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
       ? entryPrice - atrStop
       : entryPrice + atrStop
 
-  // Use user's stop if provided, otherwise suggested
-  const effectiveStop = stopPrice ?? suggestedStopPrice
-  const stopDistance = Math.abs(entryPrice - effectiveStop)
+  const stopValidationMessage = validateStop(direction, entryPrice, stopPrice)
+  const usedCustomStop = stopPrice !== null && stopValidationMessage === null
+  const effectiveStopPrice = usedCustomStop ? stopPrice! : suggestedStopPrice
+  const stopDistance = Math.abs(entryPrice - effectiveStopPrice)
 
   // --- Loss at Stop ---
   const effectivePositionSize = positionSize > 0 ? positionSize : accountSize * leverage
@@ -64,8 +74,10 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
       ? entryPrice + stopDistance * 2
       : entryPrice - stopDistance * 2
 
-  const effectiveTarget = targetPrice ?? suggestedTargetPrice
-  const targetDistance = Math.abs(effectiveTarget - entryPrice)
+  const targetValidationMessage = validateTarget(direction, entryPrice, targetPrice)
+  const usedCustomTarget = targetPrice !== null && targetValidationMessage === null
+  const effectiveTargetPrice = usedCustomTarget ? targetPrice! : suggestedTargetPrice
+  const targetDistance = Math.abs(effectiveTargetPrice - entryPrice)
   const profitAtTarget = effectivePositionSize * (targetDistance / entryPrice)
   const profitAtTargetPercent = accountSize > 0 ? (profitAtTarget / accountSize) * 100 : 0
 
@@ -95,10 +107,24 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
   return {
     liquidationPrice,
     liquidationDistance,
+    hasLiquidation,
+    effectiveImmune,
+    minLeverageForLiquidation: liquidationFallback?.leverage ?? null,
+    liquidationPriceAtMinLeverage: liquidationFallback?.price ?? null,
+    liquidationDistanceAtMinLeverage: liquidationFallback?.distancePct ?? null,
+    liquidationFallbackExplanation: liquidationFallback?.explanation ?? null,
+    hasInputError: false,
+    inputErrorMessage: null,
     suggestedStopPrice,
+    effectiveStopPrice,
+    usedCustomStop,
+    stopValidationMessage,
     lossAtStop,
     lossAtStopPercent,
     suggestedTargetPrice,
+    effectiveTargetPrice,
+    usedCustomTarget,
+    targetValidationMessage,
     profitAtTarget,
     profitAtTargetPercent,
     rrRatio,
@@ -197,10 +223,24 @@ function emptyOutputs(): RiskOutputs {
   return {
     liquidationPrice: 0,
     liquidationDistance: 0,
+    hasLiquidation: false,
+    effectiveImmune: true,
+    minLeverageForLiquidation: null,
+    liquidationPriceAtMinLeverage: null,
+    liquidationDistanceAtMinLeverage: null,
+    liquidationFallbackExplanation: null,
+    hasInputError: false,
+    inputErrorMessage: null,
     suggestedStopPrice: 0,
+    effectiveStopPrice: 0,
+    usedCustomStop: false,
+    stopValidationMessage: null,
     lossAtStop: 0,
     lossAtStopPercent: 0,
     suggestedTargetPrice: 0,
+    effectiveTargetPrice: 0,
+    usedCustomTarget: false,
+    targetValidationMessage: null,
     profitAtTarget: 0,
     profitAtTargetPercent: 0,
     rrRatio: 0,
@@ -210,4 +250,109 @@ function emptyOutputs(): RiskOutputs {
     tradeGradeLabel: 'ENTER PARAMETERS',
     tradeGradeExplanation: 'Fill in the form to see your risk analysis.',
   }
+}
+
+function invalidInputOutputs(message: string): RiskOutputs {
+  return {
+    liquidationPrice: 0,
+    liquidationDistance: 0,
+    hasLiquidation: false,
+    effectiveImmune: true,
+    minLeverageForLiquidation: null,
+    liquidationPriceAtMinLeverage: null,
+    liquidationDistanceAtMinLeverage: null,
+    liquidationFallbackExplanation: null,
+    hasInputError: true,
+    inputErrorMessage: message,
+    suggestedStopPrice: 0,
+    effectiveStopPrice: 0,
+    usedCustomStop: false,
+    stopValidationMessage: null,
+    lossAtStop: 0,
+    lossAtStopPercent: 0,
+    suggestedTargetPrice: 0,
+    effectiveTargetPrice: 0,
+    usedCustomTarget: false,
+    targetValidationMessage: null,
+    profitAtTarget: 0,
+    profitAtTargetPercent: 0,
+    rrRatio: 0,
+    suggestedPositionSize: 0,
+    suggestedLeverage: 0,
+    tradeGrade: 'red',
+    tradeGradeLabel: 'INVALID INPUT',
+    tradeGradeExplanation: 'Stop cannot equal entry price. Move the stop away from entry to calculate risk.',
+  }
+}
+
+function findMinimumLiquidationScenario(inputs: RiskInputs): {
+  leverage: number
+  price: number
+  distancePct: number
+  explanation: string
+} | null {
+  for (let testLeverage = 1; testLeverage <= 100; testLeverage += 0.5) {
+    const liquidationPrice = computeLiquidationPrice({
+      ...inputs,
+      leverage: testLeverage,
+    })
+    const hasLiquidation = Number.isFinite(liquidationPrice) && liquidationPrice > 0
+
+    if (hasLiquidation) {
+      const distancePct = Math.abs(liquidationPrice - inputs.entryPrice) / inputs.entryPrice * 100
+      return {
+        leverage: testLeverage,
+        price: liquidationPrice,
+        distancePct,
+        explanation: `Liquidation first appears around ${testLeverage.toFixed(1)}x, where the liquidation level would be ${liquidationPrice.toFixed(2)}.`,
+      }
+    }
+  }
+
+  return null
+}
+
+function computeLiquidationPrice(inputs: Pick<RiskInputs, 'direction' | 'entryPrice' | 'accountSize' | 'positionSize' | 'leverage'>): number {
+  const { direction, entryPrice, accountSize, positionSize, leverage } = inputs
+  const maintenanceMarginRate = 0.005
+  const effectivePos = positionSize > 0 ? positionSize : accountSize * leverage
+  const marginUsed = effectivePos / leverage
+  const availableMargin = accountSize - marginUsed
+  const maintenanceMargin = effectivePos * maintenanceMarginRate
+  const marginBuffer = availableMargin - maintenanceMargin
+
+  let liquidationPrice: number
+  if (marginBuffer <= 0) {
+    liquidationPrice = entryPrice
+  } else if (marginBuffer >= effectivePos) {
+    liquidationPrice = direction === 'long' ? 0 : Infinity
+  } else {
+    liquidationPrice = direction === 'long'
+      ? entryPrice * (1 - marginBuffer / effectivePos)
+      : entryPrice * (1 + marginBuffer / effectivePos)
+  }
+
+  return direction === 'long' ? Math.max(0, liquidationPrice) : liquidationPrice
+}
+
+function validateStop(direction: RiskInputs['direction'], entryPrice: number, stopPrice: number | null): string | null {
+  if (stopPrice === null) return null
+  if (direction === 'long' && stopPrice >= entryPrice) {
+    return 'Long stops must stay below entry, so auto stop is being used instead.'
+  }
+  if (direction === 'short' && stopPrice <= entryPrice) {
+    return 'Short stops must stay above entry, so auto stop is being used instead.'
+  }
+  return null
+}
+
+function validateTarget(direction: RiskInputs['direction'], entryPrice: number, targetPrice: number | null): string | null {
+  if (targetPrice === null) return null
+  if (direction === 'long' && targetPrice <= entryPrice) {
+    return 'Long targets must stay above entry, so auto target is being used instead.'
+  }
+  if (direction === 'short' && targetPrice >= entryPrice) {
+    return 'Short targets must stay below entry, so auto target is being used instead.'
+  }
+  return null
 }

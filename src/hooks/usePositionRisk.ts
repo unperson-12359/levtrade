@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useStore } from '../store'
 import { computeRisk } from '../signals/risk'
+import type { RiskStatus } from '../types/signals'
 
 export function usePositionRisk() {
   const riskInputs = useStore((s) => s.riskInputs)
@@ -14,11 +15,20 @@ export function usePositionRisk() {
     return computeRisk(riskInputs, atr)
   }, [riskInputs, signals?.volatility.atr])
 
+  const riskStatus: RiskStatus = riskOutputs
+    ? riskOutputs.tradeGrade === 'green'
+      ? 'safe'
+      : riskOutputs.tradeGrade === 'yellow'
+        ? 'borderline'
+        : 'danger'
+    : 'unknown'
+
   return {
     inputs: riskInputs,
     outputs: riskOutputs,
     updateInput: updateRiskInput,
     resetInputs: resetRiskInputs,
+    riskStatus,
     isReady: riskOutputs !== null,
   }
 }

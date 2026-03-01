@@ -2,9 +2,10 @@ import type { TrackedCoin } from '../../types/market'
 import { useStore } from '../../store'
 import { useMarketData } from '../../hooks/useMarketData'
 import { useSignals } from '../../hooks/useSignals'
+import { useEntryDecision } from '../../hooks/useEntryDecision'
 import { TrafficLight } from '../shared/TrafficLight'
-import { formatPrice, formatPercent } from '../../utils/format'
-import { SIGNAL_TEXT_CLASSES } from '../../utils/colors'
+import { Tooltip } from '../shared/Tooltip'
+import { formatPercent, formatPrice } from '../../utils/format'
 
 interface AssetPillProps {
   coin: TrackedCoin
@@ -14,48 +15,41 @@ export function AssetPill({ coin }: AssetPillProps) {
   const selectedCoin = useStore((s) => s.selectedCoin)
   const selectCoin = useStore((s) => s.selectCoin)
   const { price, dayChange, isLoading } = useMarketData(coin)
-  const { regimeColor, signalColor, overallStatus, overallStatusColor } = useSignals(coin)
+  const { regimeColor, signalColor } = useSignals(coin)
+  const decision = useEntryDecision(coin)
 
   const isSelected = selectedCoin === coin
-  const changeColor = dayChange && dayChange >= 0 ? 'text-signal-green' : 'text-signal-red'
+  const dayTone = dayChange !== null && dayChange >= 0 ? 'text-signal-green' : 'text-signal-red'
+  const riskColor = decision.riskStatus === 'safe' ? 'green' : decision.riskStatus === 'borderline' ? 'yellow' : decision.riskStatus === 'danger' ? 'red' : 'yellow'
 
   return (
     <button
       onClick={() => selectCoin(coin)}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 shrink-0 ${
-        isSelected
-          ? 'border-signal-blue/40 bg-signal-blue/5'
-          : 'border-border-subtle bg-bg-card hover:bg-bg-card-hover'
-      }`}
+      className={`asset-pill ${isSelected ? 'asset-pill--active' : ''}`}
     >
-      {/* Coin name & price */}
-      <div className="text-left">
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm font-semibold text-text-primary">{coin}</span>
-          {dayChange !== null && (
-            <span className={`font-mono text-sm ${changeColor}`}>
-              {formatPercent(dayChange, 1)}
-            </span>
-          )}
+      <div className="asset-pill__meta">
+        <div className="asset-pill__row">
+          <span className="asset-pill__symbol">{coin}</span>
+          {dayChange !== null && <span className={`asset-pill__change ${dayTone}`}>{formatPercent(dayChange, 1)}</span>}
         </div>
-        <div className="font-mono text-sm text-text-secondary">
-          {isLoading ? '...' : price ? formatPrice(price, coin) : '—'}
-        </div>
+        <div className="asset-pill__price">{isLoading ? '...' : price ? formatPrice(price, coin) : '--'}</div>
       </div>
 
-      {/* Traffic lights */}
-      <div className="flex items-center gap-1">
-        <TrafficLight color={regimeColor} size="sm" label="Regime" />
-        <TrafficLight color={signalColor} size="sm" label="Signal" />
-        <TrafficLight color="yellow" size="sm" label="Risk" />
+      <div className="asset-pill__lights">
+        <Tooltip content="Step 1: Regime — Is the market favorable?">
+          <TrafficLight color={regimeColor} size="sm" label="Regime" />
+        </Tooltip>
+        <Tooltip content="Step 2: Signal — Is there a trade setup?">
+          <TrafficLight color={signalColor} size="sm" label="Signal" />
+        </Tooltip>
+        <Tooltip content="Step 3: Risk — Is the position sized correctly?">
+          <TrafficLight color={riskColor} size="sm" label="Risk" />
+        </Tooltip>
       </div>
 
-      {/* Overall status */}
-      {overallStatus && (
-        <span className={`text-xs font-bold tracking-wider ${SIGNAL_TEXT_CLASSES[overallStatusColor]}`}>
-          {overallStatus}
-        </span>
-      )}
+      <span className={`asset-pill__decision asset-pill__decision--${decision.color}`}>
+        {decision.label.replace('ENTER ', '')}
+      </span>
     </button>
   )
 }

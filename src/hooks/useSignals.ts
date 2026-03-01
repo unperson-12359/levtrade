@@ -15,6 +15,8 @@ export function useSignals(coin: TrackedCoin) {
     isReady: signals !== null && !signals.isWarmingUp,
     isWarmingUp: signals?.isWarmingUp ?? true,
     warmupProgress: signals?.warmupProgress ?? 0,
+    decisionAction: signals?.decisionAction ?? 'wait',
+    decisionLabel: signals?.decisionLabel ?? 'WAIT',
     overallStatus: status,
     overallStatusColor: statusColor,
     regimeColor: signals?.hurst.color ?? 'yellow' as const,

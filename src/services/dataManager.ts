@@ -157,8 +157,10 @@ export class DataManager {
           }
         }
 
-        // Trigger signal recomputation
+        // Trigger signal recomputation and resolve tracker outcomes
         this.store.getState().computeAllSignals()
+        this.store.getState().resolveTrackedOutcomes()
+        this.store.getState().pruneTrackerHistory()
       } catch {
         // Polling errors are non-fatal — next poll will try again
       }

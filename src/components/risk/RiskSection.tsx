@@ -1,19 +1,21 @@
-import { CollapsibleSection } from '../shared/CollapsibleSection'
+import { StepLabel } from '../methodology/StepLabel'
 import { RiskForm } from './RiskForm'
 import { RiskResults } from './RiskResults'
 
 export function RiskSection() {
   return (
-    <CollapsibleSection
-      id="risk"
-      title="Risk Calculator"
-      subtitle="What happens if I'm wrong?"
-      defaultExpanded
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <aside className="risk-stack">
+      <section className="panel-shell">
+        <StepLabel step={3} />
+        <div className="panel-header">
+          <div>
+            <div className="panel-kicker">Risk Console</div>
+            <h2 className="panel-title">Size your position and check risk</h2>
+          </div>
+        </div>
         <RiskForm />
-        <RiskResults />
-      </div>
-    </CollapsibleSection>
+      </section>
+      <RiskResults />
+    </aside>
   )
 }
