@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import type { TradeDirection } from '../../types/risk'
 import { TRACKED_COINS } from '../../types/market'
 import { usePositionRisk } from '../../hooks/usePositionRisk'
@@ -9,12 +10,72 @@ import { formatUSD } from '../../utils/format'
 const LEVERAGE_CHIPS = [1, 5, 10, 20, 40]
 const MAX_LEVERAGE = 40
 
+/**
+ * Local-string-state wrapper for numeric inputs.
+ * Keeps raw text during editing so keystrokes are never eaten;
+ * commits a parsed (and optionally clamped) number to the store on blur / Enter.
+ * Eagerly commits valid numbers on each keystroke for live derived-value feedback.
+ */
+function useNumericInput(
+  storeValue: number,
+  commit: (v: number) => void,
+  opts?: { min?: number; max?: number; fallback?: number }
+) {
+  const [text, setText] = useState(storeValue ? String(storeValue) : '')
+  const prev = useRef(storeValue)
+
+  // Sync from store when the value changes externally
+  // (e.g. "Use current" button, leverage chips, coin switch)
+  if (storeValue !== prev.current) {
+    prev.current = storeValue
+    setText(storeValue ? String(storeValue) : '')
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value
+    setText(raw)
+    // Eagerly commit valid numbers so derived values (notional, verdicts) update live
+    const n = parseFloat(raw)
+    if (!isNaN(n)) {
+      let v = n
+      if (opts?.min != null) v = Math.max(opts.min, v)
+      if (opts?.max != null) v = Math.min(opts.max, v)
+      commit(v)
+      prev.current = v
+    }
+  }
+
+  const handleBlur = () => {
+    let n = parseFloat(text)
+    if (isNaN(n)) n = opts?.fallback ?? 0
+    if (opts?.min != null) n = Math.max(opts.min, n)
+    if (opts?.max != null) n = Math.min(opts.max, n)
+    commit(n)
+    setText(n ? String(n) : '')
+    prev.current = n
+  }
+
+  return {
+    value: text,
+    onChange: handleChange,
+    onBlur: handleBlur,
+    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter') (e.target as HTMLElement).blur() },
+  }
+}
+
 export function RiskForm() {
   const { inputs, outputs, updateInput } = usePositionRisk()
   const selectCoin = useStore((s) => s.selectCoin)
   const prices = useStore((s) => s.prices)
   const { price } = useMarketData(inputs.coin)
   const notional = inputs.positionSize > 0 ? inputs.positionSize * inputs.leverage : 0
+
+  const entryPrice = useNumericInput(inputs.entryPrice, (v) => updateInput('entryPrice', v))
+  const capital = useNumericInput(inputs.accountSize, (v) => updateInput('accountSize', v))
+  const margin = useNumericInput(inputs.positionSize, (v) => updateInput('positionSize', v))
+  const leverageInput = useNumericInput(inputs.leverage, (v) => updateInput('leverage', v), { min: 1, max: MAX_LEVERAGE, fallback: 1 })
+  const stopPrice = useNumericInput(inputs.stopPrice ?? 0, (v) => updateInput('stopPrice', v > 0 ? v : null))
+  const targetPrice = useNumericInput(inputs.targetPrice ?? 0, (v) => updateInput('targetPrice', v > 0 ? v : null))
 
   return (
     <div className="space-y-3">
@@ -27,9 +88,11 @@ export function RiskForm() {
               <button
                 key={coin}
                 onClick={() => {
-                  selectCoin(coin)
-                  const nextPrice = prices[coin]
-                  if (nextPrice) updateInput('entryPrice', nextPrice)
+                  if (inputs.coin !== coin) {
+                    selectCoin(coin)
+                    const nextPrice = prices[coin]
+                    if (nextPrice) updateInput('entryPrice', nextPrice)
+                  }
                 }}
                 className={`rounded-md border px-2 py-1.5 text-xs font-semibold transition-colors ${
                   inputs.coin === coin
@@ -79,8 +142,7 @@ export function RiskForm() {
         </div>
         <input
           type="number"
-          value={inputs.entryPrice || ''}
-          onChange={(e) => updateInput('entryPrice', parseFloat(e.target.value) || 0)}
+          {...entryPrice}
           className="w-full rounded-lg border border-border-subtle bg-bg-input px-3 py-1.5 font-mono text-sm text-text-primary focus:border-border-focus focus:outline-none"
           placeholder="0.00"
         />
@@ -88,18 +150,8 @@ export function RiskForm() {
 
       {/* Row 3: Capital + Margin + Leverage */}
       <div className="grid grid-cols-3 gap-2">
-        <CompactField
-          label="Capital"
-          value={inputs.accountSize || ''}
-          onChange={(v) => updateInput('accountSize', v)}
-          placeholder="1000"
-        />
-        <CompactField
-          label="Margin"
-          value={inputs.positionSize || ''}
-          onChange={(v) => updateInput('positionSize', v)}
-          placeholder="100"
-        />
+        <CompactField label="Capital" {...capital} placeholder="1000" />
+        <CompactField label="Margin" {...margin} placeholder="100" />
         <div>
           <label className="block text-sm font-medium text-text-muted mb-1">Leverage</label>
           <div className="relative">
@@ -108,8 +160,7 @@ export function RiskForm() {
               min={1}
               max={MAX_LEVERAGE}
               step={0.5}
-              value={inputs.leverage}
-              onChange={(e) => updateInput('leverage', Math.min(MAX_LEVERAGE, Math.max(1, parseFloat(e.target.value) || 1)))}
+              {...leverageInput}
               className="w-full rounded-lg border border-border-subtle bg-bg-input px-3 py-1.5 pr-6 font-mono text-sm text-text-primary focus:border-border-focus focus:outline-none"
             />
             <span
@@ -150,14 +201,12 @@ export function RiskForm() {
       <div className="grid grid-cols-2 gap-2">
         <CompactField
           label="Stop Price"
-          value={inputs.stopPrice ?? ''}
-          onChange={(v) => updateInput('stopPrice', v > 0 ? v : null)}
+          {...stopPrice}
           placeholder={outputs?.suggestedStopPrice ? `Auto ${outputs.suggestedStopPrice.toFixed(1)}` : 'Auto (1.5× ATR)'}
         />
         <CompactField
           label="Target Price"
-          value={inputs.targetPrice ?? ''}
-          onChange={(v) => updateInput('targetPrice', v > 0 ? v : null)}
+          {...targetPrice}
           placeholder={outputs?.suggestedTargetPrice ? `Auto ${outputs.suggestedTargetPrice.toFixed(1)}` : 'Auto (2:1 R:R)'}
         />
       </div>
@@ -170,11 +219,15 @@ function CompactField({
   label,
   value,
   onChange,
+  onBlur,
+  onKeyDown,
   placeholder,
 }: {
   label: string
-  value: number | ''
-  onChange: (value: number) => void
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onBlur: () => void
+  onKeyDown: (e: React.KeyboardEvent) => void
   placeholder: string
 }) {
   return (
@@ -183,7 +236,9 @@ function CompactField({
       <input
         type="number"
         value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        onChange={onChange}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
         className="w-full rounded-lg border border-border-subtle bg-bg-input px-3 py-1.5 font-mono text-sm text-text-primary focus:border-border-focus focus:outline-none"
         placeholder={placeholder}
       />

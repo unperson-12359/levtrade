@@ -36,11 +36,9 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
   selectCoin: (coin) =>
     set((state) => ({
       selectedCoin: coin,
-      // Update risk inputs coin + entry price
       riskInputs: {
         ...state.riskInputs,
         coin,
-        entryPrice: state.prices[coin] ?? state.riskInputs.entryPrice,
       },
       riskInputsUpdatedAt: Date.now(),
     })),
