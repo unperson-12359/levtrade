@@ -34,6 +34,7 @@
 
 :root {
   color-scheme: dark;
+  --sticky-top-offset: 5rem;
 }
 
 html,
@@ -228,6 +229,14 @@ button {
   min-width: 0;
 }
 
+.dashboard-risk__sticky {
+  position: sticky;
+  top: var(--sticky-top-offset);
+  max-height: calc(100vh - var(--sticky-top-offset) - 1rem);
+  overflow-y: auto;
+  min-width: 0;
+}
+
 .dashboard-rail {
   min-width: 0;
 }
@@ -250,6 +259,19 @@ button {
 
 .panel-shell--chart {
   padding: 1rem 1rem 1.1rem;
+}
+
+.chart-anchor {
+  position: sticky;
+  top: var(--sticky-top-offset);
+  z-index: 10;
+  min-width: 0;
+  border-radius: 1.25rem;
+}
+
+.chart-anchor > .panel-shell {
+  background: var(--color-bg-card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .subpanel-shell,
@@ -1369,6 +1391,23 @@ button {
 
   .dashboard-shell {
     grid-template-columns: 1fr;
+  }
+
+  .chart-anchor {
+    position: static;
+    top: auto;
+    z-index: auto;
+  }
+
+  .chart-anchor > .panel-shell {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+  }
+
+  .dashboard-risk__sticky {
+    position: static;
+    top: auto;
+    max-height: none;
+    overflow-y: visible;
   }
 
   .market-rail-grid,

@@ -949,3 +949,49 @@ Fix the 4 issues identified in the Codex review entry above. Restore a clean bui
 
 ### Build
 - `npm run build`: 113 modules, 0 errors, 1.88s
+
+---
+
+## 2026-03-01 - Codex  Chart-Centric Sticky Layout Refinement
+
+### Goal
+Improve the chart-centric layout proposal by making the chart the first visible element in the main column, keeping the right-side risk console sticky without turning the whole column into a scroll trap, and preserving the existing Step 2 setup flow.
+
+### Files Changed
+- `src/components/layout/DashboardLayout.tsx`
+- `src/components/signal/SignalSection.tsx`
+- `src/index.css`
+
+### What changed
+- Moved `PriceChart` out of `SignalSection` and into `DashboardLayout` as the first element in the main workflow column.
+- Wrapped the chart in a dedicated `chart-anchor` sticky container so price action stays visible under the top bar on desktop.
+- Kept a small chart heading/copy in the new anchor so the chart still has context after extraction from Step 2.
+- Removed the duplicate chart block from `SignalSection` so Step 2 now focuses on setup guidance, setup card, and advanced details.
+- Made the risk column sticky via an inner `.dashboard-risk__sticky` wrapper instead of making the whole aside the scroll container.
+- Disabled sticky behavior for both chart and risk column at `<= 960px` so tablet/mobile keeps the normal stacked flow.
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: 0
+- Warnings: 0
+- Modules transformed: 113
+- Output sizes:
+  - `dist/index.html`: 0.46 kB (gzip 0.31 kB)
+  - `dist/assets/index-BXa0EFPI.css`: 52.30 kB (gzip 9.52 kB)
+  - `dist/assets/index-CEByXjcN.js`: 496.16 kB (gzip 152.64 kB)
+
+### Notes
+- Used a shared CSS variable `--sticky-top-offset` instead of hardcoding `64px` directly into multiple sticky rules.
+- The chart anchor stays below the sticky top bar and above scrolling panels (`z-index: 10`), while remaining below the top bar (`z-50`) and signal drawer (`59/60`).
+- This pass did not change signal logic, chart overlays, or setup generation behavior.
+
+### Release
+- Commit: `241bd39`
+- Branch: `master`
+- Pushed to: `origin/master`
+
+### Deployment
+- Latest production deployment: `https://levtrade-l44e4qsaj-unperson12359s-projects.vercel.app`
+- Production alias: `https://levtrade.vercel.app`
+- Deployment status: `Ready`
+- Alias verification: HTTP `200`

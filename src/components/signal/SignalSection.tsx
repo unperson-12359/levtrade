@@ -4,7 +4,6 @@ import { useSignals } from '../../hooks/useSignals'
 import { useStore } from '../../store'
 import type { SignalSeriesKind } from '../../utils/provenance'
 import { getEntryWorkflowGuidance, getMarketWorkflowGuidance } from '../../utils/workflowGuidance'
-import { PriceChart } from '../chart/PriceChart'
 import { EntryGeometryPanel } from '../entry/EntryGeometryPanel'
 import { StepLabel } from '../methodology/StepLabel'
 import { ExpandableSection } from '../shared/ExpandableSection'
@@ -85,14 +84,6 @@ export function SignalSection() {
       <div className={`action-guidance action-guidance--${guidance.tone}`}>{guidance.action}</div>
 
       <SetupCard coin={coin} />
-
-      <div className="signal-chart-block">
-        <div className="panel-kicker">Price map</div>
-        <p className="panel-copy signal-chart-block__copy">
-          Use the chart below to see whether price is stretched enough from its average to justify an entry.
-        </p>
-        <PriceChart coin={coin} embedded showHeader={false} />
-      </div>
 
       <ExpandableSection sectionId="step2-advanced" title="advanced signal details">
         <div className="breakdown-grid">

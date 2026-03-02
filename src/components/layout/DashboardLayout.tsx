@@ -2,6 +2,7 @@ import { useCloudSync } from '../../hooks/useCloudSync'
 import { useDataManager } from '../../hooks/useDataManager'
 import { useTrackDecisionSnapshot } from '../../hooks/useTrackDecisionSnapshot'
 import { useStore } from '../../store'
+import { PriceChart } from '../chart/PriceChart'
 import { TrustPanel } from '../claims/TrustPanel'
 import { AccuracyPanel } from '../tracker/AccuracyPanel'
 import { DecisionHero } from '../decision/DecisionHero'
@@ -17,6 +18,7 @@ export function DashboardLayout() {
   useTrackDecisionSnapshot()
   const { syncNow } = useCloudSync()
 
+  const coin = useStore((s) => s.selectedCoin)
   const errors = useStore((s) => s.errors)
   const clearErrors = useStore((s) => s.clearErrors)
   return (
@@ -48,6 +50,15 @@ export function DashboardLayout() {
 
       <main className="dashboard-shell">
         <section className="workspace-stack dashboard-main">
+          <div className="chart-anchor">
+            <section className="panel-shell panel-shell--chart">
+              <div className="panel-kicker">Price map</div>
+              <p className="panel-copy signal-chart-block__copy">
+                Keep price action, stretch, and key levels in view while you work through the setup checklist below.
+              </p>
+              <PriceChart coin={coin} embedded showHeader={false} />
+            </section>
+          </div>
           <DecisionHero />
           <MarketRail />
           <SignalSection />
@@ -57,7 +68,9 @@ export function DashboardLayout() {
         </section>
 
         <aside className="dashboard-risk">
-          <RiskSection />
+          <div className="dashboard-risk__sticky">
+            <RiskSection />
+          </div>
         </aside>
       </main>
     </div>
