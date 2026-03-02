@@ -1,16 +1,18 @@
+import { lazy, Suspense } from 'react'
 import { useCloudSync } from '../../hooks/useCloudSync'
 import { useDataManager } from '../../hooks/useDataManager'
 import { useStore } from '../../store'
 import { INTERVALS } from '../../config/intervals'
-import { AnalyticsPage } from '../analytics/AnalyticsPage'
 import { PriceChart } from '../chart/PriceChart'
 import { DecisionHero } from '../decision/DecisionHero'
 import { MarketRail } from '../market/MarketRail'
-import { HowItWorks } from '../guide/HowItWorks'
 import { MenuDrawer } from '../menu/MenuDrawer'
 import { RiskSection } from '../risk/RiskSection'
 import { SignalSection } from '../signal/SignalSection'
 import { TopBar } from '../topbar/TopBar'
+
+const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })))
+const HowItWorks = lazy(() => import('../guide/HowItWorks').then((m) => ({ default: m.HowItWorks })))
 
 export function DashboardLayout() {
   useDataManager()
@@ -47,8 +49,12 @@ export function DashboardLayout() {
 
       <TopBar />
       <MenuDrawer onSyncNow={syncNow} />
-      <HowItWorks />
-      <AnalyticsPage />
+      <Suspense fallback={null}>
+        <HowItWorks />
+      </Suspense>
+      <Suspense fallback={null}>
+        <AnalyticsPage />
+      </Suspense>
 
       <main className="dashboard-shell">
         <section className="workspace-stack dashboard-main">

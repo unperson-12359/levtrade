@@ -1,6 +1,7 @@
 import { usePositionRisk } from '../../hooks/usePositionRisk'
 import { useEntryDecision } from '../../hooks/useEntryDecision'
 import { formatPercent, formatPrice, formatUSD } from '../../utils/format'
+import { formatRR } from '../../utils/setupFormat'
 import { SIGNAL_COLORS, SIGNAL_TEXT_CLASSES } from '../../utils/colors'
 import { getEntryWorkflowGuidance, getMarketWorkflowGuidance, getRiskWorkflowGuidance } from '../../utils/workflowGuidance'
 import { SignalBadge } from '../shared/SignalBadge'
@@ -72,7 +73,7 @@ export function RiskResults() {
             <section className="subpanel-shell">
               <div className="panel-kicker">Reward geometry</div>
               <div className="stat-grid">
-                <Stat label={<JargonTerm term="R:R" />} value={`${outputs.rrRatio.toFixed(1)} : 1`} tone={rrColor} />
+                <Stat label={<JargonTerm term="R:R" />} value={formatRR(outputs.rrRatio)} tone={rrColor} />
                 <Stat label="Target payout" value={formatUSD(outputs.profitAtTarget)} tone="green" />
                 <Stat label="Effective target" value={formatPrice(outputs.effectiveTargetPrice, inputs.coin)} tone="green" />
                 <Stat label="Suggested target" value={formatPrice(outputs.suggestedTargetPrice, inputs.coin)} tone="yellow" />

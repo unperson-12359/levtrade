@@ -38,8 +38,8 @@ function initRecord<T>(defaultVal: T): Record<TrackedCoin, T> {
   return result
 }
 
-const MAX_FUNDING_HISTORY = 200
-const MAX_OI_HISTORY = 200
+import { MAX_FUNDING_HISTORY, MAX_OI_HISTORY } from '../config/constants'
+
 const MS_PER_HOUR = 60 * 60 * 1000
 
 export const createMarketDataSlice: StateCreator<AppStore, [], [], MarketDataSlice> = (set) => ({

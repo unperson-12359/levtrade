@@ -342,7 +342,7 @@ function computeATR(candles, period = 14) {
   }
   return atr;
 }
-function computeRealizedVol(closes, period = 20) {
+function computeRealizedVol(closes, period = 20, periodsPerYear = 8760) {
   if (closes.length < period + 1) {
     return {
       realizedVol: 0,
@@ -373,7 +373,7 @@ function computeRealizedVol(closes, period = 20) {
   const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
   const variance = returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / returns.length;
   const hourlyVol = Math.sqrt(variance);
-  const annualizedVol = hourlyVol * Math.sqrt(8760) * 100;
+  const annualizedVol = hourlyVol * Math.sqrt(periodsPerYear) * 100;
   const { level, color } = classifyVol(annualizedVol);
   const explanation = buildExplanation4(annualizedVol, level);
   return { realizedVol: annualizedVol, atr: 0, level, color, explanation };
@@ -602,6 +602,14 @@ function buildExplanation6(direction, strength, breakdown, hurst) {
   }
   return `${dirWord} with ${strengthWord} conviction. ${signalDetail}${regimeNote}`;
 }
+
+// src/config/constants.ts
+var DEFAULT_ACCOUNT_SIZE = 1e4;
+var SETUP_RETENTION_MS = 90 * 24 * 60 * 60 * 1e3;
+var TRACKER_RETENTION_MS = 90 * 24 * 60 * 60 * 1e3;
+var SETUP_DEDUPE_WINDOW_MS = 4 * 60 * 60 * 1e3;
+var TRACKER_DEDUPE_WINDOW_MS = 4 * 60 * 60 * 1e3;
+var SETUP_RESOLUTION_LOOKBACK_MS = 120 * 60 * 60 * 1e3;
 
 // src/signals/decision.ts
 function computeDecisionState(input) {
@@ -952,7 +960,6 @@ function validateTarget(direction, entryPrice, targetPrice) {
 }
 
 // src/signals/setup.ts
-var DEFAULT_ACCOUNT_SIZE = 1e4;
 function computeSuggestedSetup(coin, signals, currentPrice, options) {
   if (!isFinite(currentPrice) || currentPrice <= 0 || signals.isStale || signals.isWarmingUp || !isFinite(signals.volatility.atr) || signals.volatility.atr <= 0 || !isFinite(signals.entryGeometry.meanPrice)) {
     return null;

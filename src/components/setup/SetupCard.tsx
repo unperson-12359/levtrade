@@ -7,6 +7,7 @@ import type { TrackedCoin } from '../../types'
 import type { RiskInputs } from '../../types/risk'
 import type { SignalColor } from '../../types/signals'
 import { formatLeverage, formatPercent, formatPrice, formatUSD } from '../../utils/format'
+import { formatRR, formatConfidence, formatTradeGrade, formatEntryQuality, formatConfidenceTier } from '../../utils/setupFormat'
 import { SignalDrawer } from '../shared/SignalDrawer'
 
 const toneTextClasses: Record<SignalColor, string> = {
@@ -87,9 +88,9 @@ export function SetupCard({ coin }: SetupCardProps) {
           >
             {setup.direction.toUpperCase()}
           </span>
-          <span className={`status-pill status-pill--${setup.tradeGrade}`}>{setup.tradeGrade.toUpperCase()}</span>
+          <span className={`status-pill status-pill--${setup.tradeGrade}`}>{formatTradeGrade(setup.tradeGrade)}</span>
           <span className={`status-pill status-pill--${tierTone(setup.confidenceTier)}`}>
-            {setup.confidenceTier.toUpperCase()}
+            {formatConfidenceTier(setup.confidenceTier)}
           </span>
           <button type="button" className="setup-card__verify" onClick={() => setDrawerOpen(true)}>
             Verify setup -&gt;
@@ -101,7 +102,7 @@ export function SetupCard({ coin }: SetupCardProps) {
         <div>
           <div className="stat-label">Confidence</div>
           <div className={`stat-value ${toneTextClasses[tierTone(setup.confidenceTier)]}`}>
-            {(setup.confidence * 100).toFixed(0)}%
+            {formatConfidence(setup.confidence)}
           </div>
         </div>
         <div className="confidence-bar" aria-hidden="true">
@@ -142,10 +143,10 @@ export function SetupCard({ coin }: SetupCardProps) {
       </div>
 
       <div className="stat-grid">
-        <Stat label="R:R" value={`${setup.rrRatio.toFixed(1)} : 1`} tone="green" />
+        <Stat label="R:R" value={formatRR(setup.rrRatio)} tone="green" />
         <Stat label="Suggested leverage" value={formatLeverage(setup.suggestedLeverage)} tone="yellow" />
         <Stat label="Suggested size" value={formatUSD(setup.suggestedPositionSize)} tone="green" />
-        <Stat label="Entry quality" value={setup.entryQuality.replace('-', ' ').toUpperCase()} tone={entryQualityTone(setup.entryQuality)} />
+        <Stat label="Entry quality" value={formatEntryQuality(setup.entryQuality)} tone={entryQualityTone(setup.entryQuality)} />
         <Stat label="Signal alignment" value={`${setup.agreementCount}/${setup.agreementTotal}`} tone="yellow" />
         <Stat label="Expected timeframe" value={setup.timeframe} tone="yellow" />
         {setupRisk && !setupRisk.hasInputError && (

@@ -10,10 +10,8 @@ import type {
   SuggestedSetup,
   TrackedSetup,
 } from '../types/setup'
-
-const SETUP_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
-const SETUP_DEDUPE_WINDOW_MS = 4 * 60 * 60 * 1000
-const ENTRY_SIMILARITY_THRESHOLD = 0.02
+import { SETUP_RETENTION_MS, SETUP_DEDUPE_WINDOW_MS, ENTRY_SIMILARITY_THRESHOLD } from '../config/constants'
+import { buildSetupId } from '../utils/identity'
 
 export interface SetupSlice {
   trackedSetups: TrackedSetup[]
@@ -46,7 +44,7 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
       }
 
       const trackedSetup: TrackedSetup = {
-        id: serverId ?? `${setup.coin}-${setup.direction}-${setup.generatedAt}-${Math.random().toString(36).slice(2, 6)}`,
+        id: serverId ?? buildSetupId(setup),
         setup,
         coverageStatus: 'full',
         outcomes: serverOutcomes ?? {

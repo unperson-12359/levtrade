@@ -39,6 +39,8 @@ export function useDataManager() {
 
     manager.fetchAllCandles().then(() => {
       useStore.getState().computeAllSignals()
+      useStore.getState().resolveTrackedOutcomes()
+      useStore.getState().resolveSetupOutcomes()
     }).catch(() => {
       // Errors handled inside DataManager
     })

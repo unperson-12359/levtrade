@@ -10,15 +10,14 @@ import type {
 import { TRACKED_COINS, type TrackedCoin } from '../types/market'
 import { computeDecisionState } from '../signals/decision'
 import { computeRisk } from '../signals/risk'
+import { TRACKER_RETENTION_MS, TRACKER_DEDUPE_WINDOW_MS } from '../config/constants'
+import { buildTrackedSignalId, strengthBucket } from '../utils/identity'
 
 const TRACKER_WINDOWS: Record<TrackerWindow, number> = {
   '4h': 4 * 60 * 60 * 1000,
   '24h': 24 * 60 * 60 * 1000,
   '72h': 72 * 60 * 60 * 1000,
 }
-
-const TRACKER_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
-const DEDUPE_WINDOW_MS = 4 * 60 * 60 * 1000
 
 export interface TrackerSlice {
   trackedSignals: TrackedSignalRecord[]
@@ -344,7 +343,7 @@ function buildTrackedRecords(
 function buildRecord(input: Omit<TrackedSignalRecord, 'id'>): TrackedSignalRecord {
   return {
     ...input,
-    id: `${input.coin}-${input.kind}-${input.timestamp}-${Math.random().toString(36).slice(2, 6)}`,
+    id: buildTrackedSignalId(input),
   }
 }
 
@@ -354,7 +353,7 @@ function shouldTrackRecord(record: TrackedSignalRecord, existing: TrackedSignalR
     return true
   }
 
-  if (record.timestamp - previous.timestamp >= DEDUPE_WINDOW_MS) {
+  if (record.timestamp - previous.timestamp >= TRACKER_DEDUPE_WINDOW_MS) {
     return true
   }
 
@@ -363,12 +362,6 @@ function shouldTrackRecord(record: TrackedSignalRecord, existing: TrackedSignalR
     previous.label !== record.label ||
     strengthBucket(previous.strength) !== strengthBucket(record.strength)
   )
-}
-
-function strengthBucket(value: number): 'low' | 'medium' | 'high' {
-  if (value >= 0.66) return 'high'
-  if (value >= 0.33) return 'medium'
-  return 'low'
 }
 
 function resolveFuturePrice(state: AppStore, coin: TrackedCoin, targetTime: number): number | null {

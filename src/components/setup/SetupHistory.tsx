@@ -4,6 +4,7 @@ import { useStore } from '../../store'
 import { TRACKED_COINS, type TrackedCoin } from '../../types'
 import type { SetupOutcome, SetupWindow, TierStats } from '../../types/setup'
 import { formatPrice } from '../../utils/format'
+import { formatConfidenceTier } from '../../utils/setupFormat'
 
 type SetupFilter = 'ALL' | TrackedCoin
 
@@ -56,9 +57,17 @@ export function SetupHistory() {
         <Stat label="Tracked setups" value={String(stats.totalSetups)} tone="yellow" />
         <Stat label="Overall win rate" value={formatRate(stats.overall.winRate)} tone={tierTone(stats.overall)} />
         <Stat label="Average R" value={formatR(stats.overall.avgR)} tone={tierTone(stats.overall)} />
-        <Stat label="Best / worst R" value={`${formatR(stats.overall.bestR)} / ${formatR(stats.overall.worstR)}`} tone="yellow" />
+        <Stat
+          label="Best / worst R"
+          value={`${formatR(stats.overall.bestR)} / ${formatR(stats.overall.worstR)}`}
+          tone="yellow"
+        />
         <Stat label="Pending" value={String(historyMeta.pendingCount)} tone="yellow" />
-        <Stat label="Unresolvable" value={String(historyMeta.unresolvableCount)} tone={historyMeta.unresolvableCount > 0 ? 'red' : 'green'} />
+        <Stat
+          label="Unresolvable"
+          value={String(historyMeta.unresolvableCount)}
+          tone={historyMeta.unresolvableCount > 0 ? 'red' : 'green'}
+        />
         <Stat label="Oldest setup" value={historyMeta.oldest ? formatTimestamp(historyMeta.oldest) : 'N/A'} tone="yellow" />
         <Stat label="Newest setup" value={historyMeta.newest ? formatTimestamp(historyMeta.newest) : 'N/A'} tone="yellow" />
       </div>
@@ -150,7 +159,7 @@ export function SetupHistory() {
                 <span>{formatPrice(tracked.setup.entryPrice, tracked.setup.coin)}</span>
                 <span>{formatPrice(tracked.setup.stopPrice, tracked.setup.coin)}</span>
                 <span>{formatPrice(tracked.setup.targetPrice, tracked.setup.coin)}</span>
-                <span>{tracked.setup.confidenceTier.toUpperCase()}</span>
+                <span>{formatConfidenceTier(tracked.setup.confidenceTier)}</span>
                 <OutcomeCell outcome={tracked.outcomes['4h']} />
                 <OutcomeCell outcome={tracked.outcomes['24h']} />
                 <OutcomeCell outcome={tracked.outcomes['72h']} />
@@ -191,12 +200,9 @@ function OutcomeCell({ outcome }: { outcome: SetupOutcome }) {
       ? 'UNRESOLVABLE'
       : `${outcome.result.toUpperCase()} (${formatR(outcome.rAchieved)})`
 
-  const note = [
-    outcome.resolutionReason ?? 'not recorded',
-    outcome.coverageStatus ?? 'legacy',
-  ]
+  const note = [outcome.resolutionReason ?? 'not recorded', outcome.coverageStatus ?? 'legacy']
     .filter(Boolean)
-    .join(' • ')
+    .join(' | ')
 
   return (
     <div className="setup-history__outcome">

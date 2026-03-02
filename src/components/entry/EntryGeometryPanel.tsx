@@ -4,6 +4,7 @@ import { useSignals } from '../../hooks/useSignals'
 import type { SignalSeriesKind } from '../../utils/provenance'
 import { JargonTerm } from '../shared/JargonTerm'
 import { SignalDrawer } from '../shared/SignalDrawer'
+import { formatEntryQuality } from '../../utils/setupFormat'
 
 const meterToneClasses = {
   green: 'bg-signal-green',
@@ -45,7 +46,7 @@ export function EntryGeometryPanel({ embedded = false }: EntryGeometryPanelProps
           <h3 className="panel-title">Stretch and bounce setup</h3>
         </div>
         <span className={`status-pill status-pill--${entry.color}`}>
-          {entry.entryQuality.replace('-', ' ').toUpperCase()}
+          {formatEntryQuality(entry.entryQuality)}
         </span>
       </div>
 

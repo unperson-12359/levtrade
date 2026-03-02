@@ -1,5 +1,6 @@
 // @ts-ignore — pre-bundled by esbuild during build step
 import { TRACKED_COINS, parseCandle, computeHurst, computeZScore, computeFundingZScore, computeOIDelta, computeATR, computeRealizedVol, computeEntryGeometry, computeComposite, computeSuggestedSetup, resolveSetupWindow, emptyOutcome, SETUP_WINDOWS } from './_signals.mjs'
+import { isValidSyncScope, normalizeSyncScope } from './_sync-policy.mjs'
 import type { TrackedCoin, Candle, FundingSnapshot, OISnapshot, RawCandle, FundingHistoryEntry } from '../src/types/market'
 import type { AssetSignals } from '../src/types/signals'
 import type { SuggestedSetup } from '../src/types/setup'
@@ -57,6 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const now = Date.now()
+  const serverScope = getServerSetupsScope()
   const results: CoinResult[] = []
 
   try {
@@ -71,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Process each coin sequentially (rate-limit friendly)
     for (const coin of TRACKED_COINS) {
       try {
-        const result = await processCoin(coin, mids, meta.universe, assetCtxs, now)
+        const result = await processCoin(coin, mids, meta.universe, assetCtxs, now, serverScope)
         results.push(result)
       } catch (err) {
         results.push({
@@ -104,6 +106,7 @@ async function processCoin(
   universe: { name: string }[],
   assetCtxs: { openInterest: string; funding: string }[],
   now: number,
+  scope: string,
 ): Promise<CoinResult> {
   // 1. Get current price
   const currentPrice = parseFloat(mids[coin] ?? '')
@@ -190,16 +193,16 @@ async function processCoin(
   let setupId: string | undefined
 
   if (setup) {
-    const isDuplicate = await checkDuplicate(coin, setup.direction, setup.entryPrice, now)
+    const isDuplicate = await checkDuplicate(scope, coin, setup.direction, setup.entryPrice, now)
     if (!isDuplicate) {
-      setupId = `${coin}-${setup.direction}-${now}-${randomSuffix()}`
-      await persistServerSetup(setupId, coin, setup)
+      setupId = buildServerSetupId(scope, setup)
+      await persistServerSetup(setupId, scope, coin, setup)
       setupGenerated = true
     }
   }
 
   // 8. Resolve outcomes for pending server setups using the candles we already have
-  const outcomesResolved = await resolveServerOutcomes(coin, candles, now)
+  const outcomesResolved = await resolveServerOutcomes(scope, coin, candles, now)
 
   return { coin, ok: true, setupGenerated, setupId, outcomesResolved }
 }
@@ -289,6 +292,7 @@ async function fetchOIFromSupabase(coin: string): Promise<OISnapshot[]> {
 }
 
 async function checkDuplicate(
+  scope: string,
   coin: string,
   direction: string,
   entryPrice: number,
@@ -296,8 +300,17 @@ async function checkDuplicate(
 ): Promise<boolean> {
   try {
     const cutoff = new Date(now - SETUP_DEDUPE_WINDOW_MS).toISOString()
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      coin: `eq.${coin}`,
+      direction: `eq.${direction}`,
+      generated_at: `gte.${cutoff}`,
+      order: 'generated_at.desc',
+      limit: '1',
+      select: 'setup_json',
+    })
     const res = await fetch(
-      `${restBaseUrl()}/server_setups?coin=eq.${coin}&direction=eq.${direction}&generated_at=gte.${cutoff}&order=generated_at.desc&limit=1`,
+      `${restBaseUrl()}/server_setups?${params.toString()}`,
       { headers: supabaseHeaders() },
     )
     if (!res.ok) return false
@@ -313,12 +326,13 @@ async function checkDuplicate(
   }
 }
 
-async function persistServerSetup(id: string, coin: string, setup: SuggestedSetup): Promise<void> {
+async function persistServerSetup(id: string, scope: string, coin: string, setup: SuggestedSetup): Promise<void> {
   const res = await fetch(`${restBaseUrl()}/server_setups`, {
     method: 'POST',
     headers: { ...supabaseHeaders(), Prefer: 'return=minimal' },
     body: JSON.stringify([{
       id,
+      scope,
       coin,
       direction: setup.direction,
       setup_json: setup,
@@ -332,13 +346,21 @@ async function persistServerSetup(id: string, coin: string, setup: SuggestedSetu
 
 // --- Outcome resolution ---
 
-async function resolveServerOutcomes(coin: string, candles: Candle[], now: number): Promise<number> {
+async function resolveServerOutcomes(scope: string, coin: string, candles: Candle[], now: number): Promise<number> {
   let resolved = 0
   try {
     // Fetch server setups for this coin that have pending outcomes (last 7 days)
     const cutoff = new Date(now - 7 * 24 * MS_PER_HOUR).toISOString()
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      coin: `eq.${coin}`,
+      generated_at: `gte.${cutoff}`,
+      order: 'generated_at.desc',
+      limit: '50',
+      select: 'id,setup_json,outcomes_json',
+    })
     const res = await fetch(
-      `${restBaseUrl()}/server_setups?coin=eq.${coin}&generated_at=gte.${cutoff}&order=generated_at.desc&limit=50`,
+      `${restBaseUrl()}/server_setups?${params.toString()}`,
       { headers: supabaseHeaders() },
     )
     if (!res.ok) return 0
@@ -399,11 +421,37 @@ function validateEnv(): string | null {
   if (!process.env.SUPABASE_URL) return 'SUPABASE_URL not configured'
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return 'SUPABASE_SERVICE_ROLE_KEY not configured'
   if (!process.env.CRON_SECRET) return 'CRON_SECRET not configured'
+  if (!process.env.SERVER_SETUPS_SCOPE) return 'SERVER_SETUPS_SCOPE not configured'
+  const scope = normalizeSyncScope(process.env.SERVER_SETUPS_SCOPE)
+  if (!isValidSyncScope(scope)) {
+    return 'SERVER_SETUPS_SCOPE must be 3-64 characters and use lowercase letters, numbers, hyphens, or underscores'
+  }
   return null
 }
 
-function randomSuffix(): string {
-  return Math.random().toString(36).slice(2, 6)
+function getServerSetupsScope(): string {
+  return normalizeSyncScope(process.env.SERVER_SETUPS_SCOPE ?? '')
+}
+
+function buildServerSetupId(scope: string, setup: SuggestedSetup): string {
+  return [
+    'server-setup',
+    scope,
+    setup.coin,
+    setup.direction,
+    String(setup.generatedAt),
+    normalizePriceKey(setup.entryPrice),
+    normalizePriceKey(setup.stopPrice),
+    normalizePriceKey(setup.targetPrice),
+  ].join(':')
+}
+
+function normalizePriceKey(value: number): string {
+  if (!isFinite(value)) {
+    return 'na'
+  }
+
+  return Number(value.toFixed(4)).toString()
 }
 
 function sleep(ms: number): Promise<void> {

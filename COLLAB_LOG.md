@@ -1092,3 +1092,135 @@ Unify overlapping dashboard information so the same guidance and metrics are no 
 ### Follow-up / Remaining Verification
 - Browser devtools console was not available in this CLI session, so console-error verification is still pending.
 - Manual layout QA is still needed at `1440px` and `390px` to confirm no visual regressions, overflow, or clipping after the consolidation pass.
+
+---
+
+## 2026-03-02 - Codex  Structural Audit Completion: Scoped Sync, Deterministic IDs, and 1h Resolution Hardening
+
+### Goal
+Finish the structural remediation work left in progress by the prior audit pass by making cloud sync explicitly workspace-scoped, tightening deterministic identity for setups and tracker records, and making the canonical `1h` setup-resolution path stay correct during interval changes and polling.
+
+### Files Changed
+- `api/compute-signals.ts`
+- `api/sync.js`
+- `api/_signals.mjs`
+- `api/_sync-policy.mjs`
+- `src/components/claims/TrustPanel.tsx`
+- `src/components/menu/MenuDrawer.tsx`
+- `src/components/setup/SetupHistory.tsx`
+- `src/config/constants.ts`
+- `src/hooks/useCloudSync.ts`
+- `src/hooks/useDataManager.ts`
+- `src/services/dataManager.ts`
+- `src/services/sync.ts`
+- `src/signals/setup.ts`
+- `src/store/index.ts`
+- `src/store/setupSlice.ts`
+- `src/store/syncSlice.ts`
+- `src/store/trackerSlice.ts`
+- `src/sync/api-entry.ts`
+- `src/sync/policy.ts`
+- `src/types/risk.ts`
+- `src/utils/identity.ts`
+
+### What changed
+- Replaced the old secret-derived sync namespace with an explicit workspace id model:
+  - client now stores `cloudSyncScope`
+  - sync requests send `x-levtrade-sync-scope`
+  - server validates workspace ids instead of hashing the secret into a scope
+- Stopped persisting or auto-enabling the sync secret:
+  - removed persisted `cloudSyncSecret`
+  - removed `VITE_SYNC_SECRET` rehydrate auto-enable behavior
+  - persisted workspace id only, with the secret kept session-only
+- Updated the menu drawer sync UI to collect `Workspace id` and `Workspace secret`, and refreshed trust/storage copy to reflect the new contract.
+- Kept the shared sync merge policy extraction and extended it with shared workspace-scope normalization and validation helpers.
+- Added deterministic identity helpers in `src/utils/identity.ts` and switched new client-side setup/tracker records to semantic IDs instead of timestamp-plus-random-ish shapes.
+- Removed the remaining random suffix from server-generated setup ids in `api/compute-signals.ts` so server setup persistence uses the same semantic setup key shape.
+- Kept `SetupCard` setup-specific risk preview behavior and centralized the default account size in shared constants.
+- Hardened canonical `1h` setup-resolution behavior:
+  - `fetchAllCandles()` continues to populate `resolutionCandles`
+  - interval changes now re-run setup/tracker resolution after candle refresh
+  - polling now refreshes `resolutionCandles` even when the display interval is not `1h`
+- Cleaned a few encoding-damaged strings while touching the relevant files:
+  - `MenuDrawer` close/arrow glyphs
+  - setup summary sigma formatting
+  - setup-history note separator
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: `0`
+- Warnings: `0`
+- Output sizes:
+  - `dist/index.html`: `0.46 kB` (gzip `0.31 kB`)
+  - `dist/assets/index-BlxKkjWn.css`: `63.63 kB` (gzip `10.98 kB`)
+  - `dist/assets/HowItWorks-wXIJCsti.js`: `12.33 kB` (gzip `4.24 kB`)
+  - `dist/assets/AnalyticsPage-0POPKYVv.js`: `16.54 kB` (gzip `4.56 kB`)
+  - `dist/assets/index-DilPWg6a.js`: `487.94 kB` (gzip `150.63 kB`)
+
+### Notes
+- This pass intentionally left local-only files such as `.claude/settings.local.json` and `codex-prompt.txt` untouched.
+- `api/server-setups.ts` still uses the shared secret only because that endpoint serves global supplementary server setups, not per-workspace cloud state.
+- Sync now requires the user to re-enter the workspace secret after a reload because the secret is no longer persisted by design.
+
+### Follow-up / Remaining Verification
+- Manual browser QA is still needed to confirm the new menu-drawer sync inputs and trust-panel metadata read cleanly on desktop and mobile.
+- Production deployment was not part of this pass.
+
+---
+
+## 2026-03-02 - Codex  Server Setup Scope Isolation, Incremental Hydration, and Sync Doc Alignment
+
+### Goal
+Finish the remaining remediation work by isolating supplementary `server_setups` to an explicit workspace scope, preventing hydration truncation from the old fixed 200-row fetch, and aligning the user-facing sync documentation and overlay copy with the implemented workspace model.
+
+### Files Changed
+- `api/compute-signals.ts`
+- `api/server-setups.ts`
+- `api/_signals.mjs`
+- `api/_sync-policy.mjs`
+- `src/services/dataManager.ts`
+- `src/components/guide/HowItWorks.tsx`
+- `src/components/analytics/AnalyticsPage.tsx`
+- `src/components/claims/TrustPanel.tsx`
+- `supabase/server_setups.sql`
+
+### What changed
+- Made `server_setups` workspace-aware end to end:
+  - `api/server-setups.ts` now requires `x-levtrade-sync-scope`
+  - fetches are filtered by `scope`
+  - the endpoint now accepts an optional `since` query and uses a larger bounded fetch window
+- Updated the server cron path in `api/compute-signals.ts` so persisted server setups include a scope and duplicate/outcome queries are filtered by that scope.
+- Tightened the server-side setup id shape to include scope (`server-setup:<scope>:...`) so scoped rows cannot collide at the global primary-key level.
+- Updated `src/services/dataManager.ts` to hydrate server setups incrementally using `since=<latest local setup timestamp + 1ms>` instead of always requesting the last 7 days.
+- Updated `supabase/server_setups.sql` to add a `scope` column, backfill legacy rows to `legacy`, and create scope-aware indexes.
+- Rewrote `HowItWorks.tsx` cloud-sync and outcome-scoring copy so it matches the current product contract:
+  - workspace id + workspace secret
+  - secret is session-only
+  - local-by-default behavior
+- Cleaned remaining visible overlay mojibake by replacing unstable glyphs in:
+  - `HowItWorks.tsx`
+  - `AnalyticsPage.tsx`
+- Tightened one trust-panel label so the visible sync scope description matches what actually syncs.
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: `0`
+- Warnings: `0`
+- Output sizes:
+  - `dist/index.html`: `0.46 kB` (gzip `0.31 kB`)
+  - `dist/assets/index-BlxKkjWn.css`: `63.63 kB` (gzip `10.98 kB`)
+  - `dist/assets/HowItWorks-SCSvvJS0.js`: `12.51 kB` (gzip `4.21 kB`)
+  - `dist/assets/AnalyticsPage-C7aUbcVs.js`: `16.58 kB` (gzip `4.57 kB`)
+  - `dist/assets/index-ycLsQcSA.js`: `488.10 kB` (gzip `150.71 kB`)
+
+### Notes
+- This pass intentionally did not touch local-only files such as `.claude/settings.local.json` and `codex-prompt.txt`.
+- `server_setups` is now isolated by scope, but server-generated setup augmentation currently exists only for the configured `SERVER_SETUPS_SCOPE`. Other workspaces still rely on local capture unless the cron model is expanded later.
+- Legacy `server_setups` rows are marked as `scope = 'legacy'` by the SQL migration and are not mixed into new workspace fetches.
+
+### Follow-up / Remaining Verification
+- Run the updated `supabase/server_setups.sql` migration before expecting scoped server-setup hydration to work in a deployed environment.
+- Manual browser QA is still recommended for:
+  - `HowItWorks` overlay text
+  - analytics overlay close control
+  - workspace sync drawer flow

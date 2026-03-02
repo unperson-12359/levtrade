@@ -1,5 +1,6 @@
 import type { TrackedCoin } from './market'
 import type { SignalColor } from './signals'
+import { DEFAULT_ACCOUNT_SIZE } from '../config/constants'
 
 export type TradeDirection = 'long' | 'short'
 
@@ -61,7 +62,7 @@ export const DEFAULT_RISK_INPUTS: RiskInputs = {
   coin: 'BTC',
   direction: 'long',
   entryPrice: 0,
-  accountSize: 1000,
+  accountSize: DEFAULT_ACCOUNT_SIZE,
   positionSize: 100,
   leverage: 5,
   stopPrice: null,

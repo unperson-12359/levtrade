@@ -1,3 +1,5 @@
+import { isValidSyncScope, normalizeSyncScope } from './_sync-policy.mjs'
+
 interface VercelRequest {
   method?: string
   headers: Record<string, string | string[] | undefined>
@@ -11,6 +13,7 @@ interface VercelResponse {
 
 const DEFAULT_DAYS = 7
 const MAX_DAYS = 30
+const MAX_FETCH_LIMIT = 1_000
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -18,9 +21,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ ok: false, error: 'Method not allowed' })
   }
 
-  const secret = req.headers['x-levtrade-sync-secret'] as string | undefined
+  const secret = firstHeaderValue(req.headers['x-levtrade-sync-secret'])
   if (!secret || secret !== process.env.SYNC_SHARED_SECRET) {
     return res.status(401).json({ ok: false, error: 'Unauthorized' })
+  }
+
+  const scope = normalizeSyncScope(firstHeaderValue(req.headers['x-levtrade-sync-scope']))
+  if (!isValidSyncScope(scope)) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Workspace id must be 3-64 characters and use lowercase letters, numbers, hyphens, or underscores.',
+    })
   }
 
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -28,18 +39,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const days = Math.min(MAX_DAYS, parseInt(req.query.days as string, 10) || DEFAULT_DAYS)
-    const since = new Date(Date.now() - days * MS_PER_DAY).toISOString()
+    const since = resolveSince(req.query)
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      generated_at: `gte.${since}`,
+      order: 'generated_at.desc',
+      limit: String(MAX_FETCH_LIMIT),
+      select: 'id,coin,direction,setup_json,outcomes_json,generated_at',
+    })
 
-    const response = await fetch(
-      `${process.env.SUPABASE_URL}/rest/v1/server_setups?generated_at=gte.${since}&order=generated_at.desc&limit=200`,
-      {
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-        },
+    const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/server_setups?${params.toString()}`, {
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
       },
-    )
+    })
 
     if (!response.ok) {
       throw new Error(`Supabase query failed: ${response.status}`)
@@ -74,6 +88,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
+function resolveSince(query: VercelRequest['query']): string {
+  const rawSince = firstQueryValue(query.since)
+  const parsedSince = rawSince ? Date.parse(rawSince) : Number.NaN
+  if (Number.isFinite(parsedSince)) {
+    return new Date(parsedSince).toISOString()
+  }
+
+  const days = Math.min(MAX_DAYS, parseInt(firstQueryValue(query.days) ?? '', 10) || DEFAULT_DAYS)
+  return new Date(Date.now() - days * MS_PER_DAY).toISOString()
+}
+
 function emptyOutcome(window: string) {
   return {
     window,
@@ -92,4 +117,20 @@ function emptyOutcome(window: string) {
     stopHit: false,
     priceAtResolution: null,
   }
+}
+
+function firstHeaderValue(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? ''
+  }
+
+  return typeof value === 'string' ? value : ''
+}
+
+function firstQueryValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null
+  }
+
+  return typeof value === 'string' ? value : null
 }

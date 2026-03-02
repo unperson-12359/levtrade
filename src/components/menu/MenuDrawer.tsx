@@ -3,6 +3,7 @@ import { useEntryDecision } from '../../hooks/useEntryDecision'
 import { usePositionRisk } from '../../hooks/usePositionRisk'
 import { useSignals } from '../../hooks/useSignals'
 import { useStore } from '../../store'
+import { normalizeSyncScope } from '../../sync/policy'
 import type { SyncStatus } from '../../types'
 import { timeAgo } from '../../utils/format'
 import { getMethodologySteps } from '../../utils/workflowGuidance'
@@ -14,27 +15,32 @@ interface MenuDrawerProps {
 export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
   const open = useStore((s) => s.expandedSections['menu'] ?? false)
   const toggle = useStore((s) => s.toggleSection)
-  const close = () => { if (open) toggle('menu') }
+  const close = () => {
+    if (open) toggle('menu')
+  }
 
-  // Connection status
   const connectionStatus = useStore((s) => s.connectionStatus)
   const lastUpdate = useStore((s) => s.lastUpdate)
 
-  // Methodology
   const coin = useStore((s) => s.selectedCoin)
   const { signals } = useSignals(coin)
   const decision = useEntryDecision(coin)
   const { outputs, riskStatus } = usePositionRisk()
   const steps = getMethodologySteps(signals, decision, outputs, riskStatus)
 
-  // Cloud sync
   const cloudSyncEnabled = useStore((s) => s.cloudSyncEnabled)
+  const cloudSyncScope = useStore((s) => s.cloudSyncScope)
   const cloudSyncSecret = useStore((s) => s.cloudSyncSecret)
   const syncStatus = useStore((s) => s.syncStatus)
   const syncError = useStore((s) => s.syncError)
   const configureCloudSync = useStore((s) => s.configureCloudSync)
   const disableCloudSync = useStore((s) => s.disableCloudSync)
+  const [scopeInput, setScopeInput] = useState(cloudSyncScope)
   const [secretInput, setSecretInput] = useState(cloudSyncSecret)
+
+  useEffect(() => {
+    setScopeInput(cloudSyncScope)
+  }, [cloudSyncScope])
 
   useEffect(() => {
     setSecretInput(cloudSyncSecret)
@@ -46,12 +52,19 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
   const [expandedStep, setExpandedStep] = useState<number | null>(null)
 
   const connectionLabel =
-    connectionStatus === 'connected' ? 'Connected' :
-    connectionStatus === 'connecting' ? 'Connecting...' :
-    connectionStatus === 'disconnected' ? 'Disconnected' : 'Error'
+    connectionStatus === 'connected'
+      ? 'Connected'
+      : connectionStatus === 'connecting'
+        ? 'Connecting...'
+        : connectionStatus === 'disconnected'
+          ? 'Disconnected'
+          : 'Error'
   const connectionTone =
-    connectionStatus === 'connected' ? 'green' :
-    connectionStatus === 'connecting' ? 'yellow' : 'red'
+    connectionStatus === 'connected'
+      ? 'green'
+      : connectionStatus === 'connecting'
+        ? 'yellow'
+        : 'red'
 
   return (
     <>
@@ -60,38 +73,41 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
         <div className="menu-drawer__header">
           <span className="menu-drawer__title">LevTrade</span>
           <button type="button" onClick={close} className="signal-drawer__close" aria-label="Close menu">
-            ✕
+            X
           </button>
         </div>
 
-        {/* Status + Connection */}
         <div className="menu-drawer__section">
           <div className="menu-drawer__status-row">
             <span className={`menu-drawer__dot menu-drawer__dot--${connectionTone}`} />
             <span>{connectionLabel}</span>
-            {lastUpdate && <span className="menu-drawer__muted">· {timeAgo(lastUpdate)}</span>}
+            {lastUpdate && <span className="menu-drawer__muted">| {timeAgo(lastUpdate)}</span>}
           </div>
         </div>
 
-        {/* Page Links — top of drawer for quick access */}
         <div className="menu-drawer__section">
           <button
             type="button"
             className="menu-drawer__guide-link"
-            onClick={() => { toggle('analytics'); close() }}
+            onClick={() => {
+              toggle('analytics')
+              close()
+            }}
           >
-            Analytics <span className="menu-drawer__muted">→</span>
+            Analytics <span className="menu-drawer__muted">-&gt;</span>
           </button>
           <button
             type="button"
             className="menu-drawer__guide-link"
-            onClick={() => { toggle('how-it-works'); close() }}
+            onClick={() => {
+              toggle('how-it-works')
+              close()
+            }}
           >
-            How LevTrade Works <span className="menu-drawer__muted">→</span>
+            How LevTrade Works <span className="menu-drawer__muted">-&gt;</span>
           </button>
         </div>
 
-        {/* Collapsible Workflow */}
         <div className="menu-drawer__section">
           <div className="menu-drawer__section-title">Workflow</div>
           {steps.map((step) => {
@@ -108,8 +124,10 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
                   <span className={`menu-drawer__workflow-label menu-drawer__workflow-label--${step.tone}`}>
                     {step.label}
                   </span>
-                  <span className={`menu-drawer__workflow-chevron ${isOpen ? 'menu-drawer__workflow-chevron--open' : ''}`}>
-                    ▸
+                  <span
+                    className={`menu-drawer__workflow-chevron ${isOpen ? 'menu-drawer__workflow-chevron--open' : ''}`}
+                  >
+                    &gt;
                   </span>
                 </button>
                 {isOpen && (
@@ -123,7 +141,6 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
           })}
         </div>
 
-        {/* Cloud Sync */}
         <div className="menu-drawer__section">
           <div className="menu-drawer__section-title">
             Cloud Sync
@@ -131,23 +148,35 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
           </div>
           <div className="menu-drawer__sync-form">
             <input
+              type="text"
+              value={scopeInput}
+              onChange={(e) => setScopeInput(normalizeSyncScope(e.target.value))}
+              placeholder="Workspace id"
+              className="trust-panel__input"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <input
               type="password"
               value={secretInput}
               onChange={(e) => setSecretInput(e.target.value)}
-              placeholder="Sync passphrase"
+              placeholder="Workspace secret"
               className="trust-panel__input"
             />
             <div className="menu-drawer__sync-buttons">
               <button
                 type="button"
-                onClick={() => configureCloudSync(secretInput)}
+                onClick={() => configureCloudSync(scopeInput, secretInput)}
                 className="setup-history__filter"
               >
                 {cloudSyncEnabled ? 'Update' : 'Enable'}
               </button>
               <button
                 type="button"
-                onClick={() => { void onSyncNow() }}
+                onClick={() => {
+                  void onSyncNow()
+                }}
                 className="setup-history__filter"
                 disabled={!cloudSyncEnabled}
               >
@@ -157,12 +186,13 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
                 type="button"
                 onClick={disableCloudSync}
                 className="setup-history__filter"
-                disabled={!cloudSyncEnabled}
+                disabled={!cloudSyncEnabled && !cloudSyncScope}
               >
                 Disable
               </button>
             </div>
           </div>
+          <div className="menu-drawer__muted">Workspace id persists locally. Secret is session-only.</div>
           {syncError && <div className="action-guidance action-guidance--red">{syncError}</div>}
         </div>
       </nav>
@@ -178,11 +208,17 @@ function syncStatusTone(status: SyncStatus): 'green' | 'yellow' | 'red' {
 
 function syncStatusLabel(status: SyncStatus): string {
   switch (status) {
-    case 'idle': return 'Ready'
-    case 'syncing': return 'Syncing'
-    case 'synced': return 'Synced'
-    case 'error': return 'Error'
-    case 'offline': return 'Offline'
-    default: return 'Locked'
+    case 'idle':
+      return 'Ready'
+    case 'syncing':
+      return 'Syncing'
+    case 'synced':
+      return 'Synced'
+    case 'error':
+      return 'Error'
+    case 'offline':
+      return 'Offline'
+    default:
+      return 'Locked'
   }
 }

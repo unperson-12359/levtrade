@@ -11,6 +11,7 @@ export function TrustPanel() {
   const clearSetupHistory = useStore((s) => s.clearSetupHistory)
   const clearTrackerHistory = useStore((s) => s.clearTrackerHistory)
   const cloudSyncEnabled = useStore((s) => s.cloudSyncEnabled)
+  const cloudSyncScope = useStore((s) => s.cloudSyncScope)
   const syncStatus = useStore((s) => s.syncStatus)
   const lastCloudSyncAt = useStore((s) => s.lastCloudSyncAt)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -30,16 +31,18 @@ export function TrustPanel() {
 
       <p className="panel-copy">
         {cloudSyncEnabled
-          ? 'Syncing across devices via cloud. Local storage acts as cache.'
-          : 'History is local to this browser. Enable cloud sync for cross-device sharing.'}
+          ? 'Syncing this workspace across devices via cloud. Local storage acts as cache.'
+          : 'History is local to this browser. Add a workspace id and secret for cross-device sync.'}
       </p>
 
       <div className="stat-grid trust-panel__stats">
         <Stat label="Storage key" value={STORAGE_KEY} tone="yellow" />
+        <Stat label="Workspace id" value={cloudSyncScope || 'Not set'} tone={cloudSyncScope ? 'green' : 'yellow'} />
         <Stat label="Cloud sync" value={syncLabel} tone={syncTone} />
         <Stat label="Last cloud sync" value={lastCloudSyncAt ? formatTimestamp(lastCloudSyncAt) : 'Never'} tone="yellow" />
+        <Stat label="Secret storage" value="Session only" tone="green" />
         <Stat label="Retention" value="90 days" tone="green" />
-        <Stat label="Sync scope" value="History + risk defaults" tone="green" />
+        <Stat label="Sync scope" value="Setups + tracker + risk defaults" tone="green" />
         <Stat label="Resolution basis" value="4h / 24h / 72h from 1h candles" tone="green" />
       </div>
 

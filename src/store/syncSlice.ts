@@ -1,16 +1,18 @@
 import type { StateCreator } from 'zustand'
 import type { AppStore } from '.'
 import type { SyncStatus } from '../types/sync'
+import { isValidSyncScope, normalizeSyncScope } from '../sync/policy'
 
 export interface SyncSlice {
   cloudSyncEnabled: boolean
+  cloudSyncScope: string
   cloudSyncSecret: string
   syncStatus: SyncStatus
   syncError: string | null
   lastCloudSyncAt: number | null
   riskInputsUpdatedAt: number | null
 
-  configureCloudSync: (secret: string) => void
+  configureCloudSync: (scope: string, secret: string) => void
   disableCloudSync: () => void
   setSyncStatus: (status: SyncStatus) => void
   setSyncError: (error: string | null) => void
@@ -19,25 +21,33 @@ export interface SyncSlice {
 
 export const createSyncSlice: StateCreator<AppStore, [], [], SyncSlice> = (set) => ({
   cloudSyncEnabled: false,
+  cloudSyncScope: '',
   cloudSyncSecret: '',
   syncStatus: 'locked',
   syncError: null,
   lastCloudSyncAt: null,
   riskInputsUpdatedAt: null,
 
-  configureCloudSync: (secret) => {
+  configureCloudSync: (scope, secret) => {
+    const normalizedScope = normalizeSyncScope(scope)
     const trimmed = secret.trim()
+    const hasCredentials = normalizedScope.length > 0 && trimmed.length > 0
+    const scopeIsValid = normalizedScope.length === 0 || isValidSyncScope(normalizedScope)
     set({
-      cloudSyncEnabled: trimmed.length > 0,
+      cloudSyncEnabled: hasCredentials && scopeIsValid,
+      cloudSyncScope: normalizedScope,
       cloudSyncSecret: trimmed,
-      syncStatus: trimmed.length > 0 ? 'idle' : 'locked',
-      syncError: null,
+      syncStatus: hasCredentials && scopeIsValid ? 'idle' : 'locked',
+      syncError: !scopeIsValid
+        ? 'Workspace id must be 3-64 characters and use lowercase letters, numbers, hyphens, or underscores.'
+        : null,
     })
   },
 
   disableCloudSync: () =>
     set({
       cloudSyncEnabled: false,
+      cloudSyncScope: '',
       cloudSyncSecret: '',
       syncStatus: 'locked',
       syncError: null,

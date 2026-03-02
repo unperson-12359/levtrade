@@ -1,10 +1,9 @@
 import type { TrackedCoin } from '../types'
 import type { AssetSignals } from '../types/signals'
 import type { ConfidenceTier, SetupTimeframe, SuggestedSetup } from '../types/setup'
+import { DEFAULT_ACCOUNT_SIZE } from '../config/constants'
 import { computeDecisionState } from './decision'
 import { computeRisk } from './risk'
-
-const DEFAULT_ACCOUNT_SIZE = 10_000
 
 export function computeSuggestedSetup(
   coin: TrackedCoin,
@@ -82,7 +81,7 @@ export function computeSuggestedSetup(
   const stretch = Math.abs(signals.entryGeometry.stretchZEquivalent).toFixed(1)
   const mean = signals.entryGeometry.meanPrice
   const agreementStr = `${signals.composite.agreementCount}/${signals.composite.agreementTotal}`
-  const summary = `${coin} is ${stretch}σ ${
+  const summary = `${coin} is ${stretch}\u03C3 ${
     direction === 'long' ? 'below' : 'above'
   } its 20-period mean ($${mean.toFixed(0)}) in a ${signals.hurst.regime} market. ${agreementStr} signals agree. ${direction.toUpperCase()} entry at $${currentPrice.toFixed(0)} with stop $${riskOutputs.suggestedStopPrice.toFixed(0)}, target $${riskOutputs.suggestedTargetPrice.toFixed(0)} (${riskOutputs.rrRatio.toFixed(1)}:1 R:R).`
 

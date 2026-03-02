@@ -9,7 +9,7 @@ import { INTERVAL_CONFIG } from '../config/intervals'
 import type { StoreApi } from 'zustand'
 import type { AppStore } from '../store'
 
-const POLL_INTERVAL = 60_000 // 60s for metaAndAssetCtxs refresh
+import { POLL_INTERVAL_MS, SETUP_RESOLUTION_INTERVAL, SETUP_RESOLUTION_LOOKBACK_MS } from '../config/constants'
 
 export class DataManager {
   private ws: HyperliquidWS
@@ -116,7 +116,7 @@ export class DataManager {
         this.store.getState().setCandles(coin, candles)
 
         // When display interval is 1h, reuse for resolution
-        if (this.interval === '1h') {
+        if (this.interval === SETUP_RESOLUTION_INTERVAL) {
           this.store.getState().setResolutionCandles(coin, candles)
         }
       } catch (err) {
@@ -128,18 +128,18 @@ export class DataManager {
     }
 
     // When display interval is NOT 1h, separately fetch 1h candles for setup resolution
-    if (this.interval !== '1h') {
+    if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
       await this.fetchResolutionCandles()
     }
   }
 
   private async fetchResolutionCandles(): Promise<void> {
     const now = Date.now()
-    const startTime = now - 120 * 3_600_000 // 120 hours of 1h candles
+    const startTime = now - SETUP_RESOLUTION_LOOKBACK_MS
 
     for (const coin of TRACKED_COINS) {
       try {
-        const rawCandles = await fetchCandles(coin, '1h', startTime, now)
+        const rawCandles = await fetchCandles(coin, SETUP_RESOLUTION_INTERVAL, startTime, now)
         const candles = rawCandles.map(parseCandle)
         this.store.getState().setResolutionCandles(coin, candles)
       } catch {
@@ -207,13 +207,13 @@ export class DataManager {
       }
 
       // Always fetch 1h candles for resolution if not already 1h
-      if (this.interval !== '1h') {
+      if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
         const resCandles = state.resolutionCandles[coin] ?? []
         const oldestResTime = resCandles.length > 0 ? resCandles[0]!.time : Date.now()
         if (oldestTime < oldestResTime) {
           try {
             const startTime = oldestTime - 3_600_000
-            const rawCandles = await fetchCandles(coin, '1h', startTime, oldestResTime)
+            const rawCandles = await fetchCandles(coin, SETUP_RESOLUTION_INTERVAL, startTime, oldestResTime)
             const candles = rawCandles.map(parseCandle)
             if (candles.length > 0) {
               const merged = [...candles, ...resCandles]
@@ -233,13 +233,27 @@ export class DataManager {
 
   private async fetchServerSetups(): Promise<void> {
     const state = this.store.getState()
-    if (!state.cloudSyncEnabled || !state.cloudSyncSecret) {
+    if (!state.cloudSyncEnabled || !state.cloudSyncScope || !state.cloudSyncSecret) {
       return
     }
 
     try {
-      const res = await fetch('/api/server-setups?days=7', {
-        headers: { 'x-levtrade-sync-secret': state.cloudSyncSecret },
+      const latestLocalSetupAt = state.trackedSetups.reduce(
+        (latest, tracked) => Math.max(latest, tracked.setup.generatedAt),
+        0,
+      )
+      const params = new URLSearchParams()
+      if (latestLocalSetupAt > 0) {
+        params.set('since', new Date(latestLocalSetupAt + 1).toISOString())
+      } else {
+        params.set('days', '7')
+      }
+
+      const res = await fetch(`/api/server-setups?${params.toString()}`, {
+        headers: {
+          'x-levtrade-sync-scope': state.cloudSyncScope,
+          'x-levtrade-sync-secret': state.cloudSyncSecret,
+        },
       })
       if (!res.ok) return
 
@@ -366,6 +380,23 @@ export class DataManager {
     const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
     const candles = rawCandles.map(parseCandle)
     this.store.getState().setCandles(coin, candles)
+    if (this.interval === SETUP_RESOLUTION_INTERVAL) {
+      this.store.getState().setResolutionCandles(coin, candles)
+    }
+  }
+
+  private async refreshResolutionCandlesIfNeeded(coin: (typeof TRACKED_COINS)[number], now: number): Promise<void> {
+    const latestCandle = this.store.getState().resolutionCandles[coin].slice(-1)[0]
+    const candleAge = latestCandle ? now - latestCandle.time : Infinity
+
+    if (candleAge <= 3_600_000) {
+      return
+    }
+
+    const startTime = now - SETUP_RESOLUTION_LOOKBACK_MS
+    const rawCandles = await fetchCandles(coin, SETUP_RESOLUTION_INTERVAL, startTime, now)
+    const candles = rawCandles.map(parseCandle)
+    this.store.getState().setResolutionCandles(coin, candles)
   }
 
   private startPolling(): void {
@@ -398,6 +429,9 @@ export class DataManager {
           }
 
           await this.refreshCandlesIfNeeded(coin, now)
+          if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
+            await this.refreshResolutionCandlesIfNeeded(coin, now)
+          }
         }
 
         // Trigger signal recomputation, generate setups for all coins, and resolve outcomes
@@ -411,7 +445,7 @@ export class DataManager {
       } catch {
         // Polling errors are non-fatal — next poll will try again
       }
-    }, POLL_INTERVAL)
+    }, POLL_INTERVAL_MS)
   }
 
   destroy(): void {

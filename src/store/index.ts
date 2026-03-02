@@ -31,8 +31,7 @@ export const useStore = create<AppStore>()(
         trackedOutcomes: state.trackedOutcomes,
         trackerLastRunAt: state.trackerLastRunAt,
         trackedSetups: state.trackedSetups,
-        cloudSyncEnabled: state.cloudSyncEnabled,
-        cloudSyncSecret: state.cloudSyncSecret,
+        cloudSyncScope: state.cloudSyncScope,
         lastCloudSyncAt: state.lastCloudSyncAt,
         riskInputsUpdatedAt: state.riskInputsUpdatedAt,
         analyticsTab: state.analyticsTab,
@@ -40,15 +39,14 @@ export const useStore = create<AppStore>()(
       }),
       merge: (persistedState, currentState) => {
         const merged = { ...currentState, ...(persistedState as Partial<AppStore>) }
+        merged.cloudSyncEnabled = false
+        merged.cloudSyncSecret = currentState.cloudSyncSecret
+        merged.syncStatus = 'locked'
+        merged.syncError = null
         if (merged.riskInputs && merged.riskInputs.leverage > 40) {
           merged.riskInputs = { ...merged.riskInputs, leverage: 40 }
         }
         return merged as AppStore
-      },
-      onRehydrateStorage: () => (state) => {
-        if (state && !state.cloudSyncEnabled && import.meta.env.VITE_SYNC_SECRET) {
-          state.configureCloudSync(import.meta.env.VITE_SYNC_SECRET as string)
-        }
       },
     },
   ),
