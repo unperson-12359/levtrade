@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npx esbuild src/signals/api-entry.ts --bundle --format=esm --platform=node --outfile=api/_signals.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

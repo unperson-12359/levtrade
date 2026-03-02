@@ -1,15 +1,8 @@
-import { TRACKED_COINS, parseCandle } from '../src/types/market'
+// @ts-ignore — pre-bundled by esbuild during build step
+import { TRACKED_COINS, parseCandle, computeHurst, computeZScore, computeFundingZScore, computeOIDelta, computeATR, computeRealizedVol, computeEntryGeometry, computeComposite, computeSuggestedSetup } from './_signals.mjs'
 import type { TrackedCoin, Candle, FundingSnapshot, OISnapshot, RawCandle, FundingHistoryEntry } from '../src/types/market'
 import type { AssetSignals } from '../src/types/signals'
 import type { SuggestedSetup } from '../src/types/setup'
-import { computeHurst } from '../src/signals/hurst'
-import { computeZScore } from '../src/signals/zscore'
-import { computeFundingZScore } from '../src/signals/funding'
-import { computeOIDelta } from '../src/signals/oiDelta'
-import { computeATR, computeRealizedVol } from '../src/signals/volatility'
-import { computeEntryGeometry } from '../src/signals/entryGeometry'
-import { computeComposite } from '../src/signals/composite'
-import { computeSuggestedSetup } from '../src/signals/setup'
 
 const HYPERLIQUID_API = 'https://api.hyperliquid.xyz/info'
 const COINALYZE_API = 'https://api.coinalyze.net/v1'
