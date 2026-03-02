@@ -15,8 +15,8 @@ export function RiskSection() {
         </div>
         <p className="panel-copy">Verify size, leverage, and liquidation before entering.</p>
         <RiskForm />
+        <RiskResults />
       </section>
-      <RiskResults />
     </aside>
   )
 }

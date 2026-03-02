@@ -15,9 +15,10 @@ export function RiskResults() {
 
   if (!isReady || !outputs) {
     return (
-      <div className="panel-shell panel-shell--tight">
+      <>
+        <hr className="risk-divider" />
         <div className="text-base text-text-muted">Enter trade parameters to see live risk geometry.</div>
-      </div>
+      </>
     )
   }
 
@@ -32,7 +33,8 @@ export function RiskResults() {
 
   return (
     <div className="space-y-4">
-      <section className="panel-shell panel-shell--tight">
+      <hr className="risk-divider" />
+      <div>
         <div className="panel-header">
           <div>
             <div className="panel-kicker">Risk Verdict</div>
@@ -58,7 +60,7 @@ export function RiskResults() {
             {outputs.targetValidationMessage && <WarningText text={outputs.targetValidationMessage} />}
           </div>
         )}
-      </section>
+      </div>
 
       {outputs.hasInputError ? null : (
         <ExpandableSection sectionId="step3-advanced" title="advanced risk details">

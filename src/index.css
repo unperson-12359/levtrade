@@ -197,6 +197,12 @@ button {
   min-width: 0;
 }
 
+.risk-divider {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-subtle) 50%, transparent);
+  margin: 0.75rem 0;
+}
+
 .workspace-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
