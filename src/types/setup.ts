@@ -33,6 +33,7 @@ export interface SuggestedSetup {
   timeframe: SetupTimeframe
   summary: string
   generatedAt: number
+  source?: 'live' | 'server' | 'backfill'
 }
 
 export interface TrackedSetup {

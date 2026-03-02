@@ -1,6 +1,10 @@
 import { TRACKED_COINS, parseCandle } from '../types/market'
+import type { SuggestedSetup } from '../types/setup'
+import type { TrackedSetup } from '../types/setup'
 import { fetchAllMids, fetchMetaAndAssetCtxs, fetchCandles, fetchFundingHistory } from './api'
 import { HyperliquidWS } from './websocket'
+import { computeSignalsAtTime, generateBackfillTimestamps } from '../signals/backfill'
+import { computeSuggestedSetup } from '../signals/setup'
 import type { StoreApi } from 'zustand'
 import type { AppStore } from '../store'
 
@@ -47,6 +51,8 @@ export class DataManager {
         this.fetchAllCandles(),
         this.fetchAllFundingHistory(),
       ])
+      await this.fetchServerSetups()
+      await this.backfillMissedSetups()
       await this.backfillCandlesForPendingSetups()
       this.store.getState().computeAllSignals()
       this.store.getState().generateAllSetups()
@@ -172,6 +178,124 @@ export class DataManager {
     }
 
     this.store.getState().resolveSetupOutcomes()
+  }
+
+  private async fetchServerSetups(): Promise<void> {
+    const state = this.store.getState()
+    if (!state.cloudSyncEnabled || !state.cloudSyncSecret) {
+      return
+    }
+
+    try {
+      const res = await fetch('/api/server-setups?days=7', {
+        headers: { 'x-levtrade-sync-secret': state.cloudSyncSecret },
+      })
+      if (!res.ok) return
+
+      const payload = (await res.json()) as {
+        ok: boolean
+        setups: Array<{ id: string; setup: SuggestedSetup; outcomes: TrackedSetup['outcomes'] }>
+      }
+      if (!payload.ok || !Array.isArray(payload.setups)) return
+
+      for (const serverSetup of payload.setups) {
+        if (serverSetup.setup && typeof serverSetup.setup.generatedAt === 'number') {
+          this.store.getState().trackSetup(serverSetup.setup)
+        }
+      }
+    } catch {
+      // Non-critical: server setups are supplementary
+    }
+  }
+
+  private async backfillMissedSetups(): Promise<void> {
+    const state = this.store.getState()
+    const lastComputed = state.lastSignalComputedAt
+
+    // First run: nothing to backfill, just set the timestamp
+    if (lastComputed === null) {
+      return
+    }
+
+    const now = Date.now()
+    const gapHours = (now - lastComputed) / MS_PER_HOUR
+
+    // Less than 2 hours: live computation will cover it
+    if (gapHours < 2) {
+      return
+    }
+
+    // Fetch extended candles if gap exceeds the standard 120h window
+    if (gapHours > CANDLE_COUNT) {
+      await this.fetchExtendedCandlesForBackfill(Math.ceil(gapHours) + CANDLE_COUNT)
+    }
+
+    // Fetch extended funding history covering the gap
+    if (gapHours <= 200) {
+      await this.fetchExtendedFundingForBackfill(lastComputed)
+    }
+
+    const timestamps = generateBackfillTimestamps(lastComputed, now)
+    if (timestamps.length === 0) return
+
+    for (const coin of TRACKED_COINS) {
+      const candles = state.candles[coin]
+      const fundingHistory = state.fundingHistory[coin]
+      const oiHistory = state.oiHistory[coin]
+
+      for (const timestamp of timestamps) {
+        const signals = computeSignalsAtTime(coin, candles, fundingHistory, oiHistory, timestamp)
+        if (!signals) continue
+
+        // Find price at timestamp: closest candle close at or before that time
+        const priceCandle = [...candles].reverse().find((c) => c.time <= timestamp)
+        const price = priceCandle?.close
+        if (!price || !isFinite(price) || price <= 0) continue
+
+        const setup = computeSuggestedSetup(coin, signals, price, {
+          generatedAt: timestamp,
+          source: 'backfill',
+        })
+        if (setup) {
+          this.store.getState().trackSetup(setup)
+        }
+      }
+    }
+
+    this.store.getState().sortSetupsByTime()
+  }
+
+  private async fetchExtendedCandlesForBackfill(hoursNeeded: number): Promise<void> {
+    const now = Date.now()
+    const startTime = now - hoursNeeded * MS_PER_HOUR
+
+    for (const coin of TRACKED_COINS) {
+      try {
+        const rawCandles = await fetchCandles(coin, CANDLE_INTERVAL, startTime, now)
+        const candles = rawCandles.map(parseCandle)
+        this.store.getState().setCandles(coin, candles)
+      } catch {
+        // Non-critical: backfill will use whatever candles are available
+      }
+      await sleep(200)
+    }
+  }
+
+  private async fetchExtendedFundingForBackfill(since: number): Promise<void> {
+    for (const coin of TRACKED_COINS) {
+      try {
+        const history = await fetchFundingHistory(coin, since, Date.now())
+        for (const entry of history) {
+          const rate = parseFloat(entry.fundingRate)
+          if (isFinite(rate)) {
+            this.store.getState().appendFundingRate(coin, entry.time, rate)
+          }
+        }
+      } catch {
+        // Non-critical: backfill will use neutral funding fallback
+      }
+      await sleep(200)
+    }
   }
 
   private async refreshCandlesIfNeeded(coin: (typeof TRACKED_COINS)[number], now: number): Promise<void> {

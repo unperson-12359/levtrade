@@ -15,6 +15,7 @@ import {
 
 export interface SignalsSlice {
   signals: Record<TrackedCoin, AssetSignals | null>
+  lastSignalComputedAt: number | null
 
   computeSignals: (coin: TrackedCoin) => void
   computeAllSignals: () => void
@@ -35,6 +36,7 @@ const CANDLE_STALE_AFTER_MS = 2 * 60 * 60 * 1000
 
 export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = (set, get) => ({
   signals: initSignals(),
+  lastSignalComputedAt: null,
 
   computeSignals: (coin) => {
     const state = get()
@@ -102,5 +104,6 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
         state.computeSignals(coin)
       }
     }
+    set({ lastSignalComputedAt: Date.now() })
   },
 })

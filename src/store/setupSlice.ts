@@ -27,6 +27,7 @@ export interface SetupSlice {
   generateAllSetups: () => void
   resolveSetupOutcomes: (now?: number) => void
   pruneSetupHistory: (now?: number) => void
+  sortSetupsByTime: () => void
   clearSetupHistory: () => void
   exportSetupsCsv: () => void
   exportSetupsJson: () => void
@@ -152,6 +153,11 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
       }
       return { trackedSetups }
     }),
+
+  sortSetupsByTime: () =>
+    set((state) => ({
+      trackedSetups: [...state.trackedSetups].sort((a, b) => a.setup.generatedAt - b.setup.generatedAt),
+    })),
 
   clearSetupHistory: () =>
     set({

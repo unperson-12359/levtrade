@@ -10,6 +10,7 @@ export function computeSuggestedSetup(
   coin: TrackedCoin,
   signals: AssetSignals,
   currentPrice: number,
+  options?: { generatedAt?: number; source?: 'live' | 'server' | 'backfill' },
 ): SuggestedSetup | null {
   if (
     !isFinite(currentPrice) ||
@@ -108,7 +109,8 @@ export function computeSuggestedSetup(
     compositeValue: signals.composite.value,
     timeframe,
     summary,
-    generatedAt: Date.now(),
+    generatedAt: options?.generatedAt ?? Date.now(),
+    source: options?.source,
   }
 }
 
