@@ -7,7 +7,9 @@ import type {
   TrackedSignalRecord,
   TrackerWindow,
 } from '../types/tracker'
-import type { TrackedCoin } from '../types/market'
+import { TRACKED_COINS, type TrackedCoin } from '../types/market'
+import { computeDecisionState } from '../signals/decision'
+import { computeRisk } from '../signals/risk'
 
 const TRACKER_WINDOWS: Record<TrackerWindow, number> = {
   '4h': 4 * 60 * 60 * 1000,
@@ -35,6 +37,7 @@ export interface TrackerSlice {
     referencePrice: number,
     timestamp?: number,
   ) => void
+  trackAllDecisionSnapshots: () => void
   resolveTrackedOutcomes: (now?: number) => void
   pruneTrackerHistory: (now?: number) => void
   clearTrackerHistory: () => void
@@ -120,6 +123,49 @@ export const createTrackerSlice: StateCreator<AppStore, [], [], TrackerSlice> = 
     })
 
     get().pruneTrackerHistory()
+  },
+
+  trackAllDecisionSnapshots: () => {
+    const state = get()
+    const riskCoin = state.riskInputs.coin
+    const riskSignals = state.signals[riskCoin]
+    const atr = riskSignals?.volatility.atr ?? 0
+    const riskOutputs = state.riskInputs.entryPrice > 0 ? computeRisk(state.riskInputs, atr) : null
+    const globalRiskStatus: RiskStatus = riskOutputs
+      ? riskOutputs.tradeGrade === 'green' ? 'safe'
+        : riskOutputs.tradeGrade === 'yellow' ? 'borderline'
+        : 'danger'
+      : 'unknown'
+
+    for (const coin of TRACKED_COINS) {
+      const signals = state.signals[coin]
+      const price = state.prices[coin]
+      if (!signals || signals.isStale || signals.isWarmingUp || !price || !isFinite(price) || price <= 0) {
+        continue
+      }
+
+      const activeRiskStatus: RiskStatus = coin === riskCoin ? globalRiskStatus : 'unknown'
+      const decision = computeDecisionState({
+        composite: signals.composite,
+        entryGeometry: signals.entryGeometry,
+        hurst: signals.hurst,
+        isStale: signals.isStale,
+        isWarmingUp: signals.isWarmingUp,
+        riskStatus: activeRiskStatus,
+      })
+
+      get().trackDecisionSnapshot(
+        coin,
+        {
+          action: decision.action,
+          label: decision.label,
+          reasons: decision.reasons,
+          riskStatus: activeRiskStatus,
+        },
+        price,
+        signals.updatedAt,
+      )
+    }
   },
 
   resolveTrackedOutcomes: (now = Date.now()) => {

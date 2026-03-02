@@ -1,6 +1,5 @@
 import { useCloudSync } from '../../hooks/useCloudSync'
 import { useDataManager } from '../../hooks/useDataManager'
-import { useTrackDecisionSnapshot } from '../../hooks/useTrackDecisionSnapshot'
 import { useStore } from '../../store'
 import { AnalyticsTabs } from '../analytics/AnalyticsTabs'
 import { PriceChart } from '../chart/PriceChart'
@@ -13,7 +12,6 @@ import { TopBar } from '../topbar/TopBar'
 
 export function DashboardLayout() {
   useDataManager()
-  useTrackDecisionSnapshot()
   const { syncNow } = useCloudSync()
 
   const coin = useStore((s) => s.selectedCoin)

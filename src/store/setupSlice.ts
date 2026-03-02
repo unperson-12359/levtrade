@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand'
 import type { AppStore } from '.'
-import type { Candle } from '../types/market'
+import { TRACKED_COINS, type Candle } from '../types/market'
+import { computeSuggestedSetup } from '../signals/setup'
 import type {
   SetupCoverageStatus,
   SetupOutcome,
@@ -23,6 +24,7 @@ const ENTRY_SIMILARITY_THRESHOLD = 0.02
 export interface SetupSlice {
   trackedSetups: TrackedSetup[]
   trackSetup: (setup: SuggestedSetup) => void
+  generateAllSetups: () => void
   resolveSetupOutcomes: (now?: number) => void
   pruneSetupHistory: (now?: number) => void
   clearSetupHistory: () => void
@@ -63,6 +65,21 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
         trackedSetups: [...state.trackedSetups, trackedSetup],
       }
     }),
+
+  generateAllSetups: () => {
+    const state = get()
+    for (const coin of TRACKED_COINS) {
+      const signals = state.signals[coin]
+      const currentPrice = state.prices[coin]
+      if (!signals || signals.isStale || signals.isWarmingUp || !currentPrice || !isFinite(currentPrice) || currentPrice <= 0) {
+        continue
+      }
+      const setup = computeSuggestedSetup(coin, signals, currentPrice)
+      if (setup) {
+        get().trackSetup(setup)
+      }
+    }
+  },
 
   resolveSetupOutcomes: (now = Date.now()) =>
     set((state) => {
@@ -289,18 +306,33 @@ function resolveSetupWindow(
   }
 
   const traversal = candles.filter((candle) => candle.time >= setup.generatedAt && candle.time <= targetTime)
-  const resolutionCandle = candles.find((candle) => candle.time >= targetTime) ?? null
+  let resolutionCandle = candles.find((candle) => candle.time >= targetTime) ?? null
   const oldestRegularTime = regularCandles.length > 0 ? regularCandles[0]!.time : Infinity
   const usedBackfill = extendedCandles.length > 0 && setup.generatedAt < oldestRegularTime
+  let partialResolution = false
 
   if (!resolutionCandle) {
-    return {
-      ...emptyOutcome(window),
-      resolvedAt: now,
-      result: 'unresolvable',
-      resolutionReason: 'unresolvable',
-      coverageStatus: 'insufficient',
-      candleCountUsed: traversal.length,
+    const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000
+    const CLOSE_ENOUGH_MS = 2 * 60 * 60 * 1000
+    const latestCandle = candles.length > 0 ? candles[candles.length - 1]! : null
+
+    if (latestCandle && latestCandle.time >= setup.generatedAt && (targetTime - latestCandle.time) <= CLOSE_ENOUGH_MS) {
+      // Latest candle is close enough to the window boundary — use it with partial coverage
+      resolutionCandle = latestCandle
+      partialResolution = true
+    } else if (now >= targetTime + GRACE_PERIOD_MS) {
+      // Past 24h grace period with no usable candle — truly unresolvable
+      return {
+        ...emptyOutcome(window),
+        resolvedAt: now,
+        result: 'unresolvable',
+        resolutionReason: 'unresolvable',
+        coverageStatus: 'insufficient',
+        candleCountUsed: traversal.length,
+      }
+    } else {
+      // Within grace period — stay pending, candles may arrive on next poll/backfill
+      return null
     }
   }
 
@@ -374,7 +406,7 @@ function resolveSetupWindow(
       : null
 
   const coverageStatus: SetupCoverageStatus =
-    usedBackfill ? 'partial' : 'full'
+    partialResolution || usedBackfill ? 'partial' : 'full'
 
   return {
     window,

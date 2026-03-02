@@ -48,6 +48,9 @@ export class DataManager {
         this.fetchAllFundingHistory(),
       ])
       await this.backfillCandlesForPendingSetups()
+      this.store.getState().computeAllSignals()
+      this.store.getState().generateAllSetups()
+      this.store.getState().trackAllDecisionSnapshots()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch initial data'
       this.store.getState().addError(msg)
@@ -217,8 +220,10 @@ export class DataManager {
           await this.refreshCandlesIfNeeded(coin, now)
         }
 
-        // Trigger signal recomputation and resolve tracker outcomes
+        // Trigger signal recomputation, generate setups for all coins, and resolve outcomes
         this.store.getState().computeAllSignals()
+        this.store.getState().generateAllSetups()
+        this.store.getState().trackAllDecisionSnapshots()
         this.store.getState().resolveTrackedOutcomes()
         this.store.getState().resolveSetupOutcomes()
         this.store.getState().pruneTrackerHistory()
