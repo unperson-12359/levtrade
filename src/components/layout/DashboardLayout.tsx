@@ -1,7 +1,7 @@
 import { useCloudSync } from '../../hooks/useCloudSync'
 import { useDataManager } from '../../hooks/useDataManager'
 import { useStore } from '../../store'
-import { AnalyticsTabs } from '../analytics/AnalyticsTabs'
+import { AnalyticsPage } from '../analytics/AnalyticsPage'
 import { PriceChart } from '../chart/PriceChart'
 import { DecisionHero } from '../decision/DecisionHero'
 import { MarketRail } from '../market/MarketRail'
@@ -45,6 +45,7 @@ export function DashboardLayout() {
       <TopBar />
       <MenuDrawer onSyncNow={syncNow} />
       <HowItWorks />
+      <AnalyticsPage />
 
       <main className="dashboard-shell">
         <section className="workspace-stack dashboard-main">
@@ -57,7 +58,6 @@ export function DashboardLayout() {
             <MarketRail />
             <SignalSection />
           </div>
-          <AnalyticsTabs />
         </section>
 
         <aside className="dashboard-risk">

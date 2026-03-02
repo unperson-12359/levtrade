@@ -141,8 +141,16 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
           {syncError && <div className="action-guidance action-guidance--red">{syncError}</div>}
         </div>
 
-        {/* Guide Link */}
+        {/* Page Links */}
         <div className="menu-drawer__section">
+          <button
+            type="button"
+            className="menu-drawer__guide-link"
+            onClick={() => { toggle('analytics'); close() }}
+          >
+            Analytics
+            <span className="menu-drawer__muted">→</span>
+          </button>
           <button
             type="button"
             className="menu-drawer__guide-link"
