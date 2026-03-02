@@ -40,6 +40,10 @@ export const useStore = create<AppStore>()(
         if (state && !state.cloudSyncEnabled && import.meta.env.VITE_SYNC_SECRET) {
           state.configureCloudSync(import.meta.env.VITE_SYNC_SECRET as string)
         }
+        // Clamp leverage to current max (40) for users with old persisted values
+        if (state && state.riskInputs.leverage > 40) {
+          state.updateRiskInput('leverage', 40)
+        }
       },
     },
   ),
