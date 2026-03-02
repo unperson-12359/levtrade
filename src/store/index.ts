@@ -36,6 +36,11 @@ export const useStore = create<AppStore>()(
         analyticsTab: state.analyticsTab,
         lastSignalComputedAt: state.lastSignalComputedAt,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state && !state.cloudSyncEnabled && import.meta.env.VITE_SYNC_SECRET) {
+          state.configureCloudSync(import.meta.env.VITE_SYNC_SECRET as string)
+        }
+      },
     },
   ),
 )
