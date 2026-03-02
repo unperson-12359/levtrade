@@ -1602,7 +1602,7 @@ button {
   bottom: 0;
   width: 100%;
   max-width: 480px;
-  z-index: 60;
+  z-index: 80;
   background: var(--color-bg-card);
   border-left: 1px solid var(--color-border-subtle);
   display: flex;
@@ -1622,7 +1622,7 @@ button {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 59;
+  z-index: 79;
 }
 
 .signal-drawer__header {
