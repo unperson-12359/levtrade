@@ -58,19 +58,6 @@ export function RiskResults() {
             {outputs.targetValidationMessage && <WarningText text={outputs.targetValidationMessage} />}
           </div>
         )}
-        <div className="workflow-summary-grid workflow-summary-grid--risk">
-          <Stat label="Account hit at stop" value={formatPercent(outputs.lossAtStopPercent, 1)} tone={lossColor} />
-          <Stat label={<JargonTerm term="R:R">Reward vs risk</JargonTerm>} value={`${outputs.rrRatio.toFixed(1)} : 1`} tone={rrColor} />
-          <Stat
-            label={<JargonTerm term="Liquidation">Liquidation safety</JargonTerm>}
-            value={!hasPositionSizeInput ? 'NEED SIZE' : isImmune ? 'IMMUNE' : formatPercent(outputs.liquidationDistance, 1)}
-            tone={!hasPositionSizeInput ? 'yellow' : liqColor}
-          />
-          <Stat label="Suggested leverage" value={`${outputs.suggestedLeverage.toFixed(1)}x`} tone="green" />
-        </div>
-        <div className={`action-guidance action-guidance--${riskGuidance.tone}`}>
-          {outputs.hasInputError ? outputs.inputErrorMessage : riskGuidance.action}
-        </div>
       </section>
 
       {outputs.hasInputError ? null : (

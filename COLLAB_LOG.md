@@ -1039,3 +1039,56 @@ Make the desktop sticky chart feel less intrusive by turning it into a framed vi
 - Preview deployment: `https://levtrade-461wbkrif-unperson12359s-projects.vercel.app`
 - Environment: `Preview`
 - Production alias unchanged: `https://levtrade.vercel.app`
+
+---
+
+## 2026-03-02 - Codex  Dashboard Consolidation and Layout Condensing
+
+### Goal
+Unify overlapping dashboard information so the same guidance and metrics are no longer repeated across multiple panels, while keeping all underlying information available through consolidated displays.
+
+### Files Changed
+- `src/index.css`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/components/risk/RiskSection.tsx`
+- `src/components/setup/SetupHistory.tsx`
+- `src/components/claims/TrustPanel.tsx`
+- `src/components/market/MarketRail.tsx`
+- `src/components/signal/SignalSection.tsx`
+- `src/components/risk/RiskResults.tsx`
+- `src/components/entry/EntryGeometryPanel.tsx`
+- `src/components/chart/PriceChart.tsx`
+- `src/components/setup/SetupCard.tsx`
+
+### What changed
+- Tightened dashboard spacing in CSS by reducing panel padding, section gaps, expandable-section spacing, stat-card padding, summary-card padding, and copy spacing.
+- Added sibling spacing rules so summary grids and setup cards do not stack extra vertical margin after body copy.
+- Removed the redundant chart helper paragraph from the main chart shell.
+- Shortened descriptive copy in Step 3, Setup History, and Trust/Storage to reduce repeated explanation overhead.
+- Removed duplicate workflow summary cards and action strips from `MarketRail`, `SignalSection`, `RiskResults`, and `EntryGeometryPanel`.
+- Preserved Step 2 directional information by moving it into a compact inline direction pill next to the existing status pill.
+- Removed duplicate Step 2 advanced metrics for funding, money flow, and composite agreement, leaving only the price-stretch metric there because the fuller versions already live in Step 1 advanced mini-panels.
+- Removed duplicate setup-history metadata from `TrustPanel`, keeping only sync/storage-specific metadata there.
+- Removed the duplicate entry-quality badge from the chart header.
+- Removed the duplicate top-level risk stat grid from `RiskResults`.
+- Added consolidated risk context into `SetupCard` via `usePositionRisk`, including:
+  - account hit at stop
+  - liquidation safety
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: 0
+- Warnings: 0
+- Modules transformed: 113
+- Output sizes:
+  - `dist/index.html`: 0.46 kB (gzip 0.31 kB)
+  - `dist/assets/index-CpJ9maBd.css`: 55.49 kB (gzip 9.80 kB)
+  - `dist/assets/index-DIyQCTDE.js`: 492.03 kB (gzip 151.23 kB)
+
+### Notes
+- This pass intentionally did not change signal computation, risk math, store behavior, `DecisionHero.tsx`, `MenuDrawer.tsx`, or `TopBar.tsx`.
+- Information was consolidated, not removed: duplicate metrics were relocated into the more authoritative surfaces instead of being dropped.
+
+### Follow-up / Remaining Verification
+- Browser devtools console was not available in this CLI session, so console-error verification is still pending.
+- Manual layout QA is still needed at `1440px` and `390px` to confirm no visual regressions, overflow, or clipping after the consolidation pass.

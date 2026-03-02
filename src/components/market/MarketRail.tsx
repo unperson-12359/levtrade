@@ -9,12 +9,6 @@ import { JargonTerm } from '../shared/JargonTerm'
 import { StepLabel } from '../methodology/StepLabel'
 import { SignalDrawer } from '../shared/SignalDrawer'
 
-const toneClasses = {
-  green: 'text-signal-green',
-  yellow: 'text-signal-yellow',
-  red: 'text-signal-red',
-} as const
-
 export function MarketRail() {
   const coin = useStore((s) => s.selectedCoin)
   const { signals, isWarmingUp, warmupProgress } = useSignals(coin)
@@ -59,36 +53,11 @@ export function MarketRail() {
           )}
         </div>
       )}
-
-      <div className="workflow-summary-grid">
-        <article className="workflow-summary-card">
-          <div className="workflow-summary-card__kicker">Market read</div>
-          <div className={`workflow-summary-card__value ${toneClasses[guidance.tone]}`}>
-            {guidance.label}
-          </div>
-          <p className="workflow-summary-card__copy">
-            {guidance.canProceed ? signals.hurst.explanation : guidance.summary}
-          </p>
-        </article>
-        <article className="workflow-summary-card">
-          <div className="workflow-summary-card__kicker">What to do now</div>
-          <p className="workflow-summary-card__copy">{guidance.action}</p>
-        </article>
-        <article className="workflow-summary-card">
-          <div className="workflow-summary-card__kicker">When to continue</div>
-          <p className="workflow-summary-card__copy">{guidance.nextStep}</p>
-        </article>
-      </div>
-
-      <div className={`action-guidance action-guidance--${guidance.tone}`}>
-        {guidance.action}
-      </div>
-
       <ExpandableSection sectionId="step1-advanced" title="advanced market details">
         <div className="market-rail-grid">
           <section className="subpanel-shell">
             <div className="panel-kicker">Regime details</div>
-            <div className={`mini-panel-title ${toneClasses[signals.hurst.color]}`}>
+            <div className={`mini-panel-title ${signals.hurst.color === 'green' ? 'text-signal-green' : signals.hurst.color === 'yellow' ? 'text-signal-yellow' : 'text-signal-red'}`}>
               {signals.hurst.regime.toUpperCase()}
             </div>
             <div className="rail-rows">
@@ -179,7 +148,7 @@ function MiniPanel({ kicker, title, tone, rows, copy, chartKind, onOpenChart, fo
   return (
     <section className="subpanel-shell">
       <div className="panel-kicker">{kicker}</div>
-      <div className={`mini-panel-title ${toneClasses[tone]}`}>{title}</div>
+      <div className={`mini-panel-title ${tone === 'green' ? 'text-signal-green' : tone === 'yellow' ? 'text-signal-yellow' : 'text-signal-red'}`}>{title}</div>
       <div className="rail-rows">
         {rows.map((row, index) => (
           <div key={index} className="rail-row">

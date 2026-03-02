@@ -13,10 +13,7 @@ export function RiskSection() {
             <h2 className="panel-title">If you take it, how big should the trade be?</h2>
           </div>
         </div>
-        <p className="panel-copy">
-          Only use this section after Step 2 says there is an entry. The goal here is simple:
-          make sure the loss, leverage, and liquidation distance are acceptable before you click anything.
-        </p>
+        <p className="panel-copy">Verify size, leverage, and liquidation before entering.</p>
         <RiskForm />
       </section>
       <RiskResults />

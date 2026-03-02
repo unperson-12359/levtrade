@@ -45,43 +45,17 @@ export function SignalSection() {
           <div className="panel-kicker">Step 2</div>
           <h2 className="panel-title">Is there an entry right now?</h2>
         </div>
-        <span className={`status-pill status-pill--${guidance.tone}`}>{guidance.label}</span>
+        <div className="flex items-center gap-2">
+          {guidance.directionLabel !== 'NONE' && (
+            <span className={`setup-card__direction setup-card__direction--${guidance.directionLabel === 'LONG' ? 'green' : 'red'}`}>
+              {guidance.directionLabel}
+            </span>
+          )}
+          <span className={`status-pill status-pill--${guidance.tone}`}>{guidance.label}</span>
+        </div>
       </div>
 
       <p className="panel-copy">{guidance.summary}</p>
-
-      <div className="workflow-summary-grid">
-        <article className="workflow-summary-card">
-          <div className="workflow-summary-card__kicker">Direction</div>
-          <div className={`workflow-summary-card__value ${toneClasses[guidance.tone]}`}>
-            {guidance.directionLabel}
-          </div>
-          <p className="workflow-summary-card__copy">This is the side the dashboard would favor if a trade exists.</p>
-        </article>
-        <article className="workflow-summary-card">
-          <div className="workflow-summary-card__kicker">What to do now</div>
-          <p className="workflow-summary-card__copy">{guidance.action}</p>
-        </article>
-        <article className="workflow-summary-card">
-          <div className="workflow-summary-card__kicker">What to wait for</div>
-          <p className="workflow-summary-card__copy">{guidance.waitFor}</p>
-        </article>
-      </div>
-
-      {guidance.reasons.length > 0 && (
-        <div className="decision-hero__reasons">
-          <div className="workflow-summary-card__kicker">Why the dashboard says this</div>
-          <div className="decision-strip__chips">
-            {guidance.reasons.slice(0, 4).map((reason) => (
-              <span key={reason} className="warning-chip warning-chip--blue">
-                {reason}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className={`action-guidance action-guidance--${guidance.tone}`}>{guidance.action}</div>
 
       <SetupCard coin={coin} />
 
@@ -112,28 +86,12 @@ export function SignalSection() {
           ))}
         </div>
 
-        <div className="stat-grid">
+        <div>
           <Metric
             label={<JargonTerm term="Z-Score">Price stretch</JargonTerm>}
             value={`${signals.zScore.value.toFixed(2)}\u03C3`}
             tone={signals.zScore.color}
             onActivate={() => setDrawerKind('zScore')}
-          />
-          <Metric
-            label={<JargonTerm term="Funding Rate">Crowd positioning</JargonTerm>}
-            value={`${signals.funding.zScore.toFixed(2)}\u03C3`}
-            tone={signals.funding.color}
-            onActivate={() => setDrawerKind('fundingRate')}
-          />
-          <Metric
-            label={<JargonTerm term="OI Delta">Money flow</JargonTerm>}
-            value={signals.oiDelta.confirmation ? 'CONFIRMED' : 'DIVERGING'}
-            tone={signals.oiDelta.color}
-          />
-          <Metric
-            label={<JargonTerm term="Composite">Overall agreement</JargonTerm>}
-            value={signals.composite.value.toFixed(2)}
-            tone={signals.composite.color}
           />
         </div>
 

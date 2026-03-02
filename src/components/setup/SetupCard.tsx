@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useEntryDecision } from '../../hooks/useEntryDecision'
+import { usePositionRisk } from '../../hooks/usePositionRisk'
 import { useSuggestedSetup } from '../../hooks/useSuggestedSetup'
 import type { TrackedCoin } from '../../types'
 import type { SignalColor } from '../../types/signals'
@@ -19,6 +20,7 @@ interface SetupCardProps {
 export function SetupCard({ coin }: SetupCardProps) {
   const setup = useSuggestedSetup(coin)
   const decision = useEntryDecision(coin)
+  const { outputs: riskOutputs, isReady: riskReady } = usePositionRisk()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   if (!setup) {
@@ -128,6 +130,20 @@ export function SetupCard({ coin }: SetupCardProps) {
         <Stat label="Entry quality" value={setup.entryQuality.replace('-', ' ').toUpperCase()} tone={entryQualityTone(setup.entryQuality)} />
         <Stat label="Signal alignment" value={`${setup.agreementCount}/${setup.agreementTotal}`} tone="yellow" />
         <Stat label="Expected timeframe" value={setup.timeframe} tone="yellow" />
+        {riskReady && riskOutputs && (
+          <>
+            <Stat
+              label="Account hit at stop"
+              value={`${riskOutputs.lossAtStopPercent.toFixed(1)}%`}
+              tone={riskOutputs.lossAtStopPercent < 1 ? 'green' : riskOutputs.lossAtStopPercent < 2 ? 'yellow' : 'red'}
+            />
+            <Stat
+              label="Liquidation safety"
+              value={riskOutputs.effectiveImmune ? 'IMMUNE' : `${riskOutputs.liquidationDistance.toFixed(1)}%`}
+              tone={riskOutputs.effectiveImmune || riskOutputs.liquidationDistance > 20 ? 'green' : riskOutputs.liquidationDistance > 10 ? 'yellow' : 'red'}
+            />
+          </>
+        )}
       </div>
 
       <div className="setup-card__summary">

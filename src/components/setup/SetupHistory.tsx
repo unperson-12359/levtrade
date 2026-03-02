@@ -50,10 +50,7 @@ export function SetupHistory() {
         </div>
       </div>
 
-      <p className="panel-copy">
-        This history is saved locally in this browser. Outcomes are scored from hourly candles over the selected
-        scoring window, so unresolved and unresolvable rows reflect whether enough future candles exist yet.
-      </p>
+      <p className="panel-copy">Locally stored. Outcomes scored from 1h candles over the selected window.</p>
 
       <div className="stat-grid setup-history__summary">
         <Stat label="Tracked setups" value={String(stats.totalSetups)} tone="yellow" />

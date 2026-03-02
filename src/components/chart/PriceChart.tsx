@@ -162,13 +162,6 @@ export function PriceChart({
             <div className="panel-kicker">Price Geometry</div>
             <h2 className="panel-title">{coin} Entry Map</h2>
           </div>
-          {signals && (
-            <div className="panel-status">
-              <span className={`status-pill status-pill--${signals.entryGeometry.color}`}>
-                {signals.entryGeometry.entryQuality.replace('-', ' ').toUpperCase()}
-              </span>
-            </div>
-          )}
         </div>
       )}
 

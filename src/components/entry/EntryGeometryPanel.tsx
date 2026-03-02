@@ -93,17 +93,6 @@ export function EntryGeometryPanel({ embedded = false }: EntryGeometryPanelProps
       </div>
 
       <p className="panel-copy">{entry.explanation}</p>
-      <div className={`action-guidance action-guidance--${entry.color}`}>
-        {entry.entryQuality === 'ideal'
-          ? 'Price is in the sweet spot for a mean-reversion entry.'
-          : entry.entryQuality === 'extended'
-          ? 'Price is deeply stretched - it could snap back hard, but further extension is still possible. Consider a smaller position.'
-          : entry.entryQuality === 'early'
-          ? 'Setup is forming but not ideal yet. Watch for more stretch.'
-          : entry.entryQuality === 'chasing'
-          ? 'Price has moved too far. You would be chasing. Wait for it to cool.'
-          : 'Price is near its average. No statistical edge for entry.'}
-      </div>
       <SignalDrawer coin={coin} signalKind={drawerKind} onClose={() => setDrawerKind(null)} />
     </section>
   )
