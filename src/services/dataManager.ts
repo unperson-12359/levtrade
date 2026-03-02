@@ -114,11 +114,37 @@ export class DataManager {
         const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
         const candles = rawCandles.map(parseCandle)
         this.store.getState().setCandles(coin, candles)
+
+        // When display interval is 1h, reuse for resolution
+        if (this.interval === '1h') {
+          this.store.getState().setResolutionCandles(coin, candles)
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : `Failed to fetch candles for ${coin}`
         this.store.getState().addError(msg)
       }
       // Small delay between requests
+      await sleep(200)
+    }
+
+    // When display interval is NOT 1h, separately fetch 1h candles for setup resolution
+    if (this.interval !== '1h') {
+      await this.fetchResolutionCandles()
+    }
+  }
+
+  private async fetchResolutionCandles(): Promise<void> {
+    const now = Date.now()
+    const startTime = now - 120 * 3_600_000 // 120 hours of 1h candles
+
+    for (const coin of TRACKED_COINS) {
+      try {
+        const rawCandles = await fetchCandles(coin, '1h', startTime, now)
+        const candles = rawCandles.map(parseCandle)
+        this.store.getState().setResolutionCandles(coin, candles)
+      } catch {
+        // Non-critical: resolution will fall back to display candles
+      }
       await sleep(200)
     }
   }
@@ -163,24 +189,43 @@ export class DataManager {
     }
 
     for (const [coin, oldestTime] of oldestByCoin) {
+      // Fetch extended candles for the display interval
       const existingCandles = state.candles[coin] ?? []
       const oldestCandleTime = existingCandles.length > 0 ? existingCandles[0]!.time : Date.now()
-      if (oldestTime >= oldestCandleTime) {
-        continue
-      }
-
-      try {
-        const startTime = oldestTime - this.itvl.ms
-        const rawCandles = await fetchCandles(coin, this.interval, startTime, oldestCandleTime)
-        const candles = rawCandles.map(parseCandle)
-        if (candles.length > 0) {
-          this.store.getState().setExtendedCandles(coin, candles)
+      if (oldestTime < oldestCandleTime) {
+        try {
+          const startTime = oldestTime - this.itvl.ms
+          const rawCandles = await fetchCandles(coin, this.interval, startTime, oldestCandleTime)
+          const candles = rawCandles.map(parseCandle)
+          if (candles.length > 0) {
+            this.store.getState().setExtendedCandles(coin, candles)
+          }
+        } catch {
+          // Non-critical
         }
-      } catch {
-        // Non-critical: the next poll/startup can try again.
+        await sleep(200)
       }
 
-      await sleep(200)
+      // Always fetch 1h candles for resolution if not already 1h
+      if (this.interval !== '1h') {
+        const resCandles = state.resolutionCandles[coin] ?? []
+        const oldestResTime = resCandles.length > 0 ? resCandles[0]!.time : Date.now()
+        if (oldestTime < oldestResTime) {
+          try {
+            const startTime = oldestTime - 3_600_000
+            const rawCandles = await fetchCandles(coin, '1h', startTime, oldestResTime)
+            const candles = rawCandles.map(parseCandle)
+            if (candles.length > 0) {
+              const merged = [...candles, ...resCandles]
+              const deduped = [...new Map(merged.map((c) => [c.time, c])).values()].sort((a, b) => a.time - b.time)
+              this.store.getState().setResolutionCandles(coin, deduped)
+            }
+          } catch {
+            // Non-critical
+          }
+          await sleep(200)
+        }
+      }
     }
 
     this.store.getState().resolveSetupOutcomes()
@@ -245,10 +290,13 @@ export class DataManager {
     const timestamps = generateBackfillTimestamps(lastComputed, now, this.itvl.ms)
     if (timestamps.length === 0) return
 
+    // Re-read state after fetches so we use freshly fetched data
+    const freshState = this.store.getState()
+
     for (const coin of TRACKED_COINS) {
-      const candles = state.candles[coin]
-      const fundingHistory = state.fundingHistory[coin]
-      const oiHistory = state.oiHistory[coin]
+      const candles = freshState.candles[coin]
+      const fundingHistory = freshState.fundingHistory[coin]
+      const oiHistory = freshState.oiHistory[coin]
 
       for (const timestamp of timestamps) {
         const signals = computeSignalsAtTime(coin, candles, fundingHistory, oiHistory, timestamp)

@@ -82,7 +82,9 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
 
       const trackedSetups = state.trackedSetups.map((tracked) => {
         let nextTracked = tracked
-        const regularCandles = state.candles[tracked.setup.coin] ?? []
+        // Always use 1h resolution candles for outcome scoring, independent of display interval
+        const resCandles = state.resolutionCandles[tracked.setup.coin] ?? []
+        const regularCandles = resCandles.length > 0 ? resCandles : (state.candles[tracked.setup.coin] ?? [])
         const extendedCandles = state.extendedCandles[tracked.setup.coin] ?? []
         const candleMap = new Map<number, Candle>()
         for (const candle of [...extendedCandles, ...regularCandles]) {

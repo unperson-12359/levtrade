@@ -8,6 +8,7 @@ export interface MarketDataSlice {
   prices: Record<TrackedCoin, number | null>
   candles: Record<TrackedCoin, Candle[]>
   extendedCandles: Record<TrackedCoin, Candle[]>
+  resolutionCandles: Record<TrackedCoin, Candle[]>
   assetContexts: Record<TrackedCoin, AssetContext | null>
   fundingHistory: Record<TrackedCoin, FundingSnapshot[]>
   oiHistory: Record<TrackedCoin, OISnapshot[]>
@@ -19,6 +20,7 @@ export interface MarketDataSlice {
   setPrices: (mids: Record<string, string>) => void
   setCandles: (coin: TrackedCoin, candles: Candle[]) => void
   setExtendedCandles: (coin: TrackedCoin, candles: Candle[]) => void
+  setResolutionCandles: (coin: TrackedCoin, candles: Candle[]) => void
   appendCandle: (coin: TrackedCoin, candle: Candle) => void
   setAssetContext: (coin: TrackedCoin, ctx: AssetContext) => void
   appendFundingRate: (coin: TrackedCoin, time: number, rate: number) => void
@@ -44,6 +46,7 @@ export const createMarketDataSlice: StateCreator<AppStore, [], [], MarketDataSli
   prices: initRecord(null),
   candles: initRecord<Candle[]>([]),
   extendedCandles: initRecord<Candle[]>([]),
+  resolutionCandles: initRecord<Candle[]>([]),
   assetContexts: initRecord(null),
   fundingHistory: initRecord<FundingSnapshot[]>([]),
   oiHistory: initRecord<OISnapshot[]>([]),
@@ -72,6 +75,11 @@ export const createMarketDataSlice: StateCreator<AppStore, [], [], MarketDataSli
   setExtendedCandles: (coin, candles) =>
     set((state) => ({
       extendedCandles: { ...state.extendedCandles, [coin]: candles },
+    })),
+
+  setResolutionCandles: (coin, candles) =>
+    set((state) => ({
+      resolutionCandles: { ...state.resolutionCandles, [coin]: candles },
     })),
 
   appendCandle: (coin, candle) =>

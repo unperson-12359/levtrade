@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useEntryDecision } from '../../hooks/useEntryDecision'
-import { usePositionRisk } from '../../hooks/usePositionRisk'
 import { useSuggestedSetup } from '../../hooks/useSuggestedSetup'
+import { useStore } from '../../store'
+import { computeRisk } from '../../signals/risk'
 import type { TrackedCoin } from '../../types'
+import type { RiskInputs } from '../../types/risk'
 import type { SignalColor } from '../../types/signals'
 import { formatLeverage, formatPercent, formatPrice, formatUSD } from '../../utils/format'
 import { SignalDrawer } from '../shared/SignalDrawer'
@@ -20,8 +22,24 @@ interface SetupCardProps {
 export function SetupCard({ coin }: SetupCardProps) {
   const setup = useSuggestedSetup(coin)
   const decision = useEntryDecision(coin)
-  const { outputs: riskOutputs, isReady: riskReady } = usePositionRisk()
+  const accountSize = useStore((s) => s.riskInputs.accountSize)
   const [drawerOpen, setDrawerOpen] = useState(false)
+
+  // Compute risk from the setup's own data, not the global risk form
+  const setupRisk = useMemo(() => {
+    if (!setup || setup.suggestedPositionSize <= 0 || setup.suggestedLeverage <= 0) return null
+    const inputs: RiskInputs = {
+      coin: setup.coin,
+      direction: setup.direction,
+      entryPrice: setup.entryPrice,
+      accountSize,
+      positionSize: setup.suggestedPositionSize,
+      leverage: setup.suggestedLeverage,
+      stopPrice: setup.stopPrice,
+      targetPrice: setup.targetPrice,
+    }
+    return computeRisk(inputs, setup.atr)
+  }, [setup, accountSize])
 
   if (!setup) {
     return (
@@ -130,17 +148,17 @@ export function SetupCard({ coin }: SetupCardProps) {
         <Stat label="Entry quality" value={setup.entryQuality.replace('-', ' ').toUpperCase()} tone={entryQualityTone(setup.entryQuality)} />
         <Stat label="Signal alignment" value={`${setup.agreementCount}/${setup.agreementTotal}`} tone="yellow" />
         <Stat label="Expected timeframe" value={setup.timeframe} tone="yellow" />
-        {riskReady && riskOutputs && (
+        {setupRisk && !setupRisk.hasInputError && (
           <>
             <Stat
               label="Account hit at stop"
-              value={`${riskOutputs.lossAtStopPercent.toFixed(1)}%`}
-              tone={riskOutputs.lossAtStopPercent < 1 ? 'green' : riskOutputs.lossAtStopPercent < 2 ? 'yellow' : 'red'}
+              value={`${setupRisk.lossAtStopPercent.toFixed(1)}%`}
+              tone={setupRisk.lossAtStopPercent < 1 ? 'green' : setupRisk.lossAtStopPercent < 2 ? 'yellow' : 'red'}
             />
             <Stat
               label="Liquidation safety"
-              value={riskOutputs.effectiveImmune ? 'IMMUNE' : `${riskOutputs.liquidationDistance.toFixed(1)}%`}
-              tone={riskOutputs.effectiveImmune || riskOutputs.liquidationDistance > 20 ? 'green' : riskOutputs.liquidationDistance > 10 ? 'yellow' : 'red'}
+              value={setupRisk.effectiveImmune ? 'IMMUNE' : `${setupRisk.liquidationDistance.toFixed(1)}%`}
+              tone={setupRisk.effectiveImmune || setupRisk.liquidationDistance > 20 ? 'green' : setupRisk.liquidationDistance > 10 ? 'yellow' : 'red'}
             />
           </>
         )}
