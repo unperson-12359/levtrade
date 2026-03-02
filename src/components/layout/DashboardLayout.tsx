@@ -1,6 +1,7 @@
 import { useCloudSync } from '../../hooks/useCloudSync'
 import { useDataManager } from '../../hooks/useDataManager'
 import { useStore } from '../../store'
+import { INTERVALS } from '../../config/intervals'
 import { AnalyticsPage } from '../analytics/AnalyticsPage'
 import { PriceChart } from '../chart/PriceChart'
 import { DecisionHero } from '../decision/DecisionHero'
@@ -16,6 +17,8 @@ export function DashboardLayout() {
   const { syncNow } = useCloudSync()
 
   const coin = useStore((s) => s.selectedCoin)
+  const selectedInterval = useStore((s) => s.selectedInterval)
+  const setInterval = useStore((s) => s.setInterval)
   const errors = useStore((s) => s.errors)
   const clearErrors = useStore((s) => s.clearErrors)
   return (
@@ -50,7 +53,20 @@ export function DashboardLayout() {
       <main className="dashboard-shell">
         <section className="workspace-stack dashboard-main">
           <div className="panel-shell panel-shell--chart">
-            <div className="panel-kicker">Price map</div>
+            <div className="chart-header-row">
+              <div className="panel-kicker">Price map</div>
+              <div className="topbar-intervals">
+                {INTERVALS.map((tf) => (
+                  <button
+                    key={tf}
+                    onClick={() => setInterval(tf)}
+                    className={`topbar-interval-chip ${selectedInterval === tf ? 'topbar-interval-chip--active' : ''}`}
+                  >
+                    {tf}
+                  </button>
+                ))}
+              </div>
+            </div>
             <PriceChart coin={coin} embedded showHeader={false} />
           </div>
           <DecisionHero />

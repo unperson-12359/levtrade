@@ -345,6 +345,13 @@ button {
   padding: 0.8rem 0.8rem 0.85rem;
 }
 
+.chart-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
 .subpanel-shell,
 .chart-shell {
   border-radius: 0.7rem;

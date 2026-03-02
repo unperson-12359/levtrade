@@ -67,6 +67,8 @@ export function RiskForm() {
   const { inputs, outputs, updateInput } = usePositionRisk()
   const selectCoin = useStore((s) => s.selectCoin)
   const prices = useStore((s) => s.prices)
+  const locked = useStore((s) => s.riskInputsLocked)
+  const setLocked = useStore((s) => s.setRiskInputsLocked)
   const { price } = useMarketData(inputs.coin)
   const notional = inputs.positionSize > 0 ? inputs.positionSize * inputs.leverage : 0
 
@@ -80,13 +82,14 @@ export function RiskForm() {
   return (
     <div className="space-y-3">
       {/* Row 1: Asset + Direction */}
-      <div className="flex items-end gap-3">
+      <div className={`flex items-end gap-3 ${locked ? 'opacity-60 pointer-events-none' : ''}`}>
         <div className="flex-1 min-w-0">
           <label className="block text-sm font-medium text-text-muted mb-1">Asset</label>
           <div className="grid grid-cols-4 gap-1.5">
             {TRACKED_COINS.map((coin) => (
               <button
                 key={coin}
+                disabled={locked}
                 onClick={() => {
                   if (inputs.coin !== coin) {
                     selectCoin(coin)
@@ -111,6 +114,7 @@ export function RiskForm() {
             {(['long', 'short'] as TradeDirection[]).map((dir) => (
               <button
                 key={dir}
+                disabled={locked}
                 onClick={() => updateInput('direction', dir)}
                 className={`rounded-md border px-3 py-1.5 text-xs font-bold transition-colors ${
                   inputs.direction === dir
@@ -128,10 +132,10 @@ export function RiskForm() {
       </div>
 
       {/* Row 2: Entry Price (inline) */}
-      <div>
+      <div className={locked ? 'opacity-60 pointer-events-none' : ''}>
         <div className="flex items-center gap-2 mb-1">
           <label className="text-sm font-medium text-text-muted">Entry Price</label>
-          {price && (
+          {price && !locked && (
             <button
               onClick={() => updateInput('entryPrice', price)}
               className="text-xs text-signal-blue hover:underline"
@@ -143,15 +147,16 @@ export function RiskForm() {
         <input
           type="number"
           {...entryPrice}
+          readOnly={locked}
           className="w-full rounded-lg border border-border-subtle bg-bg-input px-3 py-1.5 font-mono text-sm text-text-primary focus:border-border-focus focus:outline-none"
           placeholder="0.00"
         />
       </div>
 
       {/* Row 3: Capital + Margin + Leverage */}
-      <div className="grid grid-cols-3 gap-2">
-        <CompactField label="Capital" {...capital} placeholder="1000" />
-        <CompactField label="Margin" {...margin} placeholder="100" />
+      <div className={`grid grid-cols-3 gap-2 ${locked ? 'opacity-60 pointer-events-none' : ''}`}>
+        <CompactField label="Capital" {...capital} placeholder="1000" readOnly={locked} />
+        <CompactField label="Margin" {...margin} placeholder="100" readOnly={locked} />
         <div>
           <label className="block text-sm font-medium text-text-muted mb-1">Leverage</label>
           <div className="relative">
@@ -161,6 +166,7 @@ export function RiskForm() {
               max={MAX_LEVERAGE}
               step={0.5}
               {...leverageInput}
+              readOnly={locked}
               className="w-full rounded-lg border border-border-subtle bg-bg-input px-3 py-1.5 pr-6 font-mono text-sm text-text-primary focus:border-border-focus focus:outline-none"
             />
             <span
@@ -174,11 +180,12 @@ export function RiskForm() {
       </div>
 
       {/* Leverage chips + Notional display */}
-      <div className="flex items-center gap-3">
+      <div className={`flex items-center gap-3 ${locked ? 'opacity-60 pointer-events-none' : ''}`}>
         <div className="flex gap-1.5">
           {LEVERAGE_CHIPS.map((lev) => (
             <button
               key={lev}
+              disabled={locked}
               onClick={() => updateInput('leverage', lev)}
               className={`rounded-md border px-2 py-0.5 text-xs transition-colors ${
                 inputs.leverage === lev
@@ -198,19 +205,34 @@ export function RiskForm() {
       </div>
 
       {/* Row 4: Stop + Target */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className={`grid grid-cols-2 gap-2 ${locked ? 'opacity-60 pointer-events-none' : ''}`}>
         <CompactField
           label="Stop Price"
           {...stopPrice}
+          readOnly={locked}
           placeholder={outputs?.suggestedStopPrice ? `Auto ${outputs.suggestedStopPrice.toFixed(1)}` : 'Auto (1.5× ATR)'}
         />
         <CompactField
           label="Target Price"
           {...targetPrice}
+          readOnly={locked}
           placeholder={outputs?.suggestedTargetPrice ? `Auto ${outputs.suggestedTargetPrice.toFixed(1)}` : 'Auto (2:1 R:R)'}
         />
       </div>
       <div className="text-xs text-text-muted -mt-1">Leave blank for auto-calculated values based on ATR and R:R.</div>
+
+      {/* Lock / Unlock button */}
+      <button
+        type="button"
+        onClick={() => setLocked(!locked)}
+        className={`w-full rounded-lg border py-1.5 text-xs font-semibold transition-colors ${
+          locked
+            ? 'border-signal-green/30 bg-signal-green/10 text-signal-green hover:bg-signal-green/20'
+            : 'border-signal-blue/30 bg-signal-blue/10 text-signal-blue hover:bg-signal-blue/20'
+        }`}
+      >
+        {locked ? 'Edit inputs' : 'Lock inputs'}
+      </button>
     </div>
   )
 }
@@ -222,6 +244,7 @@ function CompactField({
   onBlur,
   onKeyDown,
   placeholder,
+  readOnly,
 }: {
   label: string
   value: string
@@ -229,6 +252,7 @@ function CompactField({
   onBlur: () => void
   onKeyDown: (e: React.KeyboardEvent) => void
   placeholder: string
+  readOnly?: boolean
 }) {
   return (
     <div>
@@ -239,6 +263,7 @@ function CompactField({
         onChange={onChange}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
+        readOnly={readOnly}
         className="w-full rounded-lg border border-border-subtle bg-bg-input px-3 py-1.5 font-mono text-sm text-text-primary focus:border-border-focus focus:outline-none"
         placeholder={placeholder}
       />

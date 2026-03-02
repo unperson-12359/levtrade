@@ -12,12 +12,14 @@ export interface UISlice {
   selectedCoin: TrackedCoin
   selectedInterval: CandleInterval
   riskInputs: RiskInputs
+  riskInputsLocked: boolean
   analyticsTab: AnalyticsTab
 
   toggleSection: (sectionId: string) => void
   selectCoin: (coin: TrackedCoin) => void
   setInterval: (interval: CandleInterval) => void
   updateRiskInput: <K extends keyof RiskInputs>(field: K, value: RiskInputs[K]) => void
+  setRiskInputsLocked: (locked: boolean) => void
   resetRiskInputs: () => void
   setAnalyticsTab: (tab: AnalyticsTab) => void
 }
@@ -27,6 +29,7 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
   selectedCoin: 'BTC',
   selectedInterval: '1h',
   riskInputs: { ...DEFAULT_RISK_INPUTS },
+  riskInputsLocked: false,
   analyticsTab: 'accuracy',
 
   toggleSection: (sectionId) =>
@@ -52,6 +55,8 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
       riskInputs: { ...state.riskInputs, [field]: value },
       riskInputsUpdatedAt: Date.now(),
     })),
+
+  setRiskInputsLocked: (locked) => set({ riskInputsLocked: locked }),
 
   setInterval: (interval) => set({ selectedInterval: interval }),
 

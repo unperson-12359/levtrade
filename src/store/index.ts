@@ -26,6 +26,7 @@ export const useStore = create<AppStore>()(
         selectedCoin: state.selectedCoin,
         selectedInterval: state.selectedInterval,
         riskInputs: state.riskInputs,
+        riskInputsLocked: state.riskInputsLocked,
         trackedSignals: state.trackedSignals,
         trackedOutcomes: state.trackedOutcomes,
         trackerLastRunAt: state.trackerLastRunAt,
