@@ -36,13 +36,16 @@ export const useStore = create<AppStore>()(
         analyticsTab: state.analyticsTab,
         lastSignalComputedAt: state.lastSignalComputedAt,
       }),
+      merge: (persistedState, currentState) => {
+        const merged = { ...currentState, ...(persistedState as Partial<AppStore>) }
+        if (merged.riskInputs && merged.riskInputs.leverage > 40) {
+          merged.riskInputs = { ...merged.riskInputs, leverage: 40 }
+        }
+        return merged as AppStore
+      },
       onRehydrateStorage: () => (state) => {
         if (state && !state.cloudSyncEnabled && import.meta.env.VITE_SYNC_SECRET) {
           state.configureCloudSync(import.meta.env.VITE_SYNC_SECRET as string)
-        }
-        // Clamp leverage to current max (40) for users with old persisted values
-        if (state && state.riskInputs.leverage > 40) {
-          state.updateRiskInput('leverage', 40)
         }
       },
     },
