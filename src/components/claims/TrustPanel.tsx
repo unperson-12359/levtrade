@@ -1,14 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef } from 'react'
 import { useStore } from '../../store'
 import type { SyncStatus } from '../../types'
 
 const STORAGE_KEY = 'levtrade-storage'
 
-interface TrustPanelProps {
-  onSyncNow: () => Promise<void>
-}
-
-export function TrustPanel({ onSyncNow }: TrustPanelProps) {
+export function TrustPanel() {
   const trackedSetups = useStore((s) => s.trackedSetups)
   const exportCsv = useStore((s) => s.exportSetupsCsv)
   const exportJson = useStore((s) => s.exportSetupsJson)
@@ -16,18 +12,9 @@ export function TrustPanel({ onSyncNow }: TrustPanelProps) {
   const clearSetupHistory = useStore((s) => s.clearSetupHistory)
   const clearTrackerHistory = useStore((s) => s.clearTrackerHistory)
   const cloudSyncEnabled = useStore((s) => s.cloudSyncEnabled)
-  const cloudSyncSecret = useStore((s) => s.cloudSyncSecret)
   const syncStatus = useStore((s) => s.syncStatus)
-  const syncError = useStore((s) => s.syncError)
   const lastCloudSyncAt = useStore((s) => s.lastCloudSyncAt)
-  const configureCloudSync = useStore((s) => s.configureCloudSync)
-  const disableCloudSync = useStore((s) => s.disableCloudSync)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [secretInput, setSecretInput] = useState(cloudSyncSecret)
-
-  useEffect(() => {
-    setSecretInput(cloudSyncSecret)
-  }, [cloudSyncSecret])
 
   const summary = useMemo(() => {
     const outcomes = trackedSetups.flatMap((tracked) => Object.values(tracked.outcomes))
@@ -59,8 +46,8 @@ export function TrustPanel({ onSyncNow }: TrustPanelProps) {
 
       <p className="panel-copy">
         {cloudSyncEnabled
-          ? 'Trading history core now syncs across devices through the shared cloud workspace. Local storage still acts as a cache, and UI state like selected asset and expanded sections remains browser-local.'
-          : 'Setup and tracker history are still local to this browser until cloud sync is enabled. The app will keep working locally either way, but cross-device history needs the shared sync passphrase.'}
+          ? 'Trading history syncs across devices through the shared cloud workspace. Local storage still acts as a cache. Configure sync in the Settings bar above.'
+          : 'Setup and tracker history are local to this browser. Enable cloud sync in the Settings bar above to share history across devices.'}
       </p>
 
       <div className="stat-grid trust-panel__stats">
@@ -75,59 +62,6 @@ export function TrustPanel({ onSyncNow }: TrustPanelProps) {
         <Stat label="Retention" value="90 days" tone="green" />
         <Stat label="Sync scope" value="History + risk defaults" tone="green" />
         <Stat label="Resolution basis" value="4h / 24h / 72h from 1h candles" tone="yellow" />
-      </div>
-
-      <div className="trust-panel__sync-box">
-        <div className="trust-panel__sync-head">
-          <div>
-            <div className="stat-label">Shared cloud workspace</div>
-            <div className="trust-panel__sync-copy">
-              Use the same passphrase on each device to sync setup history, tracker history, and risk defaults.
-            </div>
-          </div>
-        </div>
-
-        <div className="trust-panel__sync-form">
-          <input
-            type="password"
-            value={secretInput}
-            onChange={(event) => setSecretInput(event.target.value)}
-            placeholder="Enter shared sync passphrase"
-            className="trust-panel__input"
-          />
-          <button
-            type="button"
-            onClick={() => configureCloudSync(secretInput)}
-            className="setup-history__filter"
-          >
-            {cloudSyncEnabled ? 'Update passphrase' : 'Enable sync'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void onSyncNow()
-            }}
-            className="setup-history__filter"
-            disabled={!cloudSyncEnabled}
-          >
-            Force sync now
-          </button>
-          <button
-            type="button"
-            onClick={disableCloudSync}
-            className="setup-history__filter"
-            disabled={!cloudSyncEnabled}
-          >
-            Disable on this device
-          </button>
-        </div>
-
-        <p className="trust-panel__sync-copy">
-          History survives refreshes locally, but without cloud sync it does not follow you to another browser or
-          device. Even with cloud sync on, this is still a single shared workspace protected by one passphrase.
-        </p>
-
-        {syncError && <div className="action-guidance action-guidance--red">{syncError}</div>}
       </div>
 
       <div className="setup-history__filters">

@@ -33,6 +33,7 @@ export const useStore = create<AppStore>()(
         cloudSyncSecret: state.cloudSyncSecret,
         lastCloudSyncAt: state.lastCloudSyncAt,
         riskInputsUpdatedAt: state.riskInputsUpdatedAt,
+        analyticsTab: state.analyticsTab,
       }),
     },
   ),

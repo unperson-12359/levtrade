@@ -763,6 +763,107 @@ button {
   color: var(--color-text-muted);
 }
 
+/* Settings Bar */
+.settings-bar {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0.35rem 1rem 0;
+}
+
+.settings-bar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-subtle) 70%, transparent);
+  background: color-mix(in srgb, var(--color-bg-card) 90%, transparent);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.settings-bar__header:hover {
+  background: var(--color-bg-card-hover);
+}
+
+.settings-bar__left {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.settings-bar__icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+}
+
+.settings-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.settings-bar__content-wrap {
+  transition: max-height 300ms ease-in-out, opacity 300ms ease-in-out;
+  overflow: hidden;
+}
+
+.settings-bar__content {
+  margin-top: 0.5rem;
+  border-radius: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-subtle) 70%, transparent);
+  background: color-mix(in srgb, var(--color-bg-card) 95%, transparent);
+  padding: 0.85rem;
+}
+
+/* Analytics Tabs */
+.analytics-tabs__bar {
+  margin-top: 0.65rem;
+  display: flex;
+  gap: 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-subtle) 70%, transparent);
+  padding-bottom: 0;
+}
+
+.analytics-tabs__tab {
+  padding: 0.55rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  transition: color 160ms ease, border-color 160ms ease;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+
+.analytics-tabs__tab:hover {
+  color: var(--color-text-secondary);
+}
+
+.analytics-tabs__tab--active {
+  color: var(--color-signal-blue);
+  border-bottom-color: var(--color-signal-blue);
+}
+
+.analytics-tabs__content {
+  margin-top: 0.65rem;
+}
+
+.analytics-tabs__content > .panel-shell {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+}
+
 /* Step Labels */
 .step-label {
   display: inline-flex;
@@ -1463,11 +1564,19 @@ button {
   .trust-panel__sync-form {
     grid-template-columns: 1fr;
   }
+
+  .settings-bar {
+    padding: 0.35rem 0.75rem 0;
+  }
 }
 
 @media (max-width: 480px) {
   .methodology-banner {
     padding: 0 0.5rem;
+  }
+
+  .settings-bar {
+    padding: 0.35rem 0.5rem 0;
   }
 
   .methodology-step {
@@ -1601,5 +1710,15 @@ button {
 
   .tracker-row--head {
     font-size: 0.72rem;
+  }
+
+  .analytics-tabs__bar {
+    overflow-x: auto;
+  }
+
+  .analytics-tabs__tab {
+    white-space: nowrap;
+    font-size: 0.75rem;
+    padding: 0.45rem 0.65rem;
   }
 }

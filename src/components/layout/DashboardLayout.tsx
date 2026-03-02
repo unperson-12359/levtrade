@@ -2,15 +2,14 @@ import { useCloudSync } from '../../hooks/useCloudSync'
 import { useDataManager } from '../../hooks/useDataManager'
 import { useTrackDecisionSnapshot } from '../../hooks/useTrackDecisionSnapshot'
 import { useStore } from '../../store'
+import { AnalyticsTabs } from '../analytics/AnalyticsTabs'
 import { PriceChart } from '../chart/PriceChart'
-import { TrustPanel } from '../claims/TrustPanel'
-import { AccuracyPanel } from '../tracker/AccuracyPanel'
 import { DecisionHero } from '../decision/DecisionHero'
 import { MarketRail } from '../market/MarketRail'
 import { MethodologyBanner } from '../methodology/MethodologyBanner'
 import { RiskSection } from '../risk/RiskSection'
+import { SettingsBar } from '../settings/SettingsBar'
 import { SignalSection } from '../signal/SignalSection'
-import { SetupHistory } from '../setup/SetupHistory'
 import { TopBar } from '../topbar/TopBar'
 
 export function DashboardLayout() {
@@ -47,6 +46,7 @@ export function DashboardLayout() {
 
       <TopBar />
       <MethodologyBanner />
+      <SettingsBar onSyncNow={syncNow} />
 
       <main className="dashboard-shell">
         <section className="workspace-stack dashboard-main">
@@ -60,9 +60,7 @@ export function DashboardLayout() {
           <DecisionHero />
           <MarketRail />
           <SignalSection />
-          <AccuracyPanel />
-          <SetupHistory />
-          <TrustPanel onSyncNow={syncNow} />
+          <AnalyticsTabs />
         </section>
 
         <aside className="dashboard-risk">
