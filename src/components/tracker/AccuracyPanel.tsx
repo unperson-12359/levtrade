@@ -25,40 +25,32 @@ export function AccuracyPanel() {
       </div>
 
       <div className="stat-grid">
-        <TrackerMetric
-          label="Tracked Signals"
-          value={String(stats.totalSignals)}
-          tone="yellow"
-        />
-        <TrackerMetric
-          label="Resolved Outcomes"
-          value={String(stats.totalResolved)}
-          tone="yellow"
-        />
+        <TrackerMetric label="Tracked Signals" value={String(stats.totalSignals)} tone="yellow" />
+        <TrackerMetric label="Resolved Outcomes" value={String(stats.totalResolved)} tone="yellow" />
         <TrackerMetric
           label="24h Hit Rate"
           value={renderRate(stats.overallByWindow['24h'].hitRate)}
           tone={rateTone(stats.overallByWindow['24h'].hitRate)}
         />
-        <TrackerMetric
-          label="Best Signal"
-          value={stats.bestKind24h?.label ?? 'N/A'}
-          tone="green"
-        />
+        <TrackerMetric label="Best Signal" value={stats.bestKind24h?.label ?? 'N/A'} tone="green" />
       </div>
 
       {stats.latestResolved && (
         <div className="panel-copy">
           Latest resolved: {stats.latestResolved.coin} {stats.latestResolved.label} on {stats.latestResolved.window}{' '}
-          was <span className={stats.latestResolved.correct ? 'text-signal-green' : 'text-signal-red'}>{stats.latestResolved.correct ? 'correct' : 'wrong'}</span>
-          {stats.latestResolved.returnPct !== null && ` (${formatPercent(stats.latestResolved.returnPct, 2)})`} {timeAgo(stats.latestResolved.resolvedAt)}.
+          was{' '}
+          <span className={stats.latestResolved.correct ? 'text-signal-green' : 'text-signal-red'}>
+            {stats.latestResolved.correct ? 'correct' : 'wrong'}
+          </span>
+          {stats.latestResolved.returnPct !== null && ` (${formatPercent(stats.latestResolved.returnPct, 2)})`}{' '}
+          {timeAgo(stats.latestResolved.resolvedAt)}.
         </div>
       )}
 
       <p className="panel-copy">
         This table tracks whether each signal correctly predicted the price direction over 4h, 24h, and 72h windows.
-        A hit rate above 55% is meaningful — above 60% is strong.
-        Neutral signals (like Regime) are excluded from hit-rate calculations since they describe market character, not direction.
+        A hit rate above 55% is meaningful; above 60% is strong. Neutral signals like Regime are excluded from hit-rate
+        calculations, and results only resolve once the matching future candle actually exists.
       </p>
 
       <div className="tracker-table-wrap">
@@ -68,7 +60,7 @@ export function AccuracyPanel() {
             <span>4h</span>
             <span>24h</span>
             <span>72h</span>
-            <span>Samples</span>
+            <span>24h Samples</span>
           </div>
           {stats.byKind.map((item) => (
             <div key={item.kind} className="tracker-row">

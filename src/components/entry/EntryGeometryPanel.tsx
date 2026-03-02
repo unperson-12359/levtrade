@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { useStore } from '../../store'
 import { useSignals } from '../../hooks/useSignals'
+import type { SignalSeriesKind } from '../../utils/provenance'
 import { JargonTerm } from '../shared/JargonTerm'
+import { SignalDrawer } from '../shared/SignalDrawer'
 
 const meterToneClasses = {
   green: 'bg-signal-green',
@@ -14,13 +17,18 @@ const textToneClasses = {
   red: 'text-signal-red',
 } as const
 
-export function EntryGeometryPanel() {
+interface EntryGeometryPanelProps {
+  embedded?: boolean
+}
+
+export function EntryGeometryPanel({ embedded = false }: EntryGeometryPanelProps) {
   const coin = useStore((s) => s.selectedCoin)
   const { signals } = useSignals(coin)
+  const [drawerKind, setDrawerKind] = useState<SignalSeriesKind | null>(null)
 
   if (!signals) {
     return (
-      <section className="panel-shell">
+      <section className={embedded ? 'subpanel-shell' : 'panel-shell'}>
         <div className="panel-kicker">Entry Geometry</div>
         <div className="loading-block h-32" />
       </section>
@@ -30,7 +38,7 @@ export function EntryGeometryPanel() {
   const entry = signals.entryGeometry
 
   return (
-    <section className="panel-shell">
+    <section className={embedded ? 'subpanel-shell' : 'panel-shell'}>
       <div className="panel-header">
         <div>
           <div className="panel-kicker">Entry Geometry</div>
@@ -42,15 +50,30 @@ export function EntryGeometryPanel() {
       </div>
 
       <div className="stat-grid">
-        <Stat label="Distance From Mean" value={`${entry.distanceFromMeanPct.toFixed(2)}%`} tone={entry.color} />
-        <Stat label={<JargonTerm term="Stretch" />} value={`${entry.stretchZEquivalent.toFixed(2)}\u03C3`} tone={entry.color} />
-        <Stat label={<JargonTerm term="ATR">ATR Dislocation</JargonTerm>} value={`${entry.atrDislocation.toFixed(2)}x`} tone={entry.color} />
+        <Stat
+          label="Distance From Mean"
+          value={`${entry.distanceFromMeanPct.toFixed(2)}%`}
+          tone={entry.color}
+          onActivate={() => setDrawerKind('distanceFromMean')}
+        />
+        <Stat
+          label={<JargonTerm term="Stretch" />}
+          value={`${entry.stretchZEquivalent.toFixed(2)}\u03C3`}
+          tone={entry.color}
+          onActivate={() => setDrawerKind('stretchZ')}
+        />
+        <Stat
+          label={<JargonTerm term="ATR">ATR Dislocation</JargonTerm>}
+          value={`${entry.atrDislocation.toFixed(2)}x`}
+          tone={entry.color}
+          onActivate={() => setDrawerKind('atr')}
+        />
         <Stat label="Bias" value={entry.directionBias.toUpperCase()} tone={entry.color} />
       </div>
 
       <div className="meter-block">
         <div>
-          <div className="meter-label">Reversion Potential</div>
+          <div className="meter-label"><JargonTerm term="Reversion Potential" /></div>
           <div className="meter-bar">
             <div
               className={`meter-fill ${meterToneClasses[entry.color]}`}
@@ -59,7 +82,7 @@ export function EntryGeometryPanel() {
           </div>
         </div>
         <div>
-          <div className="meter-label">Chase Risk</div>
+          <div className="meter-label"><JargonTerm term="Chase Risk" /></div>
           <div className="meter-bar">
             <div
               className="meter-fill bg-signal-red"
@@ -71,12 +94,17 @@ export function EntryGeometryPanel() {
 
       <p className="panel-copy">{entry.explanation}</p>
       <div className={`action-guidance action-guidance--${entry.color}`}>
-        {entry.color === 'green'
+        {entry.entryQuality === 'ideal'
           ? 'Price is in the sweet spot for a mean-reversion entry.'
-          : entry.color === 'yellow'
+          : entry.entryQuality === 'extended'
+          ? 'Price is deeply stretched - it could snap back hard, but further extension is still possible. Consider a smaller position.'
+          : entry.entryQuality === 'early'
           ? 'Setup is forming but not ideal yet. Watch for more stretch.'
-          : 'Price is too close to average or too overextended. Wait.'}
+          : entry.entryQuality === 'chasing'
+          ? 'Price has moved too far. You would be chasing. Wait for it to cool.'
+          : 'Price is near its average. No statistical edge for entry.'}
       </div>
+      <SignalDrawer coin={coin} signalKind={drawerKind} onClose={() => setDrawerKind(null)} />
     </section>
   )
 }
@@ -85,11 +113,29 @@ interface StatProps {
   label: React.ReactNode
   value: string
   tone: 'green' | 'yellow' | 'red'
+  onActivate?: () => void
 }
 
-function Stat({ label, value, tone }: StatProps) {
+function Stat({ label, value, tone, onActivate }: StatProps) {
+  const interactiveProps = onActivate
+    ? {
+        className: 'stat-card stat-card--clickable',
+        role: 'button' as const,
+        tabIndex: 0,
+        onClick: onActivate,
+        onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onActivate()
+          }
+        },
+      }
+    : {
+        className: 'stat-card',
+      }
+
   return (
-    <div className="stat-card">
+    <div {...interactiveProps}>
       <div className="stat-label">{label}</div>
       <div className={`stat-value ${textToneClasses[tone]}`}>{value}</div>
     </div>

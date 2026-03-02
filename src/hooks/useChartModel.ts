@@ -3,6 +3,7 @@ import type { CandlestickData, LineData, LineStyle, UTCTimestamp } from 'lightwe
 import { useStore } from '../store'
 import { usePositionRisk } from './usePositionRisk'
 import type { TrackedCoin } from '../types/market'
+import type { SuggestedSetup } from '../types/setup'
 
 interface ChartPriceLine {
   title: string
@@ -27,7 +28,7 @@ export interface ChartModel {
   legend: ChartLegendValue[]
 }
 
-export function useChartModel(coin: TrackedCoin): ChartModel {
+export function useChartModel(coin: TrackedCoin, verificationSetup?: SuggestedSetup | null): ChartModel {
   const candles = useStore((s) => s.candles[coin])
   const signals = useStore((s) => s.signals[coin])
   const { inputs, outputs } = usePositionRisk()
@@ -70,7 +71,31 @@ export function useChartModel(coin: TrackedCoin): ChartModel {
       })
     }
 
-    if (inputs.coin === coin && outputs && !outputs.hasInputError) {
+    if (verificationSetup) {
+      priceLines.push(
+        {
+          title: 'Entry',
+          price: verificationSetup.entryPrice,
+          color: 'var(--color-chart-price)',
+        },
+        {
+          title: 'Setup Stop',
+          price: verificationSetup.stopPrice,
+          color: 'var(--color-signal-red)',
+        },
+        {
+          title: 'Setup Target',
+          price: verificationSetup.targetPrice,
+          color: 'var(--color-signal-green)',
+        },
+        {
+          title: 'Mean',
+          price: verificationSetup.meanReversionTarget,
+          color: 'var(--color-signal-blue)',
+          lineStyle: 2,
+        },
+      )
+    } else if (inputs.coin === coin && outputs && !outputs.hasInputError) {
       priceLines.push(
         {
           title: outputs.usedCustomStop ? 'Custom Stop' : 'Auto Stop',
@@ -125,7 +150,25 @@ export function useChartModel(coin: TrackedCoin): ChartModel {
       )
     }
 
-    if (inputs.coin === coin && outputs && !outputs.hasInputError) {
+    if (verificationSetup) {
+      legend.push(
+        {
+          label: 'Entry',
+          value: verificationSetup.entryPrice.toFixed(2),
+          tone: 'default',
+        },
+        {
+          label: 'Stop',
+          value: verificationSetup.stopPrice.toFixed(2),
+          tone: 'red',
+        },
+        {
+          label: 'Target',
+          value: verificationSetup.targetPrice.toFixed(2),
+          tone: 'green',
+        },
+      )
+    } else if (inputs.coin === coin && outputs && !outputs.hasInputError) {
       legend.push(
         {
           label: 'Stop',
@@ -157,5 +200,5 @@ export function useChartModel(coin: TrackedCoin): ChartModel {
       latestClose,
       legend,
     }
-  }, [candles, coin, inputs.coin, outputs, signals])
+  }, [candles, coin, inputs.coin, outputs, signals, verificationSetup])
 }

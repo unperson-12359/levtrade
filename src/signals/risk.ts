@@ -10,6 +10,7 @@ import type { SignalColor } from '../types/signals'
  */
 export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
   const { direction, entryPrice, accountSize, positionSize, leverage, stopPrice, targetPrice } = inputs
+  const hasPositionSizeInput = positionSize > 0
 
   if (entryPrice <= 0 || accountSize <= 0 || leverage <= 0) {
     return emptyOutputs()
@@ -21,35 +22,44 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
 
   // --- Liquidation (cross-margin: entire account backs the position) ---
   const maintenanceMarginRate = 0.005 // 0.5% typical
-  const effectivePos = positionSize > 0 ? positionSize : accountSize * leverage
-  const marginUsed = effectivePos / leverage
-  const availableMargin = accountSize - marginUsed
-  const maintenanceMargin = effectivePos * maintenanceMarginRate
-  const marginBuffer = availableMargin - maintenanceMargin
+  let liquidationPrice = 0
+  let hasLiquidation = false
+  let effectiveImmune = false
+  let liquidationDistance = 0
+  let liquidationFallback: ReturnType<typeof findMinimumLiquidationScenario> = null
+  let liquidationFallbackExplanation: string | null = null
 
-  let liquidationPrice: number
-  if (marginBuffer <= 0) {
-    liquidationPrice = entryPrice
-  } else if (marginBuffer >= effectivePos) {
-    liquidationPrice = direction === 'long' ? 0 : Infinity
+  if (hasPositionSizeInput) {
+    const effectivePos = positionSize
+    const marginUsed = effectivePos / leverage
+    const availableMargin = accountSize - marginUsed
+    const maintenanceMargin = effectivePos * maintenanceMarginRate
+    const marginBuffer = availableMargin - maintenanceMargin
+
+    if (marginBuffer <= 0) {
+      liquidationPrice = entryPrice
+    } else if (marginBuffer >= effectivePos) {
+      liquidationPrice = direction === 'long' ? 0 : Infinity
+    } else {
+      liquidationPrice = direction === 'long'
+        ? entryPrice * (1 - marginBuffer / effectivePos)
+        : entryPrice * (1 + marginBuffer / effectivePos)
+    }
+
+    if (direction === 'long') {
+      liquidationPrice = Math.max(0, liquidationPrice)
+    }
+
+    hasLiquidation = Number.isFinite(liquidationPrice) && liquidationPrice > 0
+    effectiveImmune = !hasLiquidation
+    liquidationDistance = liquidationPrice === Infinity || liquidationPrice <= 0
+      ? 100
+      : Math.abs(liquidationPrice - entryPrice) / entryPrice * 100
+    liquidationFallback = effectiveImmune ? findMinimumLiquidationScenario(inputs) : null
+    liquidationFallbackExplanation = liquidationFallback?.explanation ?? null
   } else {
-    liquidationPrice = direction === 'long'
-      ? entryPrice * (1 - marginBuffer / effectivePos)
-      : entryPrice * (1 + marginBuffer / effectivePos)
+    liquidationFallbackExplanation = 'Enter a position size to calculate liquidation.'
   }
-
-  if (direction === 'long') {
-    liquidationPrice = Math.max(0, liquidationPrice)
-  }
-
-  const hasLiquidation = Number.isFinite(liquidationPrice) && liquidationPrice > 0
-  const effectiveImmune = !hasLiquidation
-  const liquidationDistance = liquidationPrice === Infinity || liquidationPrice <= 0
-    ? 100
-    : Math.abs(liquidationPrice - entryPrice) / entryPrice * 100
-  const liquidationFallback = effectiveImmune
-    ? findMinimumLiquidationScenario(inputs)
-    : null
 
   // --- Suggested Stop (1.5x ATR) ---
   const atrStop = atr > 0 ? atr * 1.5 : entryPrice * 0.02 // fallback: 2%
@@ -112,7 +122,7 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
     minLeverageForLiquidation: liquidationFallback?.leverage ?? null,
     liquidationPriceAtMinLeverage: liquidationFallback?.price ?? null,
     liquidationDistanceAtMinLeverage: liquidationFallback?.distancePct ?? null,
-    liquidationFallbackExplanation: liquidationFallback?.explanation ?? null,
+    liquidationFallbackExplanation,
     hasInputError: false,
     inputErrorMessage: null,
     suggestedStopPrice,

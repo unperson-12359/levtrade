@@ -7,6 +7,7 @@ export interface MarketDataSlice {
   // Data
   prices: Record<TrackedCoin, number | null>
   candles: Record<TrackedCoin, Candle[]>
+  extendedCandles: Record<TrackedCoin, Candle[]>
   assetContexts: Record<TrackedCoin, AssetContext | null>
   fundingHistory: Record<TrackedCoin, FundingSnapshot[]>
   oiHistory: Record<TrackedCoin, OISnapshot[]>
@@ -17,6 +18,7 @@ export interface MarketDataSlice {
   // Actions
   setPrices: (mids: Record<string, string>) => void
   setCandles: (coin: TrackedCoin, candles: Candle[]) => void
+  setExtendedCandles: (coin: TrackedCoin, candles: Candle[]) => void
   appendCandle: (coin: TrackedCoin, candle: Candle) => void
   setAssetContext: (coin: TrackedCoin, ctx: AssetContext) => void
   appendFundingRate: (coin: TrackedCoin, time: number, rate: number) => void
@@ -36,10 +38,12 @@ function initRecord<T>(defaultVal: T): Record<TrackedCoin, T> {
 
 const MAX_FUNDING_HISTORY = 200
 const MAX_OI_HISTORY = 200
+const MS_PER_HOUR = 60 * 60 * 1000
 
 export const createMarketDataSlice: StateCreator<AppStore, [], [], MarketDataSlice> = (set) => ({
   prices: initRecord(null),
   candles: initRecord<Candle[]>([]),
+  extendedCandles: initRecord<Candle[]>([]),
   assetContexts: initRecord(null),
   fundingHistory: initRecord<FundingSnapshot[]>([]),
   oiHistory: initRecord<OISnapshot[]>([]),
@@ -63,6 +67,11 @@ export const createMarketDataSlice: StateCreator<AppStore, [], [], MarketDataSli
   setCandles: (coin, candles) =>
     set((state) => ({
       candles: { ...state.candles, [coin]: candles },
+    })),
+
+  setExtendedCandles: (coin, candles) =>
+    set((state) => ({
+      extendedCandles: { ...state.extendedCandles, [coin]: candles },
     })),
 
   appendCandle: (coin, candle) =>
@@ -92,7 +101,12 @@ export const createMarketDataSlice: StateCreator<AppStore, [], [], MarketDataSli
 
   appendFundingRate: (coin, time, rate) =>
     set((state) => {
-      const history = [...state.fundingHistory[coin], { time, rate }]
+      const existing = state.fundingHistory[coin]
+      const last = existing[existing.length - 1]
+      const nextEntry = { time, rate }
+      const history = last !== undefined && sameHourBucket(last.time, time)
+        ? [...existing.slice(0, -1), nextEntry]
+        : [...existing, nextEntry]
       // Keep only the last MAX entries
       const trimmed = history.length > MAX_FUNDING_HISTORY
         ? history.slice(-MAX_FUNDING_HISTORY)
@@ -122,3 +136,7 @@ export const createMarketDataSlice: StateCreator<AppStore, [], [], MarketDataSli
 
   clearErrors: () => set({ errors: [] }),
 })
+
+function sameHourBucket(left: number, right: number): boolean {
+  return Math.floor(left / MS_PER_HOUR) === Math.floor(right / MS_PER_HOUR)
+}

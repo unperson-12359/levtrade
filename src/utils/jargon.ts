@@ -1,28 +1,32 @@
-export const JARGON: Record<string, string> = {
+export const JARGON = {
   Hurst:
-    'Math indicator measuring whether price bounces between levels (mean-reverting) or trends. Below 0.45 = bouncing, above 0.55 = trending.',
+    'Math indicator measuring whether price tends to bounce back toward average or keep trending. Lower is better for mean-reversion.',
   'Z-Score':
-    'How many standard deviations price is from its average. High = overbought, low = oversold. Think "how stretched is the rubber band."',
+    'How far price is from its average, measured in standard deviations. Think: how stretched is the rubber band?',
   'OI Delta':
-    'Open Interest change — measures new money flowing into or out of the market.',
+    'Open interest change. It shows whether new money is entering or leaving the market.',
   'Mean-Reverting':
-    'Price tends to bounce back to average. This is when our signals work best.',
+    'Price tends to bounce back toward its average. This is when this dashboard works best.',
   'Funding Rate':
-    'Fee between long and short traders. Extreme rates often signal reversals.',
+    'Fee paid between long and short traders. Extreme readings can signal crowded positioning.',
   'R:R':
-    'Reward-to-Risk ratio. 3:1 means potential profit is 3x potential loss. We want 2:1 or better.',
+    'Reward-to-risk ratio. A 3:1 setup means the target is three times larger than the planned loss.',
   Liquidation:
-    'Price where the exchange force-closes your position. Higher leverage = closer liquidation.',
+    'The price where the exchange force-closes your leveraged position.',
   ATR:
-    'Average True Range — how much price typically moves per candle. Used for stop distances.',
-  'Sigma (σ)':
-    'Standard deviation. 1σ = one standard deviation from average.',
+    'Average true range. It estimates how much price normally moves per candle.',
   Composite:
-    'Combined score from all signals (-1 to +1). Positive = bullish, negative = bearish.',
+    'The combined score from the dashboard signals. Positive leans bullish, negative leans bearish.',
   'Entry Geometry':
-    'How far price has stretched from average. Ideal entry zone: 1.25–2.4σ from the mean.',
+    'How stretched price is relative to its average and whether the move still has room to mean-revert.',
   Stretch:
-    'How far price has deviated from its rolling mean, measured in standard deviations.',
+    'How far price has moved away from its rolling mean.',
   Regime:
-    'The current market behavior type — mean-reverting (bouncy), trending, or choppy. Determines whether signals are reliable.',
-}
+    'The current market behavior: mean-reverting, trending, or choppy. This decides whether the strategy is trustworthy.',
+  'Reversion Potential':
+    'How much room price still has to snap back toward its average. Higher is better for a fresh mean-reversion entry.',
+  'Chase Risk':
+    'How likely it is that the bounce is already underway and you are arriving late to the trade.',
+} as const
+
+export type JargonKey = keyof typeof JARGON

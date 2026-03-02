@@ -14,6 +14,7 @@ export type TrackerWindow = '4h' | '24h' | '72h'
 
 export interface TrackedSignalRecord {
   id: string
+  source: 'signal-engine' | 'risk-aware-ui'
   coin: TrackedCoin
   timestamp: number
   kind: TrackedSignalKind

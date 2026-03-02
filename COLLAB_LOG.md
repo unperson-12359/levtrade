@@ -433,3 +433,519 @@ The feature compiles cleanly and the overall direction is good: the banner, step
 - `src/components/shared/TrafficLight.tsx`
 - `src/signals/decision.ts`
 - `src/types/signals.ts`
+
+---
+
+## 2026-03-01 - Codex  Workflow Layout Reflow and Tooltip Polish
+
+### Goal
+Bring the Step 1/2/3 workflow closer together by converting the desktop dashboard to a 2-column layout, moving MarketRail into the main content flow, and tighten the jargon tooltip visuals based on screenshot feedback.
+
+### Files changed
+- `src/index.css`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/components/market/MarketRail.tsx`
+- `src/components/shared/Tooltip.tsx`
+
+### Changes applied
+- Reworked the desktop dashboard shell from a 3-column rail/main/risk layout to a 2-column main/risk layout.
+- Moved `MarketRail` into the main workflow column so the flow now reads top-to-bottom as Decision -> Chart -> Step 1 -> Step 2 -> Accuracy, with Risk pinned in the right column.
+- Converted MarketRail from a narrow vertical rail into a responsive grid:
+  - regime panel spans 2 columns on wider screens
+  - supporting market context cards fill the remaining grid cells
+  - warning chips span the full row
+- Restyled the glossary tooltip to be narrower and visually distinct:
+  - `max-w-[260px]`
+  - brighter blue-tinted background
+  - visible blue border
+  - stronger shadow
+  - `text-sm`
+  - arrow color updated to match the new tooltip background
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: 0
+- Warnings: 0
+- Modules transformed: 90
+- Output sizes:
+  - `dist/index.html`: 0.46 kB (gzip 0.31 kB)
+  - `dist/assets/index-Cc6gs1lk.css`: 38.19 kB (gzip 7.56 kB)
+  - `dist/assets/index-BHSTIAPe.js`: 433.73 kB (gzip 136.25 kB)
+
+### Notes
+- This pass did not change any signal computation, risk math, API calls, or store logic.
+
+### Deployment
+- Deployed to Vercel production on 2026-03-01 after the layout reflow and tooltip build passed.
+- Production alias updated: `https://levtrade.vercel.app`
+- Deployment URL: `https://levtrade-i1u6o5z4f-unperson12359s-projects.vercel.app`
+- Deployment inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/2NCPExUtk28ApCaEP7SmMN9zytBK`
+
+---
+
+## 2026-03-01 - Codex  Beginner-First Workflow Redesign
+
+### Goal
+Restructure the dashboard so a regular user can read it as a plain-English workflow:
+Step 1 market check, Step 2 entry check, Step 3 risk check, with the Step 1 contradiction fixed and advanced metrics hidden by default.
+
+### Files changed
+- `src/utils/workflowGuidance.ts`
+- `src/utils/jargon.ts`
+- `src/components/shared/JargonTerm.tsx`
+- `src/components/shared/Tooltip.tsx`
+- `src/components/shared/ExpandableSection.tsx`
+- `src/components/decision/DecisionHero.tsx`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/components/methodology/MethodologyBanner.tsx`
+- `src/components/methodology/StepLabel.tsx`
+- `src/components/market/MarketRail.tsx`
+- `src/components/signal/SignalSection.tsx`
+- `src/components/chart/PriceChart.tsx`
+- `src/components/entry/EntryGeometryPanel.tsx`
+- `src/components/risk/RiskSection.tsx`
+- `src/components/risk/RiskResults.tsx`
+- `src/index.css`
+
+### Changes applied
+- Added a shared `workflowGuidance` helper so the banner, hero, Step 1, Step 2, and Step 3 all use the same plain-English state mapping.
+- Fixed the Step 1 contradiction by basing beginner guidance on `signals.hurst.regime` and data readiness states instead of raw color alone:
+  - `mean-reverting` -> `FAVORABLE`
+  - `choppy` -> `UNRELIABLE`
+  - `trending` -> `UNFAVORABLE`
+- Replaced the thin decision strip with a new `DecisionHero` that says what to do now, what to wait for, and why.
+- Reworked the main layout into a clearer beginner flow:
+  - `DecisionHero`
+  - `Step 1` market summary
+  - `Step 2` entry summary with chart inside it
+  - `AccuracyPanel`
+  - `Step 3` risk section remains in the right column
+- Rebuilt `MarketRail` as a single Step 1 section with:
+  - plain-English status
+  - "what to do now"
+  - "when to continue"
+  - advanced market details behind a toggle
+- Rebuilt `SignalSection` as the Step 2 entry section with:
+  - direction
+  - what to do now
+  - what to wait for
+  - the chart embedded inside the section
+  - advanced signal and entry-geometry details behind a toggle
+- Reworked `RiskSection` and `RiskResults` to be more instructional, show a simpler summary first, and push detailed geometry behind an advanced toggle.
+- Added reusable `ExpandableSection` UI and persisted advanced-detail toggles through existing Zustand UI state.
+- Extended the glossary with `Reversion Potential` and `Chase Risk`.
+- Made shared tooltips keyboard and tap accessible instead of hover-only.
+- Added new CSS for the decision hero, workflow summary cards, advanced toggles, and updated methodology banner states.
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: 0
+- Warnings: 0
+- Modules transformed: 92
+- Output sizes:
+  - `dist/index.html`: 0.46 kB (gzip 0.31 kB)
+  - `dist/assets/index-py9DiUEE.css`: 43.29 kB (gzip 8.16 kB)
+  - `dist/assets/index-BRF0kDug.js`: 447.09 kB (gzip 139.84 kB)
+
+### Notes
+- No signal computation, API, or store data-flow logic was changed.
+- `Step 2` guidance was intentionally decoupled from the risk veto so entry quality and sizing remain separate decisions for the user.
+
+### Deployment
+- Deployed to Vercel production on 2026-03-01 after the beginner-first workflow redesign build passed.
+- Production alias updated: `https://levtrade.vercel.app`
+- Deployment URL: `https://levtrade-ddyp0hxn0-unperson12359s-projects.vercel.app`
+- Deployment inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/Bavc6jgr9vNedM4wZ9DjaSfJuZrr`
+
+---
+
+## 2026-03-01 - Codex  Logic Review Bug Fixes + Layout Regrouping
+
+### Goal
+Fix the unified bug list from the full-site logic review: critical data freshness and decision bugs, signal math edge cases, tracker integrity problems, and the remaining risk UX duplication, while preserving the current beginner-first 2-column workflow layout.
+
+### Critical Fixes
+- [B1] `src/signals/decision.ts`
+  - Added `!neutralComposite` to the entry guard so weak composite signals no longer trigger `ENTER LONG/SHORT`.
+- [B2] `src/services/dataManager.ts`
+  - Added hourly candle refresh checks inside the polling loop.
+  - Candles are now re-fetched when the latest candle is older than the 1h interval.
+- [B3] `src/services/websocket.ts`
+  - Removed the duplicate `allMids` dispatch path so price updates only route once per message.
+- [B4] `src/store/signalsSlice.ts`
+  - Added candle-age based staleness so fresh mids can no longer mask stale candle-derived signals.
+
+### High-Priority Fixes
+- [C1] `src/signals/entryGeometry.ts`
+  - Split the early-entry classification logic so deep z-score stretches with low ATR dislocation no longer get misclassified as `early`.
+- [C2] `src/utils/explanations.ts`
+  - Aligned top-level regime handling so all `trending` states map to `AVOID`, matching beginner workflow guidance.
+- [C3] `src/components/entry/EntryGeometryPanel.tsx`
+  - Switched the action text to branch on `entryQuality` instead of color, so `extended` and `early` no longer share the wrong message.
+- [C4] Store vs hook decision split
+  - Removed the fake risk-unaware decision fields from `AssetSignals`.
+  - Added a new `useTrackDecisionSnapshot` hook and `trackDecisionSnapshot` tracker path so the final `decision` tracker now measures the same risk-aware decision the user sees.
+
+### Medium Fixes
+- [D1] `src/signals/hurst.ts`
+  - Fixed the lag-1 autocovariance denominator to match the variance denominator.
+- [D2] `src/signals/funding.ts`
+  - Raised the minimum funding history requirement to 8 snapshots.
+  - `src/store/marketDataSlice.ts` now buckets funding updates by hour so the current funding reading is no longer overweighted by minute polling.
+- [D3] `src/signals/volatility.ts`
+  - Updated realized-volatility thresholds to more realistic crypto ranges.
+- [D4] `src/components/risk/RiskResults.tsx`
+  - Removed the duplicate invalid-input warning block so `hasInputError` only shows one visible message.
+
+### Additional Logic Fixes
+- `src/store/trackerSlice.ts`
+  - Outcome resolution now requires a real horizon candle and no longer falls back to the latest live price.
+  - Added `source` tagging to tracked records to distinguish signal-engine vs risk-aware UI records.
+- `src/signals/risk.ts`
+  - Liquidation fallback now stops pretending a 0 size input is a fully specified position.
+  - If position size is missing, liquidation guidance explicitly asks for size input instead of showing a fake immunity/fallback story.
+- `src/components/risk/RiskResults.tsx`
+  - Liquidation summary now shows `NEED SIZE` / `ENTER SIZE` when the user has not provided a position size.
+- `src/components/tracker/AccuracyPanel.tsx`
+  - Clarified that results resolve only when the matching future candle exists.
+  - Renamed the final table column to `24h Samples`.
+
+### Layout Changes
+- [A1] Layout regrouping
+  - Verified the current `DecisionHero -> MarketRail -> SignalSection -> AccuracyPanel` main flow and right-column `RiskSection` structure.
+  - No further layout mutation was needed because the regrouped 2-column workflow was already in place.
+- [A2] Tooltip fix
+  - Verified the current tooltip already matches the intended compact high-contrast design (`max-w-[260px]`, brighter background, blue border, smaller text, stronger shadow, keyboard/tap access).
+  - No further tooltip styling change was required in this pass.
+
+### Files Changed
+- `src/types/signals.ts`
+- `src/types/tracker.ts`
+- `src/store/signalsSlice.ts`
+- `src/store/trackerSlice.ts`
+- `src/store/marketDataSlice.ts`
+- `src/hooks/useSignals.ts`
+- `src/hooks/useEntryDecision.ts`
+- `src/hooks/useTrackDecisionSnapshot.ts`
+- `src/services/dataManager.ts`
+- `src/services/websocket.ts`
+- `src/signals/decision.ts`
+- `src/signals/entryGeometry.ts`
+- `src/signals/funding.ts`
+- `src/signals/hurst.ts`
+- `src/signals/volatility.ts`
+- `src/signals/risk.ts`
+- `src/utils/explanations.ts`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/components/entry/EntryGeometryPanel.tsx`
+- `src/components/risk/RiskResults.tsx`
+- `src/components/tracker/AccuracyPanel.tsx`
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: 0
+- Warnings: 0
+- Modules transformed: 93
+- Output sizes:
+  - `dist/index.html`: 0.46 kB (gzip 0.31 kB)
+  - `dist/assets/index-eOPdwNzO.css`: 42.68 kB (gzip 8.09 kB)
+  - `dist/assets/index-BF5DFnS7.js`: 448.50 kB (gzip 140.37 kB)
+
+### Regressions
+- None identified in build verification.
+
+### Notes
+- Funding was bucketed hourly because it is an hourly-style crowding signal.
+- OI was intentionally left minute-level so the money-flow signal remains responsive instead of becoming a 10-hour lagging indicator.
+
+### Deployment
+- Deployed to Vercel production on 2026-03-01 after the unified logic fix build passed.
+- Production alias updated: `https://levtrade.vercel.app`
+- Deployment URL: `https://levtrade-mce632psg-unperson12359s-projects.vercel.app`
+- Deployment inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/dyCTx3ViAwPh2EWfF4fJmC8yJ8DL`
+
+---
+
+## 2026-03-01 - Codex  Suggested Trade Setup Feature
+
+### Goal
+Auto-generate complete actionable trade setups (entry, stop, target, leverage, confidence, timeframe) when signals align, and track outcomes with MFE/MAE and confidence tier analysis for strategy performance learning.
+
+### Files Added
+- `src/types/setup.ts` - `SuggestedSetup`, `TrackedSetup`, `SetupOutcome`, `SetupPerformanceStats` types
+- `src/signals/setup.ts` - `computeSuggestedSetup` pure function
+- `src/store/setupSlice.ts` - setup tracking with MFE/MAE outcome resolution
+- `src/hooks/useSuggestedSetup.ts` - signals to setup computation + tracking hook
+- `src/hooks/useSetupStats.ts` - performance stats aggregation hook
+- `src/components/setup/SetupCard.tsx` - actionable setup display card
+- `src/components/setup/SetupHistory.tsx` - performance tracking dashboard
+
+### Files Changed
+- `src/types/index.ts` - exported setup types from the shared barrel
+- `src/types/signals.ts` - added `meanPrice` to `EntryGeometryResult`
+- `src/signals/entryGeometry.ts` - exposed `meanPrice` from the internal rolling mean
+- `src/store/index.ts` - added `setupSlice` + persisted `trackedSetups`
+- `src/services/dataManager.ts` - added setup outcome resolution + pruning to polling
+- `src/hooks/useDataManager.ts` - resolves and prunes persisted setup history on startup
+- `src/components/signal/SignalSection.tsx` - embedded `SetupCard` in Step 2
+- `src/components/layout/DashboardLayout.tsx` - added `SetupHistory` below `AccuracyPanel`
+- `src/index.css` - setup card, confidence bar, price range, history panel, and responsive styles
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: 0
+- Warnings: 0
+- Modules transformed: 103
+- Output sizes:
+  - `dist/index.html`: 0.46 kB (gzip 0.31 kB)
+  - `dist/assets/index-C3sIlavw.css`: 46.98 kB (gzip 8.64 kB)
+  - `dist/assets/index-CdkjG5nW.js`: 464.19 kB (gzip 144.17 kB)
+
+### Notes
+- Setup computation uses a fixed `$10,000` account size so the suggested trade idea stays comparable across assets and sessions.
+- Confidence formula: `alignmentRatio * compositeStrength * reversionPotential * hurstConfidence * 2`, clamped to `0..1`.
+- Setup outcomes resolve only from real candle paths over `4h`, `24h`, and `72h`; if stop and target both hit in the same candle, the outcome is conservatively scored as a loss.
+- The live setup suggestion is generated from the pure signal decision with `riskStatus: 'unknown'`, while Step 3 remains the user-specific safety check.
+
+### Deployment
+- Deployed to Vercel production on 2026-03-01 after the Suggested Trade Setup build passed.
+- Production alias updated: `https://levtrade.vercel.app`
+- Deployment URL: `https://levtrade-oquotdz0i-unperson12359s-projects.vercel.app`
+- Deployment inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/6ShsBUnEmVVtckombBAyG2aF6X5T`
+
+---
+
+## 2026-03-01 - Codex  Trust Layer + Verification Upgrade
+
+### Goal
+Harden setup tracking so the app is more honest about what is really persisted and scored over time, and add clickable signal verification charts so major signals can be visually checked against their underlying data series.
+
+### Files Added
+- `src/hooks/useSignalSeries.ts`
+- `src/utils/provenance.ts`
+- `src/components/shared/VerificationChart.tsx`
+- `src/components/shared/SignalDrawer.tsx`
+- `src/components/claims/TrustPanel.tsx`
+
+### Files Changed
+- `src/types/setup.ts`
+- `src/store/marketDataSlice.ts`
+- `src/store/setupSlice.ts`
+- `src/services/dataManager.ts`
+- `src/hooks/useSuggestedSetup.ts`
+- `src/hooks/useSetupStats.ts`
+- `src/hooks/useChartModel.ts`
+- `src/components/chart/PriceChart.tsx`
+- `src/components/market/MarketRail.tsx`
+- `src/components/signal/SignalSection.tsx`
+- `src/components/entry/EntryGeometryPanel.tsx`
+- `src/components/setup/SetupCard.tsx`
+- `src/components/setup/SetupHistory.tsx`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/index.css`
+
+### Build Result
+- `npm.cmd run build`: PASS
+- Errors: 0
+- Warnings: 0
+- Modules transformed: 109
+- Output sizes:
+  - `dist/index.html`: 0.46 kB (gzip 0.31 kB)
+  - `dist/assets/index-B3gJjc7T.css`: 50.88 kB (gzip 9.28 kB)
+  - `dist/assets/index-B15Z5oFI.js`: 486.43 kB (gzip 149.93 kB)
+
+### Notes
+- Setup stats are now switchable across `4h`, `24h`, and `72h`.
+- Same-candle stop/target collisions now use an open-proximity heuristic instead of auto-scoring every collision as a loss.
+- Pending setups can backfill older hourly candles on app startup when the local primary candle window does not reach far enough back.
+- Setup history can now export CSV and JSON, and JSON can be re-imported and merged by setup id.
+- TrustPanel explicitly states that setup history is still local-browser only and stored under `levtrade-storage`.
+- OI / money-flow remains non-clickable in this phase because the current OI history in the repo is still session-limited and not strong enough to present as a trustworthy historical verification chart.
+
+### Remaining Limitations
+- History is still local-only and does not sync across devices.
+- Signal verification drawer currently covers Hurst, z-score, ATR, funding, distance-from-mean, stretch-Z, and suggested setup verification, but not a full unified claim ledger for every dashboard claim.
+- Existing persisted legacy setup rows may not have all new metadata fields recorded until they resolve again or new setups are generated.
+
+### Deployment
+- Deployed to Vercel production on 2026-03-01 after the trust layer and verification upgrade build passed.
+- Production alias updated: `https://levtrade.vercel.app`
+- Deployment URL: `https://levtrade-h4bp9xwef-unperson12359s-projects.vercel.app`
+- Deployment inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/3Mq1YkiVv9rDhKvQFDMVTy3EU9Df`
+
+---
+
+## 2026-03-01 - Codex  Cross-Device Cloud Sync Foundation
+
+### Goal
+Replace browser-only persistence for trading history core with a Supabase-backed cloud sync layer so setup history, tracker history, and risk defaults can persist across devices without adding full auth yet.
+
+### Files Added
+- `src/types/sync.ts`
+- `src/store/syncSlice.ts`
+- `src/services/sync.ts`
+- `src/hooks/useCloudSync.ts`
+- `api/sync.js`
+- `.env.example`
+- `supabase/app_state.sql`
+
+### Files Changed
+- `src/types/index.ts`
+- `src/store/index.ts`
+- `src/store/uiSlice.ts`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/components/claims/TrustPanel.tsx`
+- `src/index.css`
+- `vite.config.ts`
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: 0
+- Warnings: 0
+- Modules transformed: 113
+- Output sizes:
+  - `dist/index.html`: 0.46 kB (gzip 0.31 kB)
+  - `dist/assets/index-DIAxxRpQ.css`: 52.36 kB (gzip 9.47 kB)
+  - `dist/assets/index-zhAER4cx.js`: 495.16 kB (gzip 152.37 kB)
+
+### Notes
+- Cloud sync is local-first: Zustand persistence still acts as the cache and offline fallback.
+- First sync scope is intentionally limited to trading history core:
+  - `trackedSetups`
+  - `trackedSignals`
+  - `trackedOutcomes`
+  - `trackerLastRunAt`
+  - `riskInputs`
+- UI-only state like selected coin and expanded sections stays local to each browser.
+- TrustPanel now supports:
+  - shared passphrase setup
+  - force sync
+  - disable-on-this-device
+  - local export/import
+  - cloud sync status visibility
+- The old Vite `/api` proxy was removed because Hyperliquid calls already go direct and it would have swallowed the new `/api/sync` route in local dev.
+
+### Remaining Limitations
+- Supabase is not live until the table from `supabase/app_state.sql` is created and these Vercel env vars are set:
+  - `SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `SYNC_SHARED_SECRET`
+- This phase uses one shared passphrase, not real per-user auth.
+- The Vercel API route is runtime code and is not covered by the frontend TypeScript build.
+
+### Activation
+- Supabase table `app_state` was created on 2026-03-01 using `supabase/app_state.sql`.
+- Vercel env vars were added for `production`, `preview`, and `development`:
+  - `SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `SYNC_SHARED_SECRET`
+- Production deployed after env activation:
+  - Alias: `https://levtrade.vercel.app`
+  - Deployment URL: `https://levtrade-2mqiao6yg-unperson12359s-projects.vercel.app`
+  - Inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/3uyHVKE62kSabK2CDS8KcWGUbeiW`
+- Verified live `GET /api/sync` with the shared sync secret and confirmed it returns normalized empty remote state instead of `{}`.
+
+---
+
+## 2026-03-01 - Codex  Review of 7 Follow-up Fixes
+
+### Goal
+Verify 7 follow-up fixes in `SignalSection.tsx`, `api/sync.js`, `setupSlice.ts`, and `SignalDrawer.tsx`, then confirm the repo still builds cleanly.
+
+### Review Result
+Not all fixes are correct. `npm run build` currently fails.
+
+### Correct
+- `src/components/signal/SignalSection.tsx`
+  - Composite `onActivate` removed correctly. The Composite metric is no longer clickable.
+- `api/sync.js`
+  - Risk-input merge comparison changed from `>=` to `>`, which is correct and avoids unnecessary overwrite on equal timestamps.
+- `src/store/setupSlice.ts`
+  - `resolutionUsesExtraCandle` was removed.
+
+### Incorrect
+- `src/components/signal/SignalSection.tsx`
+  - Sigma character fix is not correct. File still shows mojibake `Ïƒ` instead of `σ` for Z-score and Funding values.
+- `src/components/shared/SignalDrawer.tsx`
+  - Close button character fix is not correct. File still shows `Ã—` instead of a proper close glyph.
+- `src/components/shared/SignalDrawer.tsx`
+  - Focus trap was added, but TypeScript fails because `first` and `last` are possibly `undefined`.
+- `src/store/setupSlice.ts`
+  - `candleCountUsed` simplification is likely wrong because `inspectedCandles + (resolutionCandle ? 1 : 0)` can double-count when `resolutionCandle` is already included in `candlesToInspect`.
+
+### Build Result
+- `npm run build`: FAIL
+- Errors:
+  - `src/components/shared/SignalDrawer.tsx`: `TS18048: 'last' is possibly 'undefined'`
+  - `src/components/shared/SignalDrawer.tsx`: `TS18048: 'first' is possibly 'undefined'`
+
+### Fix Plan
+1. In `src/components/signal/SignalSection.tsx`, replace the mojibake `Ïƒ` strings with either ASCII-safe `"sigma"` text or a correctly encoded `σ`.
+2. In `src/components/shared/SignalDrawer.tsx`, replace `Ã—` with an ASCII-safe close label such as `"X"` or use a correctly encoded multiplication sign.
+3. In `src/components/shared/SignalDrawer.tsx`, make the focus trap TypeScript-safe by guarding `first` and `last` after indexing:
+   - return early if either is missing
+   - then use them in the Tab trap
+4. In `src/store/setupSlice.ts`, change `candleCountUsed` to count unique candles actually used for scoring:
+   - if `resolutionCandle` is already in `candlesToInspect`, do not add 1 again
+   - otherwise include it once
+5. Re-run `npm run build` after those fixes.
+
+### Notes
+- This was a review-only pass.
+- No implementation fixes were applied in this review entry.
+
+---
+
+## 2026-03-01 - Codex  Commit + Push + Production Deployment
+
+### Goal
+Verify the release build, commit the current repo state, push it to `origin/master`, and confirm the latest Vercel production deployment is live.
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: 0
+- Warnings: 0
+- Modules transformed: 113
+- Output sizes:
+  - `dist/index.html`: 0.46 kB (gzip 0.31 kB)
+  - `dist/assets/index-VGd-W5VJ.css`: 51.67 kB (gzip 9.38 kB)
+  - `dist/assets/index-CmqnXm0m.js`: 496.01 kB (gzip 152.58 kB)
+
+### Release
+- Commit: `6228f05`
+- Branch: `master`
+- Pushed to: `origin/master`
+
+### Deployment
+- Latest production deployment: `https://levtrade-jp7k6w757-unperson12359s-projects.vercel.app`
+- Production alias: `https://levtrade.vercel.app`
+- Alias verification: HTTP `200`
+
+### Notes
+- `.claude/settings.local.json` was intentionally left uncommitted.
+- `npx vercel ls --limit 1` was not supported by the installed CLI version, so deployment verification used `npx vercel ls` plus a direct alias check instead.
+
+---
+
+## 2026-03-01 - Claude: Fix Issues from Codex Review of 7 Follow-up Fixes
+
+### Goal
+Fix the 4 issues identified in the Codex review entry above. Restore a clean build.
+
+### What was done
+
+1. **Sigma character encoding (SignalSection.tsx)** — Replaced UTF-8 literal `σ` with Unicode escape `\u03C3` on lines 127 and 133. The original `σ` was correctly encoded (bytes `cf 83`) but Codex read it as mojibake. Using `\u03C3` is ASCII-safe and immune to encoding misreads.
+
+2. **Close button character (SignalDrawer.tsx)** — Replaced UTF-8 literal `×` with JSX expression `{'\u00D7'}`. Same encoding-safety rationale as above.
+
+3. **Focus trap TypeScript error (SignalDrawer.tsx)** — Added `as HTMLElement | undefined` type assertions and an early `if (!first || !last) return` guard before using `.focus()`. Fixes `TS18048: 'first'/'last' is possibly 'undefined'`.
+
+4. **candleCountUsed double-counting (setupSlice.ts)** — When `traversal` is empty, `candlesToInspect = [resolutionCandle]`, so `inspectedCandles` already counts the resolution candle. The old `+ (resolutionCandle ? 1 : 0)` double-counted it. Fixed: only add +1 when `traversal.length > 0` (meaning the resolution candle is a separate extra candle beyond the traversal set).
+
+### Files changed
+- `src/components/signal/SignalSection.tsx` — lines 127, 133
+- `src/components/shared/SignalDrawer.tsx` — close button + focus trap
+- `src/store/setupSlice.ts` — line 385
+
+### Build
+- `npm run build`: 113 modules, 0 errors, 1.88s

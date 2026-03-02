@@ -5,7 +5,7 @@ import { useStore } from '../store'
 import type { DecisionAction, RiskStatus, SignalColor } from '../types/signals'
 import type { TrackedCoin } from '../types/market'
 
-interface EntryDecisionState {
+export interface EntryDecisionState {
   action: DecisionAction
   label: string
   reasons: string[]

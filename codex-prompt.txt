@@ -1,0 +1,76 @@
+Read AGENTS.md and COLLAB_LOG.md first. Follow the agent coordination protocol.
+
+# Task: Commit all changes and deploy to production
+
+All code changes are complete and the build passes (113 modules, 0 errors). Your job is to commit everything, push to origin/master, and confirm Vercel deploys successfully.
+
+## Step 1: Verify the build
+
+Run `npm run build` and confirm 0 errors before doing anything else. If the build fails, stop and report the errors — do NOT commit broken code.
+
+## Step 2: Stage all changes
+
+Stage everything EXCEPT `.claude/settings.local.json` (that's local IDE config, not project code).
+
+```bash
+git add -A
+git reset HEAD .claude/settings.local.json
+```
+
+## Step 3: Commit
+
+Create a single commit with this message:
+
+```
+Tracking verification, clickable signal charts, cloud sync, and review fixes
+
+- Signal verification drawer: click any signal card to see its rolling
+  history chart with data provenance (z-score, Hurst, ATR, funding,
+  distance-from-mean, stretch-Z)
+- Setup tracking fixes: multi-window stats toggle (4h/24h/72h),
+  both-hit resolution heuristic, extended candle backfill for stale
+  pending setups, useSuggestedSetup stability, CSV export,
+  unresolvable outcome marking
+- Cloud sync: Supabase-backed state sync with shared passphrase,
+  merge logic for setups/signals/outcomes, TrustPanel UI
+- Signal logic fixes: Hurst ACF denominator, funding min samples,
+  crypto volatility thresholds, entry geometry classification,
+  decision engine neutral-composite guard
+- Data flow fixes: duplicate WS handler removed, candle staleness
+  check, tracker outcome resolution tightened
+- UX: RiskResults key metrics at top, MethodologyBanner refactored,
+  workflow guidance utilities extracted
+- Review fixes: encoding-safe unicode escapes, focus trap TS guard,
+  candleCountUsed double-count fix, sync timestamp tie consistency
+```
+
+## Step 4: Push
+
+```bash
+git push origin master
+```
+
+## Step 5: Verify deployment
+
+Wait ~60 seconds, then check the Vercel deployment:
+
+```bash
+npx vercel ls --limit 1
+```
+
+Or check `https://levtrade.vercel.app` is live and responding.
+
+## Step 6: Update COLLAB_LOG.md
+
+Append a short entry to COLLAB_LOG.md documenting the commit and deployment. Include the commit hash and Vercel deployment URL. Then amend the commit to include the updated log:
+
+```bash
+git add COLLAB_LOG.md
+git commit --amend --no-edit
+git push --force-with-lease origin master
+```
+
+## IMPORTANT
+- Do NOT modify any source code. Everything is already fixed and building.
+- Do NOT run `npm install` or change dependencies.
+- If the build fails, STOP and report — do not try to fix code.

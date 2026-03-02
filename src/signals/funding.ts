@@ -13,14 +13,16 @@ export function computeFundingZScore(
   history: FundingSnapshot[],
   windowSize: number = 30,
 ): FundingResult {
-  if (history.length < 2) {
+  const minRequired = 8
+
+  if (history.length < minRequired) {
     return {
       currentRate: history.length > 0 ? history[history.length - 1]!.rate : 0,
       zScore: 0,
       normalizedSignal: 0,
       label: 'Insufficient Data',
       color: 'yellow',
-      explanation: `Need at least ${windowSize} funding rate snapshots. Currently have ${history.length}.`,
+      explanation: `Need at least ${minRequired} funding rate snapshots. Currently have ${history.length}.`,
     }
   }
 

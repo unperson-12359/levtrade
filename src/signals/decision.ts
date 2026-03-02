@@ -62,7 +62,7 @@ export function computeDecisionState(input: DecisionInput): DecisionResult {
   const geometryStrong = entryGeometry.entryQuality === 'ideal' || entryGeometry.entryQuality === 'extended'
   const directionalComposite = composite.direction === 'long' || composite.direction === 'short'
 
-  if (directionalComposite && geometryStrong && geometrySupportsDirection && !regimeBlocks && riskStatus !== 'danger') {
+  if (directionalComposite && !neutralComposite && geometryStrong && geometrySupportsDirection && !regimeBlocks && riskStatus !== 'danger') {
     const reasonsOut = [
       `${Math.abs(entryGeometry.stretchZEquivalent).toFixed(1)}σ stretched`,
       composite.agreementCount >= 3 ? 'signals aligned' : 'partial agreement',

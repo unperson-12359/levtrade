@@ -47,6 +47,7 @@ export class DataManager {
         this.fetchAllCandles(),
         this.fetchAllFundingHistory(),
       ])
+      await this.backfillCandlesForPendingSetups()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch initial data'
       this.store.getState().addError(msg)
@@ -128,9 +129,66 @@ export class DataManager {
     }
   }
 
+  private async backfillCandlesForPendingSetups(): Promise<void> {
+    const state = this.store.getState()
+    const pendingSetups = state.trackedSetups.filter((tracked) =>
+      Object.values(tracked.outcomes).some((outcome) => outcome.result === 'pending'),
+    )
+
+    if (pendingSetups.length === 0) {
+      return
+    }
+
+    const oldestByCoin = new Map<(typeof TRACKED_COINS)[number], number>()
+    for (const tracked of pendingSetups) {
+      const currentOldest = oldestByCoin.get(tracked.setup.coin)
+      if (currentOldest === undefined || tracked.setup.generatedAt < currentOldest) {
+        oldestByCoin.set(tracked.setup.coin, tracked.setup.generatedAt)
+      }
+    }
+
+    for (const [coin, oldestTime] of oldestByCoin) {
+      const existingCandles = state.candles[coin] ?? []
+      const oldestCandleTime = existingCandles.length > 0 ? existingCandles[0]!.time : Date.now()
+      if (oldestTime >= oldestCandleTime) {
+        continue
+      }
+
+      try {
+        const startTime = oldestTime - MS_PER_HOUR
+        const rawCandles = await fetchCandles(coin, CANDLE_INTERVAL, startTime, oldestCandleTime)
+        const candles = rawCandles.map(parseCandle)
+        if (candles.length > 0) {
+          this.store.getState().setExtendedCandles(coin, candles)
+        }
+      } catch {
+        // Non-critical: the next poll/startup can try again.
+      }
+
+      await sleep(200)
+    }
+
+    this.store.getState().resolveSetupOutcomes()
+  }
+
+  private async refreshCandlesIfNeeded(coin: (typeof TRACKED_COINS)[number], now: number): Promise<void> {
+    const latestCandle = this.store.getState().candles[coin].slice(-1)[0]
+    const candleAge = latestCandle ? now - latestCandle.time : Infinity
+
+    if (candleAge <= MS_PER_HOUR) {
+      return
+    }
+
+    const startTime = now - CANDLE_COUNT * MS_PER_HOUR
+    const rawCandles = await fetchCandles(coin, CANDLE_INTERVAL, startTime, now)
+    const candles = rawCandles.map(parseCandle)
+    this.store.getState().setCandles(coin, candles)
+  }
+
   private startPolling(): void {
     this.pollTimer = setInterval(async () => {
       try {
+        const now = Date.now()
         const [, [meta, assetCtxs]] = await Promise.all([
           fetchAllMids().then((mids) => this.store.getState().setPrices(mids)),
           fetchMetaAndAssetCtxs(),
@@ -146,21 +204,25 @@ export class DataManager {
             // Append OI snapshot
             const oi = parseFloat(ctx.openInterest)
             if (isFinite(oi)) {
-              this.store.getState().appendOI(coin, Date.now(), oi)
+              this.store.getState().appendOI(coin, now, oi)
             }
 
             // Append funding rate snapshot
             const fr = parseFloat(ctx.funding)
             if (isFinite(fr)) {
-              this.store.getState().appendFundingRate(coin, Date.now(), fr)
+              this.store.getState().appendFundingRate(coin, now, fr)
             }
           }
+
+          await this.refreshCandlesIfNeeded(coin, now)
         }
 
         // Trigger signal recomputation and resolve tracker outcomes
         this.store.getState().computeAllSignals()
         this.store.getState().resolveTrackedOutcomes()
+        this.store.getState().resolveSetupOutcomes()
         this.store.getState().pruneTrackerHistory()
+        this.store.getState().pruneSetupHistory()
       } catch {
         // Polling errors are non-fatal — next poll will try again
       }

@@ -14,12 +14,21 @@ import { useChartModel } from '../../hooks/useChartModel'
 import { useSignals } from '../../hooks/useSignals'
 import { ChartLegend } from './ChartLegend'
 import type { TrackedCoin } from '../../types/market'
+import type { SuggestedSetup } from '../../types/setup'
 
 interface PriceChartProps {
   coin: TrackedCoin
+  embedded?: boolean
+  showHeader?: boolean
+  verificationSetup?: SuggestedSetup | null
 }
 
-export function PriceChart({ coin }: PriceChartProps) {
+export function PriceChart({
+  coin,
+  embedded = false,
+  showHeader = true,
+  verificationSetup = null,
+}: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
@@ -27,7 +36,7 @@ export function PriceChart({ coin }: PriceChartProps) {
   const upperSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const lowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const priceLinesRef = useRef<IPriceLine[] | null>(null)
-  const model = useChartModel(coin)
+  const model = useChartModel(coin, verificationSetup)
   const { signals } = useSignals(coin)
 
   useEffect(() => {
@@ -146,20 +155,22 @@ export function PriceChart({ coin }: PriceChartProps) {
   }, [model])
 
   return (
-    <section className="panel-shell panel-shell--chart">
-      <div className="panel-header">
-        <div>
-          <div className="panel-kicker">Price Geometry</div>
-          <h2 className="panel-title">{coin} Entry Map</h2>
-        </div>
-        {signals && (
-          <div className="panel-status">
-            <span className={`status-pill status-pill--${signals.entryGeometry.color}`}>
-              {signals.entryGeometry.entryQuality.replace('-', ' ').toUpperCase()}
-            </span>
+    <section className={embedded ? 'chart-shell' : 'panel-shell panel-shell--chart'}>
+      {showHeader && (
+        <div className="panel-header">
+          <div>
+            <div className="panel-kicker">Price Geometry</div>
+            <h2 className="panel-title">{coin} Entry Map</h2>
           </div>
-        )}
-      </div>
+          {signals && (
+            <div className="panel-status">
+              <span className={`status-pill status-pill--${signals.entryGeometry.color}`}>
+                {signals.entryGeometry.entryQuality.replace('-', ' ').toUpperCase()}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <ChartLegend items={model.legend} />
 

@@ -68,7 +68,7 @@ export function computeHurst(closes: number[], period: number = MIN_PERIODS): Hu
   for (let i = 1; i < returns.length; i++) {
     autocovariance += (returns[i]! - mean) * (returns[i - 1]! - mean)
   }
-  autocovariance /= returns.length - 1
+  autocovariance /= returns.length
 
   // ACF(1)
   const acf1 = autocovariance / variance

@@ -1,22 +1,24 @@
+import { useCloudSync } from '../../hooks/useCloudSync'
 import { useDataManager } from '../../hooks/useDataManager'
+import { useTrackDecisionSnapshot } from '../../hooks/useTrackDecisionSnapshot'
 import { useStore } from '../../store'
+import { TrustPanel } from '../claims/TrustPanel'
 import { AccuracyPanel } from '../tracker/AccuracyPanel'
-import { DecisionStrip } from '../decision/DecisionStrip'
-import { EntryGeometryPanel } from '../entry/EntryGeometryPanel'
+import { DecisionHero } from '../decision/DecisionHero'
 import { MarketRail } from '../market/MarketRail'
 import { MethodologyBanner } from '../methodology/MethodologyBanner'
 import { RiskSection } from '../risk/RiskSection'
 import { SignalSection } from '../signal/SignalSection'
-import { PriceChart } from '../chart/PriceChart'
+import { SetupHistory } from '../setup/SetupHistory'
 import { TopBar } from '../topbar/TopBar'
 
 export function DashboardLayout() {
   useDataManager()
+  useTrackDecisionSnapshot()
+  const { syncNow } = useCloudSync()
 
   const errors = useStore((s) => s.errors)
   const clearErrors = useStore((s) => s.clearErrors)
-  const coin = useStore((s) => s.selectedCoin)
-
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
       {errors.length > 0 && (
@@ -46,24 +48,16 @@ export function DashboardLayout() {
 
       <main className="dashboard-shell">
         <section className="workspace-stack dashboard-main">
-          <DecisionStrip />
-          <PriceChart coin={coin} />
+          <DecisionHero />
+          <MarketRail />
+          <SignalSection />
+          <AccuracyPanel />
+          <SetupHistory />
+          <TrustPanel onSyncNow={syncNow} />
         </section>
 
         <aside className="dashboard-risk">
           <RiskSection />
-        </aside>
-
-        <section className="workspace-stack dashboard-secondary">
-          <div className="workspace-grid">
-            <EntryGeometryPanel />
-            <SignalSection />
-          </div>
-          <AccuracyPanel />
-        </section>
-
-        <aside className="dashboard-rail">
-          <MarketRail />
         </aside>
       </main>
     </div>

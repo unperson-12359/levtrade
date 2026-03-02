@@ -7,6 +7,7 @@ export function computeEntryGeometry(closes: number[], atr: number, period: numb
       stretchZEquivalent: 0,
       atrDislocation: 0,
       bandPosition: 0.5,
+      meanPrice: 0,
       reversionPotential: 0,
       chaseRisk: 0.25,
       entryQuality: 'no-edge',
@@ -28,6 +29,7 @@ export function computeEntryGeometry(closes: number[], atr: number, period: numb
       stretchZEquivalent: 0,
       atrDislocation: 0,
       bandPosition: 0.5,
+      meanPrice: mean,
       reversionPotential: 0,
       chaseRisk: 0.2,
       entryQuality: 'no-edge',
@@ -55,6 +57,7 @@ export function computeEntryGeometry(closes: number[], atr: number, period: numb
     stretchZEquivalent: z,
     atrDislocation,
     bandPosition,
+    meanPrice: mean,
     reversionPotential,
     chaseRisk,
     entryQuality,
@@ -66,7 +69,8 @@ export function computeEntryGeometry(closes: number[], atr: number, period: numb
 
 function classifyEntryQuality(absZ: number, atrDislocation: number): EntryQuality {
   if (absZ < 0.75) return 'no-edge'
-  if (absZ < 1.25 || atrDislocation < 0.8) return 'early'
+  if (absZ < 1.25) return 'early'
+  if (atrDislocation < 0.8 && absZ < 2.4) return 'early'
   if (absZ <= 2.4 && atrDislocation <= 2.4) return 'ideal'
   if (absZ <= 3.2 && atrDislocation <= 3.4) return 'extended'
   return 'chasing'

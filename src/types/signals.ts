@@ -56,6 +56,7 @@ export interface EntryGeometryResult {
   stretchZEquivalent: number
   atrDislocation: number
   bandPosition: number
+  meanPrice: number
   reversionPotential: number
   chaseRisk: number
   entryQuality: EntryQuality
@@ -90,10 +91,6 @@ export interface AssetSignals {
   volatility: VolatilityResult
   entryGeometry: EntryGeometryResult
   composite: CompositeSignal
-  decisionAction: DecisionAction
-  decisionLabel: string
-  decisionReasons: string[]
-  riskStatus: RiskStatus
   updatedAt: number
   isStale: boolean            // data > 5 min old
   isWarmingUp: boolean        // insufficient candles

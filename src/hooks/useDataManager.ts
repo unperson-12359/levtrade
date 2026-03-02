@@ -15,7 +15,9 @@ export function useDataManager() {
     manager.initialize().then(() => {
       useStore.getState().computeAllSignals()
       useStore.getState().resolveTrackedOutcomes()
+      useStore.getState().resolveSetupOutcomes()
       useStore.getState().pruneTrackerHistory()
+      useStore.getState().pruneSetupHistory()
     }).catch(() => {
       // Errors already handled inside DataManager
     })

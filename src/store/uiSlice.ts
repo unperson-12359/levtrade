@@ -37,11 +37,13 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
         coin,
         entryPrice: state.prices[coin] ?? state.riskInputs.entryPrice,
       },
+      riskInputsUpdatedAt: Date.now(),
     })),
 
   updateRiskInput: (field, value) =>
     set((state) => ({
       riskInputs: { ...state.riskInputs, [field]: value },
+      riskInputsUpdatedAt: Date.now(),
     })),
 
   resetRiskInputs: () =>
@@ -52,5 +54,6 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
         entryPrice: state.prices[state.selectedCoin] ?? 0,
         accountSize: state.riskInputs.accountSize, // keep account size
       },
+      riskInputsUpdatedAt: Date.now(),
     })),
 })

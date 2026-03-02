@@ -112,10 +112,6 @@ export class HyperliquidWS {
         if (subType && msg.channel === subType) {
           sub.handler(msg.data)
         }
-        // Also match "allMids" channel
-        if (msg.channel === 'allMids' && subType === 'allMids') {
-          sub.handler(msg.data)
-        }
       }
     } catch {
       // Ignore malformed messages

@@ -29,7 +29,7 @@ export function regimeVerdict(coin: TrackedCoin, hurst: HurstResult, vol: Volati
 export function overallStatus(hurst: HurstResult, composite: CompositeSignal): OverallStatus {
   // If regime is choppy or trending → CAUTION at best
   if (hurst.regime === 'choppy') return 'AVOID'
-  if (hurst.regime === 'trending' && hurst.value > 0.6) return 'AVOID'
+  if (hurst.regime === 'trending') return 'AVOID'
 
   // If signals are strong and aligned
   if (composite.strength === 'strong' && composite.agreementCount >= 3) return 'FAVORABLE'

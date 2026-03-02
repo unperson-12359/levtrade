@@ -5,7 +5,6 @@ import type { AppStore } from '.'
 import {
   computeATR,
   computeComposite,
-  computeDecisionState,
   computeEntryGeometry,
   computeFundingZScore,
   computeHurst,
@@ -32,6 +31,7 @@ function initSignals(): Record<TrackedCoin, AssetSignals | null> {
 const MIN_CANDLES_HURST = 100
 const MIN_CANDLES_ZSCORE = 20
 const STALE_AFTER_MS = 3 * 60 * 1000
+const CANDLE_STALE_AFTER_MS = 2 * 60 * 60 * 1000
 
 export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = (set, get) => ({
   signals: initSignals(),
@@ -66,17 +66,11 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
     // Warmup status
     const isWarmingUp = candles.length < MIN_CANDLES_HURST
     const warmupProgress = Math.min(1, candles.length / MIN_CANDLES_HURST)
+    const latestCandle = candles[candles.length - 1]
+    const candleAge = latestCandle ? Date.now() - latestCandle.time : Infinity
     const isStale = state.lastUpdate === null
       ? true
-      : (Date.now() - state.lastUpdate) > STALE_AFTER_MS
-
-    const decision = computeDecisionState({
-      composite,
-      entryGeometry,
-      hurst,
-      isStale,
-      isWarmingUp,
-    })
+      : (Date.now() - state.lastUpdate) > STALE_AFTER_MS || candleAge > CANDLE_STALE_AFTER_MS
 
     const result: AssetSignals = {
       coin,
@@ -87,10 +81,6 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
       volatility,
       entryGeometry,
       composite,
-      decisionAction: decision.action,
-      decisionLabel: decision.label,
-      decisionReasons: decision.reasons,
-      riskStatus: 'unknown',
       updatedAt: Date.now(),
       isStale,
       isWarmingUp,

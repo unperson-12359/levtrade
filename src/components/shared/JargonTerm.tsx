@@ -1,8 +1,9 @@
+import type { JargonKey } from '../../utils/jargon'
 import { JARGON } from '../../utils/jargon'
 import { Tooltip } from './Tooltip'
 
 interface JargonTermProps {
-  term: string
+  term: JargonKey
   children?: React.ReactNode
 }
 

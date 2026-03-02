@@ -9,10 +9,14 @@ export function RiskSection() {
         <StepLabel step={3} />
         <div className="panel-header">
           <div>
-            <div className="panel-kicker">Risk Console</div>
-            <h2 className="panel-title">Size your position and check risk</h2>
+            <div className="panel-kicker">Step 3</div>
+            <h2 className="panel-title">If you take it, how big should the trade be?</h2>
           </div>
         </div>
+        <p className="panel-copy">
+          Only use this section after Step 2 says there is an entry. The goal here is simple:
+          make sure the loss, leverage, and liquidation distance are acceptable before you click anything.
+        </p>
         <RiskForm />
       </section>
       <RiskResults />

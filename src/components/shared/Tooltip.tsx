@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useRef, useCallback, useEffect } from 'react'
+import { type ReactNode, useState, useRef, useCallback, useEffect, useId } from 'react'
 
 interface TooltipProps {
   content: string
@@ -13,6 +13,7 @@ export function Tooltip({ content, children }: TooltipProps) {
   const [offset, setOffset] = useState(0)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLSpanElement>(null)
+  const tooltipId = useId()
 
   const reposition = useCallback(() => {
     if (!tooltipRef.current || !triggerRef.current) return
@@ -48,26 +49,68 @@ export function Tooltip({ content, children }: TooltipProps) {
     }
   }, [show, reposition])
 
+  useEffect(() => {
+    if (!show) return
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!triggerRef.current?.contains(event.target as Node)) {
+        setShow(false)
+        setOffset(0)
+        setPlacement('above')
+      }
+    }
+
+    window.addEventListener('pointerdown', handlePointerDown)
+    return () => window.removeEventListener('pointerdown', handlePointerDown)
+  }, [show])
+
+  const closeTooltip = () => {
+    setShow(false)
+    setOffset(0)
+    setPlacement('above')
+  }
+
   const positionClasses = placement === 'above'
     ? 'bottom-full mb-2'
     : 'top-full mt-2'
 
   const arrowClasses = placement === 'above'
-    ? 'top-full border-t-border-subtle border-b-transparent'
-    : 'bottom-full border-b-border-subtle border-t-transparent'
+    ? 'top-full border-t-[#1e2a3a] border-b-transparent'
+    : 'bottom-full border-b-[#1e2a3a] border-t-transparent'
 
   return (
     <span
       ref={triggerRef}
       className="relative inline-flex items-center"
+      tabIndex={0}
+      aria-describedby={show ? tooltipId : undefined}
       onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => { setShow(false); setOffset(0); setPlacement('above') }}
+      onMouseLeave={closeTooltip}
+      onFocus={() => setShow(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          closeTooltip()
+        }
+      }}
+      onClick={() => setShow((current) => !current)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          setShow((current) => !current)
+        }
+
+        if (event.key === 'Escape') {
+          closeTooltip()
+        }
+      }}
     >
       {children}
       {show && (
         <div
+          id={tooltipId}
+          role="tooltip"
           ref={tooltipRef}
-          className={`absolute z-50 left-1/2 ${positionClasses} px-4 py-3 rounded-lg bg-bg-card border border-border-subtle text-base text-text-secondary max-w-sm whitespace-normal shadow-lg leading-relaxed`}
+          className={`absolute z-50 left-1/2 ${positionClasses} max-w-[260px] rounded-lg border border-signal-blue/30 bg-[#1e2a3a] px-3 py-2 text-sm leading-relaxed text-text-primary shadow-[0_18px_40px_rgba(0,0,0,0.45)] whitespace-normal`}
           style={{ transform: `translateX(calc(-50% + ${offset}px))` }}
         >
           {content}

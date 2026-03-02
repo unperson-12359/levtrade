@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand'
 import type { AppStore } from '.'
-import type { AssetSignals, DecisionAction } from '../types/signals'
+import type { AssetSignals, DecisionAction, RiskStatus } from '../types/signals'
 import type {
   TrackedDirection,
   TrackedSignalOutcome,
@@ -24,6 +24,17 @@ export interface TrackerSlice {
   trackerLastRunAt: number | null
 
   trackSignals: (coin: TrackedCoin, signals: AssetSignals, referencePrice: number) => void
+  trackDecisionSnapshot: (
+    coin: TrackedCoin,
+    decision: {
+      action: DecisionAction
+      label: string
+      reasons: string[]
+      riskStatus: RiskStatus
+    },
+    referencePrice: number,
+    timestamp?: number,
+  ) => void
   resolveTrackedOutcomes: (now?: number) => void
   pruneTrackerHistory: (now?: number) => void
   clearTrackerHistory: () => void
@@ -61,6 +72,50 @@ export const createTrackerSlice: StateCreator<AppStore, [], [], TrackerSlice> = 
       return {
         trackedSignals: [...state.trackedSignals, ...newRecords],
         trackedOutcomes: [...state.trackedOutcomes, ...newOutcomes],
+      }
+    })
+
+    get().pruneTrackerHistory()
+  },
+
+  trackDecisionSnapshot: (coin, decision, referencePrice, timestamp = Date.now()) => {
+    if (!isFinite(referencePrice) || referencePrice <= 0) {
+      return
+    }
+
+    set((state) => {
+      const record = buildRecord({
+        source: 'risk-aware-ui',
+        coin,
+        timestamp,
+        kind: 'decision',
+        direction: mapDecisionDirection(decision.action),
+        strength: decisionStrength(decision.action, decision.riskStatus),
+        label: decision.label,
+        referencePrice,
+        metadata: {
+          reasons: decision.reasons.join(' | '),
+          action: decision.action,
+          riskStatus: decision.riskStatus,
+        },
+      })
+
+      if (!shouldTrackRecord(record, state.trackedSignals)) {
+        return {}
+      }
+
+      const outcomes = (Object.keys(TRACKER_WINDOWS) as TrackerWindow[]).map((window) => ({
+        recordId: record.id,
+        window,
+        resolvedAt: null,
+        futurePrice: null,
+        returnPct: null,
+        correct: null,
+      }))
+
+      return {
+        trackedSignals: [...state.trackedSignals, record],
+        trackedOutcomes: [...state.trackedOutcomes, ...outcomes],
       }
     })
 
@@ -154,19 +209,7 @@ function buildTrackedRecords(
 
   return [
     buildRecord({
-      coin,
-      timestamp,
-      kind: 'decision',
-      direction: mapDecisionDirection(signals.decisionAction),
-      strength: Math.abs(signals.composite.value),
-      label: signals.decisionLabel,
-      referencePrice,
-      metadata: {
-        reasons: signals.decisionReasons.join(' | '),
-        action: signals.decisionAction,
-      },
-    }),
-    buildRecord({
+      source: 'signal-engine',
       coin,
       timestamp,
       kind: 'composite',
@@ -180,6 +223,7 @@ function buildTrackedRecords(
       },
     }),
     buildRecord({
+      source: 'signal-engine',
       coin,
       timestamp,
       kind: 'zScore',
@@ -192,6 +236,7 @@ function buildTrackedRecords(
       },
     }),
     buildRecord({
+      source: 'signal-engine',
       coin,
       timestamp,
       kind: 'funding',
@@ -205,6 +250,7 @@ function buildTrackedRecords(
       },
     }),
     buildRecord({
+      source: 'signal-engine',
       coin,
       timestamp,
       kind: 'oiDelta',
@@ -219,6 +265,7 @@ function buildTrackedRecords(
       },
     }),
     buildRecord({
+      source: 'signal-engine',
       coin,
       timestamp,
       kind: 'hurst',
@@ -232,6 +279,7 @@ function buildTrackedRecords(
       },
     }),
     buildRecord({
+      source: 'signal-engine',
       coin,
       timestamp,
       kind: 'entryGeometry',
@@ -282,14 +330,7 @@ function resolveFuturePrice(state: AppStore, coin: TrackedCoin, targetTime: numb
   if (matchingCandle) {
     return matchingCandle.close
   }
-
-  const livePrice = state.prices[coin]
-  if (livePrice !== null && isFinite(livePrice)) {
-    return livePrice
-  }
-
-  const latestCandle = state.candles[coin][state.candles[coin].length - 1]
-  return latestCandle?.close ?? null
+  return null
 }
 
 // Neutral signals (e.g. Hurst regime) are excluded from hit-rate scoring by design.
@@ -309,6 +350,16 @@ function mapDecisionDirection(action: DecisionAction): TrackedDirection {
     return action
   }
   return 'neutral'
+}
+
+function decisionStrength(action: DecisionAction, riskStatus: RiskStatus): number {
+  if (action === 'long' || action === 'short') {
+    return riskStatus === 'safe' ? 1 : 0.75
+  }
+  if (action === 'wait') {
+    return 0.5
+  }
+  return 0.25
 }
 
 function directionalFromNumber(value: number): TrackedDirection {
