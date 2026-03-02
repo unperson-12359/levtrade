@@ -1032,3 +1032,10 @@ Make the desktop sticky chart feel less intrusive by turning it into a framed vi
 
 ### Deployment
 - Not deployed in this pass.
+
+### Dev Preview
+- Branch: `dev`
+- Commit: `e6352d0`
+- Preview deployment: `https://levtrade-461wbkrif-unperson12359s-projects.vercel.app`
+- Environment: `Preview`
+- Production alias unchanged: `https://levtrade.vercel.app`
