@@ -5,6 +5,7 @@ import { AnalyticsTabs } from '../analytics/AnalyticsTabs'
 import { PriceChart } from '../chart/PriceChart'
 import { DecisionHero } from '../decision/DecisionHero'
 import { MarketRail } from '../market/MarketRail'
+import { HowItWorks } from '../guide/HowItWorks'
 import { MenuDrawer } from '../menu/MenuDrawer'
 import { RiskSection } from '../risk/RiskSection'
 import { SignalSection } from '../signal/SignalSection'
@@ -43,6 +44,7 @@ export function DashboardLayout() {
 
       <TopBar />
       <MenuDrawer onSyncNow={syncNow} />
+      <HowItWorks />
 
       <main className="dashboard-shell">
         <section className="workspace-stack dashboard-main">

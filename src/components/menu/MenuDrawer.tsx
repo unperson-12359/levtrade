@@ -140,6 +140,18 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
           </div>
           {syncError && <div className="action-guidance action-guidance--red">{syncError}</div>}
         </div>
+
+        {/* Guide Link */}
+        <div className="menu-drawer__section">
+          <button
+            type="button"
+            className="menu-drawer__guide-link"
+            onClick={() => { toggle('how-it-works'); close() }}
+          >
+            How LevTrade Works
+            <span className="menu-drawer__muted">→</span>
+          </button>
+        </div>
       </nav>
     </>
   )
