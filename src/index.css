@@ -371,7 +371,7 @@ button {
 .decision-hero {
   border: 1px solid color-mix(in srgb, var(--color-border-subtle) 65%, transparent);
   border-radius: 0.85rem;
-  padding: 0.85rem;
+  padding: 0.7rem;
   background:
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 42%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
@@ -393,20 +393,20 @@ button {
 
 .decision-hero__title {
   margin-top: 0.1rem;
-  font-size: 1.35rem;
+  font-size: 1rem;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 
 .decision-hero__summary {
-  margin-top: 0.55rem;
-  font-size: 0.92rem;
-  line-height: 1.5;
+  margin-top: 0.3rem;
+  font-size: 0.84rem;
+  line-height: 1.4;
   color: var(--color-text-primary);
 }
 
 .decision-hero__reasons {
-  margin-top: 0.65rem;
+  margin-top: 0.4rem;
 }
 
 .decision-strip__headline {
@@ -418,15 +418,15 @@ button {
 .decision-strip__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
-  margin-top: 0.55rem;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
 }
 
 .workflow-summary-grid {
-  margin-top: 0.7rem;
+  margin-top: 0.45rem;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.55rem;
+  gap: 0.45rem;
 }
 
 .workflow-summary-grid--hero,
@@ -438,7 +438,7 @@ button {
   border-radius: 0.7rem;
   border: 1px solid color-mix(in srgb, var(--color-border-subtle) 75%, transparent);
   background: color-mix(in srgb, var(--color-bg-input) 84%, transparent);
-  padding: 0.6rem 0.7rem;
+  padding: 0.45rem 0.6rem;
   min-width: 0;
 }
 
@@ -458,9 +458,9 @@ button {
 }
 
 .workflow-summary-card__copy {
-  margin-top: 0.3rem;
-  font-size: 0.85rem;
-  line-height: 1.45;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
   color: var(--color-text-secondary);
 }
 
