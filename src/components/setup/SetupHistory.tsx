@@ -2,14 +2,16 @@ import { useMemo, useState } from 'react'
 import { useSetupStats } from '../../hooks/useSetupStats'
 import { useStore } from '../../store'
 import { TRACKED_COINS, type TrackedCoin } from '../../types'
-import type { SetupOutcome, SetupWindow, TierStats } from '../../types/setup'
+import type { SetupOutcome, SetupWindow, TierStats, TrackedSetup } from '../../types/setup'
 import { formatPrice } from '../../utils/format'
 import { formatConfidenceTier } from '../../utils/setupFormat'
+import { SignalDrawer } from '../shared/SignalDrawer'
 
 type SetupFilter = 'ALL' | TrackedCoin
 
 export function SetupHistory() {
   const [statsWindow, setStatsWindow] = useState<SetupWindow>('24h')
+  const [selectedTrackedSetup, setSelectedTrackedSetup] = useState<TrackedSetup | null>(null)
   const stats = useSetupStats(statsWindow)
   const trackedSetups = useStore((s) => s.trackedSetups)
   const exportCsv = useStore((s) => s.exportSetupsCsv)
@@ -51,7 +53,10 @@ export function SetupHistory() {
         </div>
       </div>
 
-      <p className="panel-copy">Locally stored. Outcomes scored from 1h candles over the selected window.</p>
+      <p className="panel-copy">
+        Locally stored. Outcomes scored from 1h candles over the selected window. Click any recent setup row to review
+        the original suggestion and outcomes.
+      </p>
 
       <div className="stat-grid setup-history__summary">
         <Stat label="Tracked setups" value={String(stats.totalSetups)} tone="yellow" />
@@ -152,7 +157,20 @@ export function SetupHistory() {
           </div>
           {recentSetups.length > 0 ? (
             recentSetups.map((tracked) => (
-              <div key={tracked.id} className="tracker-row setup-history__recent-row">
+              <div
+                key={tracked.id}
+                className="tracker-row setup-history__recent-row setup-history__recent-row--clickable"
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedTrackedSetup(tracked)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    setSelectedTrackedSetup(tracked)
+                  }
+                }}
+                aria-label={`Review ${tracked.setup.coin} ${tracked.setup.direction} setup from ${formatTimestamp(tracked.setup.generatedAt)}`}
+              >
                 <span>{formatTimestamp(tracked.setup.generatedAt)}</span>
                 <span>{tracked.setup.coin}</span>
                 <span>{tracked.setup.direction.toUpperCase()}</span>
@@ -172,6 +190,13 @@ export function SetupHistory() {
           )}
         </div>
       </div>
+
+      <SignalDrawer
+        coin={selectedTrackedSetup?.setup.coin ?? 'BTC'}
+        signalKind={selectedTrackedSetup ? 'setup' : null}
+        trackedSetup={selectedTrackedSetup}
+        onClose={() => setSelectedTrackedSetup(null)}
+      />
     </section>
   )
 }

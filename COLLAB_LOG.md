@@ -1291,3 +1291,56 @@ Replace the manual workspace-id/workspace-secret sync model with a single always
   - sync status behavior after reload
   - offline/error recovery and retry button behavior
   - public-session confirmation that multiple devices see the same shared state
+
+---
+
+## 2026-03-02 - Codex  Historical Setup Verification Drawer
+
+### Goal
+Keep automatic setup suggestion tracking in place and complete the review loop by letting the user click a tracked setup row and inspect the original suggestion snapshot with chart context from when it fired.
+
+### Files Changed
+- `src/components/chart/PriceChart.tsx`
+- `src/components/shared/SignalDrawer.tsx`
+- `src/components/setup/SetupHistory.tsx`
+- `src/hooks/useChartModel.ts`
+- `src/index.css`
+- `api/_sync-policy.mjs`
+
+### What changed
+- Kept the existing automatic setup tracking path intact:
+  - setup generation still happens during polling via `generateAllSetups()`
+  - tracked records still persist in `trackedSetups`
+- Added historical setup review from `SetupHistory`:
+  - recent setup rows are now clickable and keyboard accessible
+  - clicking a row opens the verification drawer using the stored `TrackedSetup`
+- Extended `SignalDrawer` to support a historical tracked-setup mode:
+  - uses the stored setup snapshot instead of recomputing current state
+  - shows generated timestamp, tier, entry quality, source, coverage, and summary
+  - includes outcome cards for `4h`, `24h`, and `72h`
+- Updated chart verification focus:
+  - setup verification now centers the chart around the setup `generatedAt` timestamp when possible
+  - resize handling preserves the focused verification range instead of always fitting all content
+- Added hover/focus styling for clickable history rows and a compact outcome grid in the drawer
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: `0`
+- Warnings: `0`
+- Output sizes:
+  - `dist/index.html`: `0.46 kB` (gzip `0.31 kB`)
+  - `dist/assets/index-BD0WWm8M.css`: `64.44 kB` (gzip `11.03 kB`)
+  - `dist/assets/HowItWorks-Cv9wYdZQ.js`: `12.53 kB` (gzip `4.24 kB`)
+  - `dist/assets/AnalyticsPage-BWQc71k0.js`: `16.93 kB` (gzip `4.72 kB`)
+  - `dist/assets/index-Cbdej8yF.js`: `487.81 kB` (gzip `150.61 kB`)
+
+### Notes
+- No tracking schema changes were required; the existing stored `TrackedSetup.setup` snapshot was sufficient.
+- Historical verification now uses the stored setup record, not a fresh live recomputation.
+- `api/_sync-policy.mjs` was regenerated as part of the standard build.
+
+### Follow-up / Remaining Verification
+- Manual browser QA is still recommended for:
+  - clicking historical rows in analytics history on desktop and mobile
+  - chart centering behavior for very old setups near the edge of available candles
+  - drawer readability when outcomes are still pending

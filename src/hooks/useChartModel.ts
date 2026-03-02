@@ -24,6 +24,7 @@ export interface ChartModel {
   upperBandLine: LineData[]
   lowerBandLine: LineData[]
   priceLines: ChartPriceLine[]
+  focusRange: { from: UTCTimestamp; to: UTCTimestamp } | null
   latestClose: number | null
   legend: ChartLegendValue[]
 }
@@ -62,6 +63,7 @@ export function useChartModel(coin: TrackedCoin, verificationSetup?: SuggestedSe
 
     const latestClose = candles.length > 0 ? candles[candles.length - 1]!.close : null
     const priceLines: ChartPriceLine[] = []
+    let focusRange: { from: UTCTimestamp; to: UTCTimestamp } | null = null
 
     if (latestClose !== null) {
       priceLines.push({
@@ -123,6 +125,21 @@ export function useChartModel(coin: TrackedCoin, verificationSetup?: SuggestedSe
           color: 'var(--color-signal-yellow)',
           lineStyle: 2,
         })
+      }
+    }
+
+    if (verificationSetup && candleData.length > 1) {
+      const focusTime = Math.floor(verificationSetup.generatedAt / 1000) as UTCTimestamp
+      const availableFrom = candleData[0]!.time as UTCTimestamp
+      const availableTo = candleData[candleData.length - 1]!.time as UTCTimestamp
+      const defaultFrom = Math.max(availableFrom, focusTime - 36 * 60 * 60) as UTCTimestamp
+      const defaultTo = Math.min(availableTo, focusTime + 24 * 60 * 60) as UTCTimestamp
+
+      if (defaultFrom < defaultTo) {
+        focusRange = {
+          from: defaultFrom,
+          to: defaultTo,
+        }
       }
     }
 
@@ -197,6 +214,7 @@ export function useChartModel(coin: TrackedCoin, verificationSetup?: SuggestedSe
       upperBandLine,
       lowerBandLine,
       priceLines,
+      focusRange,
       latestClose,
       legend,
     }

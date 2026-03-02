@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { TrackedCoin } from '../../types/market'
-import type { SuggestedSetup } from '../../types/setup'
+import type { SuggestedSetup, TrackedSetup } from '../../types/setup'
 import { formatLeverage, formatPrice, formatUSD, timeAgo } from '../../utils/format'
 import {
   getSignalProvenance,
@@ -17,13 +17,16 @@ interface SignalDrawerProps {
   coin: TrackedCoin
   signalKind: SignalDrawerKind | null
   setup?: SuggestedSetup | null
+  trackedSetup?: TrackedSetup | null
   onClose: () => void
 }
 
-export function SignalDrawer({ coin, signalKind, setup, onClose }: SignalDrawerProps) {
+export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }: SignalDrawerProps) {
   const interval = useStore((s) => s.selectedInterval)
   const provenance = getSignalProvenance(interval)
   const drawerRef = useRef<HTMLDivElement>(null)
+  const activeSetup = trackedSetup?.setup ?? setup ?? null
+  const isHistoricalSetup = signalKind === 'setup' && Boolean(trackedSetup)
 
   useEffect(() => {
     if (!signalKind) return
@@ -63,10 +66,17 @@ export function SignalDrawer({ coin, signalKind, setup, onClose }: SignalDrawerP
 
   if (!signalKind) return null
 
-  const title = signalKind === 'setup' ? 'Suggested Setup Verification' : provenance[signalKind].title
+  const title =
+    signalKind === 'setup'
+      ? isHistoricalSetup
+        ? 'Tracked Setup Verification'
+        : 'Suggested Setup Verification'
+      : provenance[signalKind].title
   const description =
     signalKind === 'setup'
-      ? 'This view shows the current suggested setup, its generated levels, and the market context used to propose it.'
+      ? isHistoricalSetup
+        ? 'This view shows the stored setup snapshot from when the dashboard suggested the trade, along with how each scoring window resolved.'
+        : 'This view shows the current suggested setup, its generated levels, and the market context used to propose it.'
       : provenance[signalKind].description
 
   return createPortal(
@@ -93,23 +103,37 @@ export function SignalDrawer({ coin, signalKind, setup, onClose }: SignalDrawerP
 
         {signalKind === 'setup' ? (
           <>
-            <PriceChart coin={coin} embedded showHeader={false} verificationSetup={setup ?? undefined} />
-            {setup ? (
+            <PriceChart coin={coin} embedded showHeader={false} verificationSetup={activeSetup ?? undefined} />
+            {activeSetup ? (
               <div className="signal-drawer__provenance">
                 <div className="signal-drawer__meta-grid">
-                  <MetaItem label="Direction" value={setup.direction.toUpperCase()} />
-                  <MetaItem label="Entry" value={formatPrice(setup.entryPrice, coin)} />
-                  <MetaItem label="Stop" value={formatPrice(setup.stopPrice, coin)} />
-                  <MetaItem label="Target" value={formatPrice(setup.targetPrice, coin)} />
-                  <MetaItem label="Mean target" value={formatPrice(setup.meanReversionTarget, coin)} />
-                  <MetaItem label="Leverage" value={formatLeverage(setup.suggestedLeverage)} />
-                  <MetaItem label="Position size" value={formatUSD(setup.suggestedPositionSize)} />
-                  <MetaItem label="Generated" value={timeAgo(setup.generatedAt)} />
+                  <MetaItem label="Direction" value={activeSetup.direction.toUpperCase()} />
+                  <MetaItem label="Entry" value={formatPrice(activeSetup.entryPrice, coin)} />
+                  <MetaItem label="Stop" value={formatPrice(activeSetup.stopPrice, coin)} />
+                  <MetaItem label="Target" value={formatPrice(activeSetup.targetPrice, coin)} />
+                  <MetaItem label="Mean target" value={formatPrice(activeSetup.meanReversionTarget, coin)} />
+                  <MetaItem label="Leverage" value={formatLeverage(activeSetup.suggestedLeverage)} />
+                  <MetaItem label="Position size" value={formatUSD(activeSetup.suggestedPositionSize)} />
+                  <MetaItem label="Generated" value={formatTimestamp(activeSetup.generatedAt)} />
+                  <MetaItem label="Age" value={timeAgo(activeSetup.generatedAt)} />
+                  <MetaItem label="Confidence tier" value={activeSetup.confidenceTier.toUpperCase()} />
+                  <MetaItem label="Entry quality" value={activeSetup.entryQuality.toUpperCase()} />
+                  {activeSetup.source && <MetaItem label="Source" value={activeSetup.source.toUpperCase()} />}
+                  {trackedSetup?.coverageStatus && <MetaItem label="Coverage" value={trackedSetup.coverageStatus.toUpperCase()} />}
                 </div>
-                <p className="panel-copy">{setup.summary}</p>
-                <p className="panel-copy signal-drawer__source-note">
-                  Source: derived from current decision state, entry geometry, composite signal, and `computeRisk()` suggestions using Hyperliquid hourly candles and live price.
-                </p>
+                <p className="panel-copy">{activeSetup.summary}</p>
+                <p className="panel-copy">{description}</p>
+                {trackedSetup ? (
+                  <div className="signal-drawer__outcome-grid">
+                    <OutcomeCard trackedSetup={trackedSetup} window="4h" />
+                    <OutcomeCard trackedSetup={trackedSetup} window="24h" />
+                    <OutcomeCard trackedSetup={trackedSetup} window="72h" />
+                  </div>
+                ) : (
+                  <p className="panel-copy signal-drawer__source-note">
+                    Source: derived from current decision state, entry geometry, composite signal, and `computeRisk()` suggestions using Hyperliquid hourly candles and live price.
+                  </p>
+                )}
               </div>
             ) : (
               <p className="panel-copy">No actionable setup is available to verify right now.</p>
@@ -143,4 +167,46 @@ function MetaItem({ label, value }: { label: string; value: string }) {
       <span className="panel-copy">{value}</span>
     </div>
   )
+}
+
+function OutcomeCard({
+  trackedSetup,
+  window,
+}: {
+  trackedSetup: TrackedSetup
+  window: '4h' | '24h' | '72h'
+}) {
+  const outcome = trackedSetup.outcomes[window]
+  const resultTone =
+    outcome.result === 'win'
+      ? 'text-signal-green'
+      : outcome.result === 'loss' || outcome.result === 'unresolvable'
+        ? 'text-signal-red'
+        : 'text-signal-yellow'
+
+  return (
+    <div className="signal-drawer__meta-item">
+      <span className="stat-label">{window} outcome</span>
+      <span className={`stat-value ${resultTone}`}>{outcome.result.toUpperCase()}</span>
+      <div className="panel-copy">
+        {[
+          outcome.rAchieved !== null ? `${outcome.rAchieved >= 0 ? '+' : ''}${outcome.rAchieved.toFixed(1)}R` : null,
+          outcome.resolutionReason ?? null,
+          outcome.coverageStatus ?? null,
+        ]
+          .filter(Boolean)
+          .join(' | ') || 'Pending'}
+      </div>
+      {outcome.resolvedAt && <div className="signal-drawer__source-note">Resolved {formatTimestamp(outcome.resolvedAt)}</div>}
+    </div>
+  )
+}
+
+function formatTimestamp(timestamp: number): string {
+  return new Date(timestamp).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }

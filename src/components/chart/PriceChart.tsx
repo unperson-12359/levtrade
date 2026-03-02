@@ -4,11 +4,13 @@ import {
   ColorType,
   createChart,
   CrosshairMode,
+  type IRange,
   LineSeries,
   LineStyle,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
+  type Time,
 } from 'lightweight-charts'
 import { useChartModel } from '../../hooks/useChartModel'
 import { useSignals } from '../../hooks/useSignals'
@@ -36,6 +38,7 @@ export function PriceChart({
   const upperSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const lowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const priceLinesRef = useRef<IPriceLine[] | null>(null)
+  const focusRangeRef = useRef<IRange<Time> | null>(null)
   const model = useChartModel(coin, verificationSetup)
   const { signals } = useSignals(coin)
 
@@ -108,7 +111,11 @@ export function PriceChart({
       const entry = entries[0]
       if (!entry) return
       chart.applyOptions({ width: entry.contentRect.width })
-      chart.timeScale().fitContent()
+      if (focusRangeRef.current) {
+        chart.timeScale().setVisibleRange(focusRangeRef.current)
+      } else {
+        chart.timeScale().fitContent()
+      }
     })
     resizeObserver.observe(containerRef.current)
 
@@ -151,7 +158,12 @@ export function PriceChart({
       }),
     )
 
-    chartRef.current?.timeScale().fitContent()
+    focusRangeRef.current = model.focusRange
+    if (model.focusRange) {
+      chartRef.current?.timeScale().setVisibleRange(model.focusRange)
+    } else {
+      chartRef.current?.timeScale().fitContent()
+    }
   }, [model])
 
   return (

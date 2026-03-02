@@ -1508,6 +1508,21 @@ button {
     repeat(3, minmax(92px, 0.95fr));
 }
 
+.setup-history__recent-row--clickable {
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.setup-history__recent-row--clickable:hover {
+  border-color: color-mix(in srgb, var(--color-signal-blue) 35%, transparent);
+  background: color-mix(in srgb, var(--color-bg-input) 95%, var(--color-signal-blue) 5%);
+}
+
+.setup-history__recent-row--clickable:focus-visible {
+  outline: 2px solid var(--color-signal-blue);
+  outline-offset: 2px;
+}
+
 .setup-history__outcome {
   display: flex;
   flex-direction: column;
@@ -1647,6 +1662,13 @@ button {
 
 .signal-drawer__source-note {
   opacity: 0.7;
+}
+
+.signal-drawer__outcome-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
 }
 
 .verification-chart {
@@ -1905,6 +1927,10 @@ button {
   }
 
   .signal-drawer__meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .signal-drawer__outcome-grid {
     grid-template-columns: 1fr;
   }
 
