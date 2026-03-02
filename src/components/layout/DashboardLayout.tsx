@@ -1,5 +1,4 @@
 import { lazy, Suspense } from 'react'
-import { useCloudSync } from '../../hooks/useCloudSync'
 import { useDataManager } from '../../hooks/useDataManager'
 import { useStore } from '../../store'
 import { INTERVALS } from '../../config/intervals'
@@ -16,7 +15,6 @@ const HowItWorks = lazy(() => import('../guide/HowItWorks').then((m) => ({ defau
 
 export function DashboardLayout() {
   useDataManager()
-  const { syncNow } = useCloudSync()
 
   const coin = useStore((s) => s.selectedCoin)
   const selectedInterval = useStore((s) => s.selectedInterval)
@@ -48,7 +46,7 @@ export function DashboardLayout() {
       )}
 
       <TopBar />
-      <MenuDrawer onSyncNow={syncNow} />
+      <MenuDrawer />
       <Suspense fallback={null}>
         <HowItWorks />
       </Suspense>

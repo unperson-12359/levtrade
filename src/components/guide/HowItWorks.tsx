@@ -214,17 +214,17 @@ export function HowItWorks() {
             </div>
           </Section>
 
-          <Section title="Cloud sync">
+          <Section title="Storage model">
             <p>
-              State is synced automatically through the backend and shared across all sessions.
-              Local storage is used only as a startup and offline cache in this build.
+              State now stays local in this browser to avoid Vercel transfer limits. The dashboard keeps using live
+              Hyperliquid market data, but your tracked setups, outcomes, and risk defaults are saved only in browser
+              storage unless you export them.
             </p>
             <ul className="guide-list">
-              <li><strong>What syncs:</strong> setup history, signal tracker records, outcomes, and risk input defaults</li>
-              <li><strong>How it works:</strong> after any state change, a 2-second debounce waits for more changes, then pushes to the backend</li>
-              <li><strong>Conflict resolution:</strong> the merge keeps the most complete and most resolved records instead of using simple last-write-wins</li>
-              <li><strong>Visibility:</strong> every session sees the same shared state because there is no account or private workspace layer</li>
-              <li><strong>Fallback:</strong> if the network drops, the app keeps working from local cache and resyncs when the backend is reachable again</li>
+              <li><strong>What is stored:</strong> setup history, signal tracker records, outcomes, and risk input defaults</li>
+              <li><strong>Where it lives:</strong> in this browser under the app storage key, so refreshes keep your data</li>
+              <li><strong>Sharing:</strong> there is no automatic cross-device sync in this build; use Export JSON if you want a manual backup</li>
+              <li><strong>Fallback:</strong> because the app is local-only, your history does not depend on a backend session staying alive</li>
               <li><strong>Retention:</strong> 90 days. Older setups are pruned automatically</li>
             </ul>
           </Section>
@@ -234,7 +234,7 @@ export function HowItWorks() {
               <div className="guide-callout__title">For the most accurate track record:</div>
               <ul className="guide-list">
                 <li><strong>Keep the tab open</strong> - the dashboard captures setups and resolves outcomes while running. More uptime means fewer gaps.</li>
-                <li><strong>Keep the site live</strong> - always-on backend sync works best when at least one session stays active and polling.</li>
+                <li><strong>Export occasionally</strong> - if you care about preserving your track record across browsers or devices, export JSON from the trust panel.</li>
                 <li><strong>Wait a few days</strong> - a meaningful sample needs 20+ setups across different market conditions. The tier breakdown shows whether high-confidence setups outperform low-confidence ones.</li>
                 <li><strong>Check all 3 windows</strong> - a setup that loses at 4h might win at 24h or 72h, which helps you judge timeframe fit.</li>
               </ul>

@@ -19,6 +19,8 @@ export const MAX_OI_HISTORY = 200
 // Setup resolution
 export const SETUP_RESOLUTION_INTERVAL = '1h'
 export const SETUP_RESOLUTION_LOOKBACK_MS = 120 * 60 * 60 * 1000
+export const SETUP_REVIEW_CONTEXT_MS = 24 * 60 * 60 * 1000
+export const SETUP_REVIEW_CANDLE_STALENESS_MS = 2 * 60 * 60 * 1000
 
 // Polling
 export const POLL_INTERVAL_MS = 60_000

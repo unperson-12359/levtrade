@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import type { CandlestickData, LineData, LineStyle, UTCTimestamp } from 'lightweight-charts'
+import type { CandlestickData, LineData, LineStyle, SeriesMarker, UTCTimestamp } from 'lightweight-charts'
 import { useStore } from '../store'
 import { usePositionRisk } from './usePositionRisk'
-import type { TrackedCoin } from '../types/market'
+import type { Candle, TrackedCoin } from '../types/market'
 import type { SuggestedSetup } from '../types/setup'
 
 interface ChartPriceLine {
@@ -23,19 +23,31 @@ export interface ChartModel {
   meanLine: LineData[]
   upperBandLine: LineData[]
   lowerBandLine: LineData[]
+  markers: SeriesMarker<UTCTimestamp>[]
   priceLines: ChartPriceLine[]
   focusRange: { from: UTCTimestamp; to: UTCTimestamp } | null
   latestClose: number | null
   legend: ChartLegendValue[]
 }
 
-export function useChartModel(coin: TrackedCoin, verificationSetup?: SuggestedSetup | null): ChartModel {
+interface ChartModelOptions {
+  candlesOverride?: Candle[] | null
+  reviewMode?: 'live' | 'historical'
+}
+
+export function useChartModel(
+  coin: TrackedCoin,
+  verificationSetup?: SuggestedSetup | null,
+  options?: ChartModelOptions,
+): ChartModel {
   const candles = useStore((s) => s.candles[coin])
   const signals = useStore((s) => s.signals[coin])
   const { inputs, outputs } = usePositionRisk()
+  const sourceCandles = options?.candlesOverride ?? candles
+  const isHistoricalReview = options?.reviewMode === 'historical'
 
   return useMemo(() => {
-    const candleData: CandlestickData[] = candles.map((candle) => ({
+    const candleData: CandlestickData[] = sourceCandles.map((candle) => ({
       time: Math.floor(candle.time / 1000) as UTCTimestamp,
       open: candle.open,
       high: candle.high,
@@ -49,31 +61,43 @@ export function useChartModel(coin: TrackedCoin, verificationSetup?: SuggestedSe
     const BOLLINGER_PERIOD = 20
     const windowSize = BOLLINGER_PERIOD
 
-    for (let index = windowSize - 1; index < candles.length; index++) {
-      const window = candles.slice(index - windowSize + 1, index + 1)
+    for (let index = windowSize - 1; index < sourceCandles.length; index++) {
+      const window = sourceCandles.slice(index - windowSize + 1, index + 1)
       const mean = window.reduce((sum, candle) => sum + candle.close, 0) / window.length
       const variance = window.reduce((sum, candle) => sum + (candle.close - mean) ** 2, 0) / window.length
       const stddev = Math.sqrt(variance)
-      const time = Math.floor(candles[index]!.time / 1000) as UTCTimestamp
+      const time = Math.floor(sourceCandles[index]!.time / 1000) as UTCTimestamp
 
       meanLine.push({ time, value: mean })
       upperBandLine.push({ time, value: mean + stddev * 2 })
       lowerBandLine.push({ time, value: mean - stddev * 2 })
     }
 
-    const latestClose = candles.length > 0 ? candles[candles.length - 1]!.close : null
+    const latestClose = sourceCandles.length > 0 ? sourceCandles[sourceCandles.length - 1]!.close : null
+    const markers: SeriesMarker<UTCTimestamp>[] = []
     const priceLines: ChartPriceLine[] = []
     let focusRange: { from: UTCTimestamp; to: UTCTimestamp } | null = null
 
     if (latestClose !== null) {
       priceLines.push({
-        title: 'Last',
+        title: isHistoricalReview ? 'Now' : 'Last',
         price: latestClose,
         color: 'var(--color-chart-price)',
       })
     }
 
     if (verificationSetup) {
+      const triggerMarkerTime = getTriggerMarkerTime(sourceCandles, verificationSetup.generatedAt)
+      if (triggerMarkerTime !== null) {
+        markers.push({
+          time: triggerMarkerTime,
+          position: 'aboveBar',
+          shape: 'circle',
+          color: '#60a5fa',
+          text: isHistoricalReview ? 'Suggested' : 'Setup',
+        })
+      }
+
       priceLines.push(
         {
           title: 'Entry',
@@ -129,25 +153,56 @@ export function useChartModel(coin: TrackedCoin, verificationSetup?: SuggestedSe
     }
 
     if (verificationSetup && candleData.length > 1) {
-      const focusTime = Math.floor(verificationSetup.generatedAt / 1000) as UTCTimestamp
       const availableFrom = candleData[0]!.time as UTCTimestamp
       const availableTo = candleData[candleData.length - 1]!.time as UTCTimestamp
-      const defaultFrom = Math.max(availableFrom, focusTime - 36 * 60 * 60) as UTCTimestamp
-      const defaultTo = Math.min(availableTo, focusTime + 24 * 60 * 60) as UTCTimestamp
 
-      if (defaultFrom < defaultTo) {
+      if (isHistoricalReview) {
         focusRange = {
-          from: defaultFrom,
-          to: defaultTo,
+          from: availableFrom,
+          to: availableTo,
+        }
+      } else {
+        const focusTime = Math.floor(verificationSetup.generatedAt / 1000) as UTCTimestamp
+        const defaultFrom = Math.max(availableFrom, focusTime - 36 * 60 * 60) as UTCTimestamp
+        const defaultTo = Math.min(availableTo, focusTime + 24 * 60 * 60) as UTCTimestamp
+
+        if (defaultFrom < defaultTo) {
+          focusRange = {
+            from: defaultFrom,
+            to: defaultTo,
+          }
         }
       }
     }
 
     const legend: ChartLegendValue[] = []
     if (latestClose !== null) {
-      legend.push({ label: 'Last', value: latestClose.toFixed(2) })
+      legend.push({ label: isHistoricalReview ? 'Now' : 'Last', value: latestClose.toFixed(2) })
     }
-    if (signals) {
+    if (isHistoricalReview && verificationSetup) {
+      legend.push(
+        {
+          label: 'Stretch',
+          value: `${verificationSetup.stretchSigma.toFixed(2)} sig`,
+          tone: verificationSetup.tradeGrade,
+        },
+        {
+          label: 'ATR Drift',
+          value: `${verificationSetup.atr.toFixed(2)} ATR`,
+          tone: 'yellow',
+        },
+        {
+          label: 'Composite',
+          value: `${verificationSetup.compositeValue.toFixed(2)} ${verificationSetup.direction.toUpperCase()}`,
+          tone: verificationSetup.tradeGrade,
+        },
+        {
+          label: 'Suggested',
+          value: formatLegendTimestamp(verificationSetup.generatedAt),
+          tone: 'muted',
+        },
+      )
+    } else if (signals) {
       legend.push(
         {
           label: 'Stretch',
@@ -213,10 +268,37 @@ export function useChartModel(coin: TrackedCoin, verificationSetup?: SuggestedSe
       meanLine,
       upperBandLine,
       lowerBandLine,
+      markers,
       priceLines,
       focusRange,
       latestClose,
       legend,
     }
-  }, [candles, coin, inputs.coin, outputs, signals, verificationSetup])
+  }, [coin, inputs.coin, isHistoricalReview, outputs, signals, sourceCandles, verificationSetup])
+}
+
+function getTriggerMarkerTime(candles: Candle[], generatedAt: number): UTCTimestamp | null {
+  if (candles.length === 0) {
+    return null
+  }
+
+  const candidate =
+    candles.find((candle) => candle.time >= generatedAt) ??
+    [...candles].reverse().find((candle) => candle.time <= generatedAt) ??
+    candles[0]
+
+  if (!candidate) {
+    return null
+  }
+
+  return Math.floor(candidate.time / 1000) as UTCTimestamp
+}
+
+function formatLegendTimestamp(timestamp: number): string {
+  return new Date(timestamp).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }

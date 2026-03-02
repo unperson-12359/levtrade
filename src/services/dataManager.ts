@@ -1,6 +1,4 @@
 import { TRACKED_COINS, parseCandle } from '../types/market'
-import type { SuggestedSetup } from '../types/setup'
-import type { TrackedSetup } from '../types/setup'
 import { fetchAllMids, fetchMetaAndAssetCtxs, fetchCandles, fetchFundingHistory } from './api'
 import { HyperliquidWS } from './websocket'
 import { computeSignalsAtTime, generateBackfillTimestamps } from '../signals/backfill'
@@ -57,7 +55,6 @@ export class DataManager {
         this.fetchAllCandles(),
         this.fetchAllFundingHistory(),
       ])
-      await this.fetchServerSetups()
       await this.backfillMissedSetups()
       await this.backfillCandlesForPendingSetups()
       this.store.getState().computeAllSignals()
@@ -229,40 +226,6 @@ export class DataManager {
     }
 
     this.store.getState().resolveSetupOutcomes()
-  }
-
-  private async fetchServerSetups(): Promise<void> {
-    const state = this.store.getState()
-
-    try {
-      const latestLocalSetupAt = state.trackedSetups.reduce(
-        (latest, tracked) => Math.max(latest, tracked.setup.generatedAt),
-        0,
-      )
-      const params = new URLSearchParams()
-      if (latestLocalSetupAt > 0) {
-        params.set('since', new Date(latestLocalSetupAt + 1).toISOString())
-      } else {
-        params.set('days', '7')
-      }
-
-      const res = await fetch(`/api/server-setups?${params.toString()}`)
-      if (!res.ok) return
-
-      const payload = (await res.json()) as {
-        ok: boolean
-        setups: Array<{ id: string; setup: SuggestedSetup; outcomes: TrackedSetup['outcomes'] }>
-      }
-      if (!payload.ok || !Array.isArray(payload.setups)) return
-
-      for (const serverSetup of payload.setups) {
-        if (serverSetup.setup && typeof serverSetup.setup.generatedAt === 'number') {
-          this.store.getState().trackSetup(serverSetup.setup, serverSetup.outcomes, serverSetup.id)
-        }
-      }
-    } catch {
-      // Non-critical: server setups are supplementary
-    }
   }
 
   private async backfillMissedSetups(): Promise<void> {

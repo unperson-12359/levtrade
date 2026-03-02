@@ -4,6 +4,7 @@ import { useStore } from '../../store'
 import { TRACKED_COINS, type TrackedCoin } from '../../types'
 import type { SetupOutcome, SetupWindow, TierStats, TrackedSetup } from '../../types/setup'
 import { formatPrice } from '../../utils/format'
+import { getPendingOutcomeDisplay } from '../../utils/setupOutcomeFormat'
 import { formatConfidenceTier } from '../../utils/setupFormat'
 import { SignalDrawer } from '../shared/SignalDrawer'
 
@@ -179,9 +180,9 @@ export function SetupHistory() {
                 <span>{formatPrice(tracked.setup.stopPrice, tracked.setup.coin)}</span>
                 <span>{formatPrice(tracked.setup.targetPrice, tracked.setup.coin)}</span>
                 <span>{formatConfidenceTier(tracked.setup.confidenceTier)}</span>
-                <OutcomeCell outcome={tracked.outcomes['4h']} />
-                <OutcomeCell outcome={tracked.outcomes['24h']} />
-                <OutcomeCell outcome={tracked.outcomes['72h']} />
+                <OutcomeCell trackedSetup={tracked} outcome={tracked.outcomes['4h']} />
+                <OutcomeCell trackedSetup={tracked} outcome={tracked.outcomes['24h']} />
+                <OutcomeCell trackedSetup={tracked} outcome={tracked.outcomes['72h']} />
                 <span className="setup-history__review-action" aria-hidden="true">
                   Review -&gt;
                 </span>
@@ -205,12 +206,13 @@ export function SetupHistory() {
   )
 }
 
-function OutcomeCell({ outcome }: { outcome: SetupOutcome }) {
+function OutcomeCell({ trackedSetup, outcome }: { trackedSetup: TrackedSetup; outcome: SetupOutcome }) {
   if (outcome.result === 'pending') {
+    const pending = getPendingOutcomeDisplay(trackedSetup.setup.generatedAt, outcome.window)
     return (
       <div className="setup-history__outcome">
-        <span className="text-text-muted">--</span>
-        <span className="setup-history__outcome-note">pending</span>
+        <span className="text-text-muted">{pending.label}</span>
+        <span className="setup-history__outcome-note">{pending.note}</span>
       </div>
     )
   }

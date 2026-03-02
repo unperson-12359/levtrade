@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useHistoricalSetupReview } from '../../hooks/useHistoricalSetupReview'
 import type { TrackedCoin } from '../../types/market'
 import type { SuggestedSetup, TrackedSetup } from '../../types/setup'
 import { formatLeverage, formatPrice, formatUSD, timeAgo } from '../../utils/format'
+import { formatSetupOutcomeTimestamp, getPendingOutcomeDisplay } from '../../utils/setupOutcomeFormat'
 import { formatConfidenceTier, formatEntryQuality, formatTradeGrade } from '../../utils/setupFormat'
 import {
   getSignalProvenance,
@@ -30,6 +32,7 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
   const isSetup = signalKind === 'setup'
   const isHistoricalSetup = isSetup && Boolean(trackedSetup)
   const showRail = signalKind !== 'setup' || Boolean(activeSetup)
+  const historicalReview = useHistoricalSetupReview(isHistoricalSetup ? (trackedSetup ?? null) : null)
 
   useEffect(() => {
     if (!signalKind) return
@@ -72,6 +75,10 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
   const title = getTitle(signalKind, isHistoricalSetup)
   const description = getDescription(signalKind, isHistoricalSetup, provenance)
   const inspectionNote = signalKind === 'setup' ? null : getInspectionNote(signalKind)
+  const historicalSummaryCopy =
+    activeSetup && isHistoricalSetup
+      ? `This chart shows the original trigger context and the candle path from ${formatSetupOutcomeTimestamp(activeSetup.generatedAt)} through the latest available 1h candles. Use it to compare where the setup fired versus where price is now.`
+      : null
 
   return createPortal(
     <>
@@ -101,7 +108,31 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
             {isSetup ? (
               <>
                 <div className="signal-drawer__main">
-                  <PriceChart coin={coin} embedded showHeader={false} verificationSetup={activeSetup ?? undefined} />
+                  {isHistoricalSetup && !historicalReview.candles && historicalReview.loading ? (
+                    <section className="signal-drawer__section">
+                      <div className="signal-drawer__section-title">Loading review chart</div>
+                      <div className="loading-block h-48" />
+                      <p className="signal-drawer__copy">
+                        Loading the 1h candle path from before the suggestion through the latest available data.
+                      </p>
+                    </section>
+                  ) : isHistoricalSetup && historicalReview.error ? (
+                    <section className="signal-drawer__section">
+                      <div className="signal-drawer__section-title">Historical chart unavailable</div>
+                      <p className="signal-drawer__copy">
+                        {historicalReview.error}
+                      </p>
+                    </section>
+                  ) : (
+                    <PriceChart
+                      coin={coin}
+                      embedded
+                      showHeader={false}
+                      verificationSetup={activeSetup ?? undefined}
+                      chartCandles={isHistoricalSetup ? historicalReview.candles : null}
+                      reviewMode={isHistoricalSetup ? 'historical' : 'live'}
+                    />
+                  )}
                   {activeSetup ? (
                     <section className="signal-drawer__section">
                       <div className="signal-drawer__section-title">
@@ -109,7 +140,7 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
                       </div>
                       <p className="signal-drawer__copy">
                         {isHistoricalSetup
-                          ? 'This is the stored setup snapshot from when the dashboard suggested the trade. The chart is centered around the original trigger time so you can inspect the levels and the follow-through.'
+                          ? historicalSummaryCopy
                           : 'This is the live setup the dashboard would act on right now, using the same chart context, geometry, and trade levels shown in the main workflow.'}
                       </p>
                       <p className="signal-drawer__copy">{activeSetup.summary}</p>
@@ -230,6 +261,7 @@ function OutcomeCard({
   window: '4h' | '24h' | '72h'
 }) {
   const outcome = trackedSetup.outcomes[window]
+  const pending = outcome.result === 'pending' ? getPendingOutcomeDisplay(trackedSetup.setup.generatedAt, window) : null
   const resultTone =
     outcome.result === 'win'
       ? 'text-signal-green'
@@ -240,15 +272,17 @@ function OutcomeCard({
   return (
     <div className="signal-drawer__meta-item">
       <span className="stat-label">{window} outcome</span>
-      <span className={`stat-value ${resultTone}`}>{outcome.result.toUpperCase()}</span>
+      <span className={`stat-value ${resultTone}`}>{pending ? pending.label : outcome.result.toUpperCase()}</span>
       <div className="signal-drawer__meta-copy">
-        {[
-          outcome.rAchieved !== null ? `${outcome.rAchieved >= 0 ? '+' : ''}${outcome.rAchieved.toFixed(1)}R` : null,
-          outcome.resolutionReason ?? null,
-          outcome.coverageStatus ?? null,
-        ]
-          .filter(Boolean)
-          .join(' | ') || 'Pending'}
+        {pending
+          ? pending.note
+          : [
+              outcome.rAchieved !== null ? `${outcome.rAchieved >= 0 ? '+' : ''}${outcome.rAchieved.toFixed(1)}R` : null,
+              outcome.resolutionReason ?? null,
+              outcome.coverageStatus ?? null,
+            ]
+              .filter(Boolean)
+              .join(' | ')}
       </div>
       {outcome.resolvedAt && <div className="signal-drawer__source-note">Resolved {formatTimestamp(outcome.resolvedAt)}</div>}
     </div>

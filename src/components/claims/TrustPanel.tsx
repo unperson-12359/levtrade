@@ -1,6 +1,5 @@
 import { useRef } from 'react'
 import { useStore } from '../../store'
-import type { SyncStatus } from '../../types'
 
 const STORAGE_KEY = 'levtrade-storage'
 
@@ -10,12 +9,7 @@ export function TrustPanel() {
   const importJson = useStore((s) => s.importSetupsJson)
   const clearSetupHistory = useStore((s) => s.clearSetupHistory)
   const clearTrackerHistory = useStore((s) => s.clearTrackerHistory)
-  const syncStatus = useStore((s) => s.syncStatus)
-  const lastCloudSyncAt = useStore((s) => s.lastCloudSyncAt)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const syncLabel = syncStatusLabel(syncStatus)
-  const syncTone = syncStatusTone(syncStatus)
 
   return (
     <section className="panel-shell trust-panel">
@@ -24,22 +18,22 @@ export function TrustPanel() {
           <div className="panel-kicker">Trust and storage</div>
           <h3 className="panel-title">What is actually being saved and scored</h3>
         </div>
-        <span className={`status-pill status-pill--${syncTone}`}>{syncLabel}</span>
+        <span className="status-pill status-pill--green">LOCAL ONLY</span>
       </div>
 
       <p className="panel-copy">
-        App state is synced automatically through the backend and shared across all sessions. Local storage is used
-        as a startup and offline cache.
+        This build stores state locally in this browser to avoid Vercel transfer limits. Setup history, tracker results,
+        and risk defaults persist after refresh, but they are not shared through the backend.
       </p>
 
       <div className="stat-grid trust-panel__stats">
         <Stat label="Storage key" value={STORAGE_KEY} tone="yellow" />
-        <Stat label="Backend sync" value={syncLabel} tone={syncTone} />
-        <Stat label="Last backend sync" value={lastCloudSyncAt ? formatTimestamp(lastCloudSyncAt) : 'Not yet'} tone="yellow" />
-        <Stat label="Local cache" value="Startup + offline fallback" tone="green" />
-        <Stat label="State model" value="Global shared backend state" tone="green" />
+        <Stat label="Storage mode" value="This browser only" tone="green" />
+        <Stat label="Backend sync" value="Disabled" tone="green" />
+        <Stat label="Persistence" value="Refresh-safe local storage" tone="green" />
+        <Stat label="State model" value="Local-only app state" tone="green" />
         <Stat label="Retention" value="90 days" tone="green" />
-        <Stat label="Sync scope" value="Setups + tracker + risk defaults" tone="green" />
+        <Stat label="Saved scope" value="Setups + tracker + risk defaults" tone="green" />
         <Stat label="Resolution basis" value="4h / 24h / 72h from 1h candles" tone="green" />
       </div>
 
@@ -101,40 +95,4 @@ function Stat({ label, value, tone }: { label: string; value: string; tone: 'gre
       <div className={`stat-value ${toneClasses[tone]}`}>{value}</div>
     </div>
   )
-}
-
-function syncStatusTone(status: SyncStatus): 'green' | 'yellow' | 'red' {
-  if (status === 'synced') {
-    return 'green'
-  }
-  if (status === 'error' || status === 'offline') {
-    return 'red'
-  }
-  return 'yellow'
-}
-
-function syncStatusLabel(status: SyncStatus): string {
-  switch (status) {
-    case 'idle':
-      return 'Starting'
-    case 'syncing':
-      return 'Syncing now'
-    case 'synced':
-      return 'Live'
-    case 'error':
-      return 'Sync error'
-    case 'offline':
-      return 'Offline'
-    default:
-      return 'Starting'
-  }
-}
-
-function formatTimestamp(timestamp: number): string {
-  return new Date(timestamp).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
 }

@@ -3,15 +3,10 @@ import { useEntryDecision } from '../../hooks/useEntryDecision'
 import { usePositionRisk } from '../../hooks/usePositionRisk'
 import { useSignals } from '../../hooks/useSignals'
 import { useStore } from '../../store'
-import type { SyncStatus } from '../../types'
 import { timeAgo } from '../../utils/format'
 import { getMethodologySteps } from '../../utils/workflowGuidance'
 
-interface MenuDrawerProps {
-  onSyncNow: () => Promise<void>
-}
-
-export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
+export function MenuDrawer() {
   const open = useStore((s) => s.expandedSections['menu'] ?? false)
   const toggle = useStore((s) => s.toggleSection)
   const close = () => {
@@ -26,12 +21,6 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
   const decision = useEntryDecision(coin)
   const { outputs, riskStatus } = usePositionRisk()
   const steps = getMethodologySteps(signals, decision, outputs, riskStatus)
-
-  const syncStatus = useStore((s) => s.syncStatus)
-  const syncError = useStore((s) => s.syncError)
-  const lastCloudSyncAt = useStore((s) => s.lastCloudSyncAt)
-  const syncLabel = syncStatusLabel(syncStatus)
-  const syncTone = syncStatusTone(syncStatus)
 
   const [expandedStep, setExpandedStep] = useState<number | null>(null)
 
@@ -127,54 +116,17 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
 
         <div className="menu-drawer__section">
           <div className="menu-drawer__section-title">
-            Backend Sync
-            <span className={`status-pill status-pill--${syncTone} menu-drawer__inline-pill`}>{syncLabel}</span>
+            Storage
+            <span className="status-pill status-pill--green menu-drawer__inline-pill">LOCAL</span>
           </div>
           <div className="menu-drawer__muted">
-            App state is shared live through the backend. Local storage is only a startup and offline cache.
+            This build now runs local-only to avoid Vercel transfer limits. Your setups, tracker history, and risk defaults stay in this browser.
           </div>
           <div className="menu-drawer__muted">
-            Last sync: {lastCloudSyncAt ? timeAgo(lastCloudSyncAt) : 'Not yet'}
+            Data stays available after refresh through browser storage.
           </div>
-          {(syncStatus === 'error' || syncStatus === 'offline') && (
-            <div className="menu-drawer__sync-buttons">
-              <button
-                type="button"
-                onClick={() => {
-                  void onSyncNow()
-                }}
-                className="setup-history__filter"
-              >
-                Retry sync
-              </button>
-            </div>
-          )}
-          {syncError && <div className="action-guidance action-guidance--red">{syncError}</div>}
         </div>
       </nav>
     </>
   )
-}
-
-function syncStatusTone(status: SyncStatus): 'green' | 'yellow' | 'red' {
-  if (status === 'synced') return 'green'
-  if (status === 'error' || status === 'offline') return 'red'
-  return 'yellow'
-}
-
-function syncStatusLabel(status: SyncStatus): string {
-  switch (status) {
-    case 'idle':
-      return 'Starting'
-    case 'syncing':
-      return 'Syncing'
-    case 'synced':
-      return 'Live'
-    case 'error':
-      return 'Error'
-    case 'offline':
-      return 'Offline'
-    default:
-      return 'Starting'
-  }
 }

@@ -5,11 +5,6 @@ import { ConnectionIndicator } from './ConnectionIndicator'
 
 export function TopBar() {
   const toggle = useStore((s) => s.toggleSection)
-  const syncStatus = useStore((s) => s.syncStatus)
-
-  const syncTone = syncStatus === 'synced' ? 'green'
-    : syncStatus === 'error' || syncStatus === 'offline' ? 'red'
-    : 'yellow'
 
   return (
     <header className="topbar-shell">
@@ -36,7 +31,7 @@ export function TopBar() {
         </div>
 
         <ConnectionIndicator />
-        <span className={`topbar-sync-dot topbar-sync-dot--${syncTone}`} title={`Sync: ${syncTone}`} />
+        <span className="topbar-sync-dot topbar-sync-dot--green" title="Storage: local browser only" />
       </div>
     </header>
   )

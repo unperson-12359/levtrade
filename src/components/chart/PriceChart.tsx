@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import {
   CandlestickSeries,
   ColorType,
+  createSeriesMarkers,
   createChart,
   CrosshairMode,
   type IRange,
@@ -10,12 +11,13 @@ import {
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
+  type ISeriesMarkersPluginApi,
   type Time,
 } from 'lightweight-charts'
 import { useChartModel } from '../../hooks/useChartModel'
 import { useSignals } from '../../hooks/useSignals'
 import { ChartLegend } from './ChartLegend'
-import type { TrackedCoin } from '../../types/market'
+import type { Candle, TrackedCoin } from '../../types/market'
 import type { SuggestedSetup } from '../../types/setup'
 
 interface PriceChartProps {
@@ -23,6 +25,8 @@ interface PriceChartProps {
   embedded?: boolean
   showHeader?: boolean
   verificationSetup?: SuggestedSetup | null
+  chartCandles?: Candle[] | null
+  reviewMode?: 'live' | 'historical'
 }
 
 export function PriceChart({
@@ -30,17 +34,21 @@ export function PriceChart({
   embedded = false,
   showHeader = true,
   verificationSetup = null,
+  chartCandles = null,
+  reviewMode = 'live',
 }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const markerPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
   const meanSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const upperSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const lowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const priceLinesRef = useRef<IPriceLine[] | null>(null)
   const focusRangeRef = useRef<IRange<Time> | null>(null)
-  const model = useChartModel(coin, verificationSetup)
+  const model = useChartModel(coin, verificationSetup, { candlesOverride: chartCandles, reviewMode })
   const { signals } = useSignals(coin)
+  const showLiveOverlays = reviewMode === 'live' && !chartCandles
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -103,6 +111,7 @@ export function PriceChart({
 
     chartRef.current = chart
     candleSeriesRef.current = candleSeries
+    markerPluginRef.current = createSeriesMarkers(candleSeries, [])
     meanSeriesRef.current = meanSeries
     upperSeriesRef.current = upperSeries
     lowerSeriesRef.current = lowerSeries
@@ -124,6 +133,7 @@ export function PriceChart({
       chart.remove()
       chartRef.current = null
       candleSeriesRef.current = null
+      markerPluginRef.current = null
       meanSeriesRef.current = null
       upperSeriesRef.current = null
       lowerSeriesRef.current = null
@@ -137,6 +147,7 @@ export function PriceChart({
     }
 
     candleSeriesRef.current.setData(model.candles)
+    markerPluginRef.current?.setMarkers(model.markers)
     meanSeriesRef.current.setData(model.meanLine)
     upperSeriesRef.current.setData(model.upperBandLine)
     lowerSeriesRef.current.setData(model.lowerBandLine)
@@ -181,12 +192,12 @@ export function PriceChart({
 
       <div className="price-chart-wrap">
         <div ref={containerRef} className="price-chart" />
-        {signals?.isWarmingUp && (
+        {showLiveOverlays && signals?.isWarmingUp && (
           <div className="chart-overlay">
             <span>Warming up geometry with more candles.</span>
           </div>
         )}
-        {signals?.isStale && (
+        {showLiveOverlays && signals?.isStale && (
           <div className="chart-overlay chart-overlay--danger">
             <span>Live feed is stale. Re-check before entering.</span>
           </div>
