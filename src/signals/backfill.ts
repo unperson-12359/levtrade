@@ -12,7 +12,7 @@ const MIN_CANDLES_HURST = 100
 const MIN_CANDLES_ZSCORE = 20
 const MIN_FUNDING_ENTRIES = 8
 const MIN_OI_ENTRIES = 6
-const MS_PER_HOUR = 3_600_000
+const MS_PER_HOUR = 3_600_000 // default fallback
 
 const NEUTRAL_FUNDING: FundingResult = {
   currentRate: 0,
@@ -95,11 +95,11 @@ export function computeSignalsAtTime(
  * Returns timestamps at each hour boundary starting from the first full hour
  * after lastComputedAt, up to (but not including) the current hour.
  */
-export function generateBackfillTimestamps(lastComputedAt: number, now: number): number[] {
-  const firstHour = Math.ceil(lastComputedAt / MS_PER_HOUR) * MS_PER_HOUR
+export function generateBackfillTimestamps(lastComputedAt: number, now: number, stepMs: number = MS_PER_HOUR): number[] {
+  const firstStep = Math.ceil(lastComputedAt / stepMs) * stepMs
   const timestamps: number[] = []
 
-  for (let t = firstHour; t < now; t += MS_PER_HOUR) {
+  for (let t = firstStep; t < now; t += stepMs) {
     timestamps.push(t)
   }
 

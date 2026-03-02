@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand'
 import { TRACKED_COINS, type TrackedCoin } from '../types/market'
 import type { AssetSignals } from '../types/signals'
+import { INTERVAL_CONFIG } from '../config/intervals'
 import type { AppStore } from '.'
 import {
   computeATR,
@@ -32,7 +33,6 @@ function initSignals(): Record<TrackedCoin, AssetSignals | null> {
 const MIN_CANDLES_HURST = 100
 const MIN_CANDLES_ZSCORE = 20
 const STALE_AFTER_MS = 3 * 60 * 1000
-const CANDLE_STALE_AFTER_MS = 2 * 60 * 60 * 1000
 
 export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = (set, get) => ({
   signals: initSignals(),
@@ -55,7 +55,8 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
     const oiDelta = computeOIDelta(oiHistory, closes)
 
     // Volatility
-    const volResult = computeRealizedVol(closes)
+    const { periodsPerYear, staleAfterMs: candleStaleMs } = INTERVAL_CONFIG[state.selectedInterval]
+    const volResult = computeRealizedVol(closes, 20, periodsPerYear)
     const atr = computeATR(candles)
     const volatility = { ...volResult, atr }
 
@@ -72,7 +73,7 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
     const candleAge = latestCandle ? Date.now() - latestCandle.time : Infinity
     const isStale = state.lastUpdate === null
       ? true
-      : (Date.now() - state.lastUpdate) > STALE_AFTER_MS || candleAge > CANDLE_STALE_AFTER_MS
+      : (Date.now() - state.lastUpdate) > STALE_AFTER_MS || candleAge > candleStaleMs
 
     const result: AssetSignals = {
       coin,

@@ -65,11 +65,11 @@ export function HowItWorks() {
             <div className="guide-grid">
               <GridCard
                 title="Hurst Exponent"
-                detail="Measures whether price is trending or mean-reverting. H > 0.55 = trending, H < 0.45 = mean-reverting. Computed from autocorrelation of 1h returns over 100 periods."
+                detail="Measures whether price is trending or mean-reverting. H > 0.55 = trending, H < 0.45 = mean-reverting. Computed from autocorrelation of returns over 100 periods at your selected timeframe."
               />
               <GridCard
                 title="Volatility"
-                detail="Realized volatility annualized (sqrt(8760) for 24/7 crypto), plus Average True Range. High vol = wider stops, lower leverage."
+                detail="Realized volatility annualized for 24/7 crypto, plus Average True Range. High vol = wider stops, lower leverage."
               />
               <GridCard
                 title="Funding Rate"

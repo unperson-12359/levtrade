@@ -1,4 +1,5 @@
 import { TRACKED_COINS } from '../../types/market'
+import { INTERVALS } from '../../config/intervals'
 import { useStore } from '../../store'
 import { AssetPill } from './AssetPill'
 import { ConnectionIndicator } from './ConnectionIndicator'
@@ -7,6 +8,8 @@ export function TopBar() {
   const toggle = useStore((s) => s.toggleSection)
   const syncStatus = useStore((s) => s.syncStatus)
   const cloudSyncEnabled = useStore((s) => s.cloudSyncEnabled)
+  const selectedInterval = useStore((s) => s.selectedInterval)
+  const setInterval = useStore((s) => s.setInterval)
 
   const syncTone = !cloudSyncEnabled ? 'yellow'
     : syncStatus === 'synced' ? 'green'
@@ -34,6 +37,18 @@ export function TopBar() {
         <div className="topbar-assets scrollbar-hide">
           {TRACKED_COINS.map((coin) => (
             <AssetPill key={coin} coin={coin} />
+          ))}
+        </div>
+
+        <div className="topbar-intervals">
+          {INTERVALS.map((tf) => (
+            <button
+              key={tf}
+              onClick={() => setInterval(tf)}
+              className={`topbar-interval-chip ${selectedInterval === tf ? 'topbar-interval-chip--active' : ''}`}
+            >
+              {tf}
+            </button>
           ))}
         </div>
 

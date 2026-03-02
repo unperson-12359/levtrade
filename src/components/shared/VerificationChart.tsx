@@ -10,7 +10,8 @@ import {
 } from 'lightweight-charts'
 import { useSignalSeries } from '../../hooks/useSignalSeries'
 import type { TrackedCoin } from '../../types/market'
-import { SIGNAL_PROVENANCE, type SignalSeriesKind } from '../../utils/provenance'
+import { getSignalProvenance, type SignalSeriesKind } from '../../utils/provenance'
+import { useStore } from '../../store'
 import { timeAgo } from '../../utils/format'
 import { ChartLegend } from '../chart/ChartLegend'
 
@@ -25,7 +26,8 @@ export function VerificationChart({ coin, kind, height = 220 }: VerificationChar
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const { series, currentValue, label, unit, lastRefreshedAt, freshness } = useSignalSeries(coin, kind)
-  const provenance = SIGNAL_PROVENANCE[kind]
+  const interval = useStore((s) => s.selectedInterval)
+  const provenance = getSignalProvenance(interval)[kind]
 
   useEffect(() => {
     if (!containerRef.current) return

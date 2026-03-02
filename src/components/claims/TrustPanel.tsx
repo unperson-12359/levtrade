@@ -11,6 +11,7 @@ export function TrustPanel() {
   const clearSetupHistory = useStore((s) => s.clearSetupHistory)
   const clearTrackerHistory = useStore((s) => s.clearTrackerHistory)
   const cloudSyncEnabled = useStore((s) => s.cloudSyncEnabled)
+  const selectedInterval = useStore((s) => s.selectedInterval)
   const syncStatus = useStore((s) => s.syncStatus)
   const lastCloudSyncAt = useStore((s) => s.lastCloudSyncAt)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -40,7 +41,7 @@ export function TrustPanel() {
         <Stat label="Last cloud sync" value={lastCloudSyncAt ? formatTimestamp(lastCloudSyncAt) : 'Never'} tone="yellow" />
         <Stat label="Retention" value="90 days" tone="green" />
         <Stat label="Sync scope" value="History + risk defaults" tone="green" />
-        <Stat label="Resolution basis" value="4h / 24h / 72h from 1h candles" tone="yellow" />
+        <Stat label="Resolution basis" value={`4h / 24h / 72h from ${selectedInterval} candles`} tone="yellow" />
       </div>
 
       <div className="setup-history__filters">

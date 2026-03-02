@@ -4,9 +4,10 @@ import type { TrackedCoin } from '../../types/market'
 import type { SuggestedSetup } from '../../types/setup'
 import { formatLeverage, formatPrice, formatUSD, timeAgo } from '../../utils/format'
 import {
-  SIGNAL_PROVENANCE,
+  getSignalProvenance,
   type SignalSeriesKind,
 } from '../../utils/provenance'
+import { useStore } from '../../store'
 import { PriceChart } from '../chart/PriceChart'
 import { VerificationChart } from './VerificationChart'
 
@@ -20,6 +21,8 @@ interface SignalDrawerProps {
 }
 
 export function SignalDrawer({ coin, signalKind, setup, onClose }: SignalDrawerProps) {
+  const interval = useStore((s) => s.selectedInterval)
+  const provenance = getSignalProvenance(interval)
   const drawerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -60,11 +63,11 @@ export function SignalDrawer({ coin, signalKind, setup, onClose }: SignalDrawerP
 
   if (!signalKind) return null
 
-  const title = signalKind === 'setup' ? 'Suggested Setup Verification' : SIGNAL_PROVENANCE[signalKind].title
+  const title = signalKind === 'setup' ? 'Suggested Setup Verification' : provenance[signalKind].title
   const description =
     signalKind === 'setup'
       ? 'This view shows the current suggested setup, its generated levels, and the market context used to propose it.'
-      : SIGNAL_PROVENANCE[signalKind].description
+      : provenance[signalKind].description
 
   return createPortal(
     <>
@@ -118,11 +121,11 @@ export function SignalDrawer({ coin, signalKind, setup, onClose }: SignalDrawerP
             <div className="signal-drawer__provenance">
               <p className="panel-copy">{description}</p>
               <div className="signal-drawer__meta-grid">
-                <MetaItem label="Source" value={SIGNAL_PROVENANCE[signalKind].source} />
-                <MetaItem label="Request type" value={SIGNAL_PROVENANCE[signalKind].requestType} />
-                <MetaItem label="Timeframe" value={SIGNAL_PROVENANCE[signalKind].timeframe} />
-                <MetaItem label="Lookback" value={SIGNAL_PROVENANCE[signalKind].lookback} />
-                <MetaItem label="Update cadence" value={SIGNAL_PROVENANCE[signalKind].updateCadence} />
+                <MetaItem label="Source" value={provenance[signalKind].source} />
+                <MetaItem label="Request type" value={provenance[signalKind].requestType} />
+                <MetaItem label="Timeframe" value={provenance[signalKind].timeframe} />
+                <MetaItem label="Lookback" value={provenance[signalKind].lookback} />
+                <MetaItem label="Update cadence" value={provenance[signalKind].updateCadence} />
               </div>
             </div>
           </>

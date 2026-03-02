@@ -36,9 +36,9 @@ export function computeATR(candles: Candle[], period: number = 14): number {
 
 /**
  * Compute realized volatility (annualized) from close prices.
- * Uses log returns, annualized by sqrt(8760) for 24/7 crypto markets.
+ * Uses log returns, annualized by sqrt(periodsPerYear) for 24/7 crypto markets.
  */
-export function computeRealizedVol(closes: number[], period: number = 20): VolatilityResult {
+export function computeRealizedVol(closes: number[], period: number = 20, periodsPerYear: number = 8760): VolatilityResult {
   if (closes.length < period + 1) {
     return {
       realizedVol: 0,
@@ -73,7 +73,7 @@ export function computeRealizedVol(closes: number[], period: number = 20): Volat
   const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length
   const variance = returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / returns.length
   const hourlyVol = Math.sqrt(variance)
-  const annualizedVol = hourlyVol * Math.sqrt(8760) * 100
+  const annualizedVol = hourlyVol * Math.sqrt(periodsPerYear) * 100
 
   const { level, color } = classifyVol(annualizedVol)
   const explanation = buildExplanation(annualizedVol, level)

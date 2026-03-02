@@ -5,13 +5,11 @@ import { fetchAllMids, fetchMetaAndAssetCtxs, fetchCandles, fetchFundingHistory 
 import { HyperliquidWS } from './websocket'
 import { computeSignalsAtTime, generateBackfillTimestamps } from '../signals/backfill'
 import { computeSuggestedSetup } from '../signals/setup'
+import { INTERVAL_CONFIG } from '../config/intervals'
 import type { StoreApi } from 'zustand'
 import type { AppStore } from '../store'
 
-const CANDLE_INTERVAL = '1h'
-const CANDLE_COUNT = 120 // enough for 100-period Hurst + buffer
 const POLL_INTERVAL = 60_000 // 60s for metaAndAssetCtxs refresh
-const MS_PER_HOUR = 3_600_000
 
 export class DataManager {
   private ws: HyperliquidWS
@@ -23,6 +21,14 @@ export class DataManager {
   constructor(store: StoreApi<AppStore>) {
     this.store = store
     this.ws = new HyperliquidWS()
+  }
+
+  private get itvl() {
+    return INTERVAL_CONFIG[this.store.getState().selectedInterval]
+  }
+
+  private get interval() {
+    return this.store.getState().selectedInterval
   }
 
   async initialize(): Promise<void> {
@@ -97,14 +103,15 @@ export class DataManager {
     }
   }
 
-  private async fetchAllCandles(): Promise<void> {
+  async fetchAllCandles(): Promise<void> {
+    const { ms, candleCount } = this.itvl
     const now = Date.now()
-    const startTime = now - CANDLE_COUNT * MS_PER_HOUR
+    const startTime = now - candleCount * ms
 
     // Fetch sequentially to be gentle with rate limits
     for (const coin of TRACKED_COINS) {
       try {
-        const rawCandles = await fetchCandles(coin, CANDLE_INTERVAL, startTime, now)
+        const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
         const candles = rawCandles.map(parseCandle)
         this.store.getState().setCandles(coin, candles)
       } catch (err) {
@@ -118,8 +125,7 @@ export class DataManager {
 
   private async fetchAllFundingHistory(): Promise<void> {
     const now = Date.now()
-    // Fetch ~30 hourly funding periods (~30 hours)
-    const startTime = now - 30 * MS_PER_HOUR
+    const startTime = now - this.itvl.fundingLookbackMs
 
     for (const coin of TRACKED_COINS) {
       try {
@@ -164,8 +170,8 @@ export class DataManager {
       }
 
       try {
-        const startTime = oldestTime - MS_PER_HOUR
-        const rawCandles = await fetchCandles(coin, CANDLE_INTERVAL, startTime, oldestCandleTime)
+        const startTime = oldestTime - this.itvl.ms
+        const rawCandles = await fetchCandles(coin, this.interval, startTime, oldestCandleTime)
         const candles = rawCandles.map(parseCandle)
         if (candles.length > 0) {
           this.store.getState().setExtendedCandles(coin, candles)
@@ -218,24 +224,25 @@ export class DataManager {
     }
 
     const now = Date.now()
-    const gapHours = (now - lastComputed) / MS_PER_HOUR
+    const gapPeriods = (now - lastComputed) / this.itvl.ms
 
-    // Less than 2 hours: live computation will cover it
-    if (gapHours < 2) {
+    // Less than 2 periods: live computation will cover it
+    if (gapPeriods < 2) {
       return
     }
 
-    // Fetch extended candles if gap exceeds the standard 120h window
-    if (gapHours > CANDLE_COUNT) {
-      await this.fetchExtendedCandlesForBackfill(Math.ceil(gapHours) + CANDLE_COUNT)
+    // Fetch extended candles if gap exceeds the standard window
+    const { candleCount } = this.itvl
+    if (gapPeriods > candleCount) {
+      await this.fetchExtendedCandlesForBackfill(Math.ceil(gapPeriods) + candleCount)
     }
 
     // Fetch extended funding history covering the gap
-    if (gapHours <= 200) {
+    if (gapPeriods <= 200) {
       await this.fetchExtendedFundingForBackfill(lastComputed)
     }
 
-    const timestamps = generateBackfillTimestamps(lastComputed, now)
+    const timestamps = generateBackfillTimestamps(lastComputed, now, this.itvl.ms)
     if (timestamps.length === 0) return
 
     for (const coin of TRACKED_COINS) {
@@ -265,13 +272,13 @@ export class DataManager {
     this.store.getState().sortSetupsByTime()
   }
 
-  private async fetchExtendedCandlesForBackfill(hoursNeeded: number): Promise<void> {
+  private async fetchExtendedCandlesForBackfill(periodsNeeded: number): Promise<void> {
     const now = Date.now()
-    const startTime = now - hoursNeeded * MS_PER_HOUR
+    const startTime = now - periodsNeeded * this.itvl.ms
 
     for (const coin of TRACKED_COINS) {
       try {
-        const rawCandles = await fetchCandles(coin, CANDLE_INTERVAL, startTime, now)
+        const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
         const candles = rawCandles.map(parseCandle)
         this.store.getState().setCandles(coin, candles)
       } catch {
@@ -301,13 +308,14 @@ export class DataManager {
   private async refreshCandlesIfNeeded(coin: (typeof TRACKED_COINS)[number], now: number): Promise<void> {
     const latestCandle = this.store.getState().candles[coin].slice(-1)[0]
     const candleAge = latestCandle ? now - latestCandle.time : Infinity
+    const { ms, candleCount } = this.itvl
 
-    if (candleAge <= MS_PER_HOUR) {
+    if (candleAge <= ms) {
       return
     }
 
-    const startTime = now - CANDLE_COUNT * MS_PER_HOUR
-    const rawCandles = await fetchCandles(coin, CANDLE_INTERVAL, startTime, now)
+    const startTime = now - candleCount * ms
+    const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
     const candles = rawCandles.map(parseCandle)
     this.store.getState().setCandles(coin, candles)
   }

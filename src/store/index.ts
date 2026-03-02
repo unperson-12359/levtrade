@@ -24,6 +24,7 @@ export const useStore = create<AppStore>()(
       partialize: (state) => ({
         expandedSections: state.expandedSections,
         selectedCoin: state.selectedCoin,
+        selectedInterval: state.selectedInterval,
         riskInputs: state.riskInputs,
         trackedSignals: state.trackedSignals,
         trackedOutcomes: state.trackedOutcomes,
