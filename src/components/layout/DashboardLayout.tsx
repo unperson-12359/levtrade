@@ -53,8 +53,10 @@ export function DashboardLayout() {
             <PriceChart coin={coin} embedded showHeader={false} />
           </div>
           <DecisionHero />
-          <MarketRail />
-          <SignalSection />
+          <div className="steps-row">
+            <MarketRail />
+            <SignalSection />
+          </div>
           <AnalyticsTabs />
         </section>
 

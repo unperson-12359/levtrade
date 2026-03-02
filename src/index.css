@@ -232,6 +232,54 @@ button {
   min-width: 0;
 }
 
+.steps-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  min-width: 0;
+  align-items: start;
+}
+
+.steps-row .panel-shell {
+  padding: 0.7rem;
+}
+
+.steps-row .panel-title {
+  font-size: 0.88rem;
+}
+
+.steps-row .panel-copy {
+  font-size: 0.82rem;
+  margin-top: 0.3rem;
+}
+
+.steps-row .subpanel-shell {
+  padding: 0.55rem;
+}
+
+.steps-row .market-rail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.steps-row .market-rail-grid__primary {
+  grid-column: span 2;
+}
+
+.steps-row .breakdown-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.steps-row .stat-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.steps-row .setup-card__prices {
+  gap: 0.5rem;
+}
+
 .dashboard-main {
   min-width: 0;
 }
@@ -1704,6 +1752,10 @@ button {
   }
 
   .dashboard-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .steps-row {
     grid-template-columns: 1fr;
   }
 
