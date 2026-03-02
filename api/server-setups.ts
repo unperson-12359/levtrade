@@ -50,6 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       coin: string
       direction: string
       setup_json: Record<string, unknown>
+      outcomes_json: Record<string, unknown> | null
       generated_at: string
     }>
 
@@ -57,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       id: row.id,
       setup: row.setup_json,
       coverageStatus: 'full',
-      outcomes: {
+      outcomes: row.outcomes_json ?? {
         '4h': emptyOutcome('4h'),
         '24h': emptyOutcome('24h'),
         '72h': emptyOutcome('72h'),

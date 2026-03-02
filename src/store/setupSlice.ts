@@ -2,8 +2,8 @@ import type { StateCreator } from 'zustand'
 import type { AppStore } from '.'
 import { TRACKED_COINS, type Candle } from '../types/market'
 import { computeSuggestedSetup } from '../signals/setup'
+import { SETUP_WINDOWS, emptyOutcome, resolveSetupWindow, summarizeCoverage } from '../signals/resolveOutcome'
 import type {
-  SetupCoverageStatus,
   SetupOutcome,
   SetupResolutionReason,
   SetupWindow,
@@ -11,19 +11,13 @@ import type {
   TrackedSetup,
 } from '../types/setup'
 
-const SETUP_WINDOWS: Record<SetupWindow, number> = {
-  '4h': 4 * 60 * 60 * 1000,
-  '24h': 24 * 60 * 60 * 1000,
-  '72h': 72 * 60 * 60 * 1000,
-}
-
 const SETUP_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
 const SETUP_DEDUPE_WINDOW_MS = 4 * 60 * 60 * 1000
 const ENTRY_SIMILARITY_THRESHOLD = 0.02
 
 export interface SetupSlice {
   trackedSetups: TrackedSetup[]
-  trackSetup: (setup: SuggestedSetup) => void
+  trackSetup: (setup: SuggestedSetup, serverOutcomes?: TrackedSetup['outcomes'], serverId?: string) => void
   generateAllSetups: () => void
   resolveSetupOutcomes: (now?: number) => void
   pruneSetupHistory: (now?: number) => void
@@ -37,7 +31,7 @@ export interface SetupSlice {
 export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set, get) => ({
   trackedSetups: [],
 
-  trackSetup: (setup) =>
+  trackSetup: (setup, serverOutcomes?, serverId?) =>
     set((state) => {
       const previous = [...state.trackedSetups]
         .reverse()
@@ -52,10 +46,10 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
       }
 
       const trackedSetup: TrackedSetup = {
-        id: `${setup.coin}-${setup.direction}-${setup.generatedAt}-${Math.random().toString(36).slice(2, 6)}`,
+        id: serverId ?? `${setup.coin}-${setup.direction}-${setup.generatedAt}-${Math.random().toString(36).slice(2, 6)}`,
         setup,
         coverageStatus: 'full',
-        outcomes: {
+        outcomes: serverOutcomes ?? {
           '4h': emptyOutcome('4h'),
           '24h': emptyOutcome('24h'),
           '72h': emptyOutcome('72h'),
@@ -106,9 +100,8 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
             nextTracked.setup,
             window,
             coinCandles,
-            regularCandles,
-            extendedCandles,
             now,
+            { regularCandles, extendedCandles },
           )
 
           if (!resolved) {
@@ -276,198 +269,6 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
     }
   },
 })
-
-function emptyOutcome(window: SetupWindow): SetupOutcome {
-  return {
-    window,
-    resolvedAt: null,
-    result: 'pending',
-    resolutionReason: 'pending',
-    coverageStatus: 'full',
-    candleCountUsed: 0,
-    returnPct: null,
-    rAchieved: null,
-    mfe: null,
-    mfePct: null,
-    mae: null,
-    maePct: null,
-    targetHit: false,
-    stopHit: false,
-    priceAtResolution: null,
-  }
-}
-
-function resolveSetupWindow(
-  setup: SuggestedSetup,
-  window: SetupWindow,
-  candles: Candle[],
-  regularCandles: Candle[],
-  extendedCandles: Candle[],
-  now: number,
-): SetupOutcome | null {
-  const windowMs = SETUP_WINDOWS[window]
-  const targetTime = setup.generatedAt + windowMs
-  if (now < targetTime) {
-    return null
-  }
-
-  const traversal = candles.filter((candle) => candle.time >= setup.generatedAt && candle.time <= targetTime)
-  let resolutionCandle = candles.find((candle) => candle.time >= targetTime) ?? null
-  const oldestRegularTime = regularCandles.length > 0 ? regularCandles[0]!.time : Infinity
-  const usedBackfill = extendedCandles.length > 0 && setup.generatedAt < oldestRegularTime
-  let partialResolution = false
-
-  if (!resolutionCandle) {
-    const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000
-    const CLOSE_ENOUGH_MS = 2 * 60 * 60 * 1000
-    const latestCandle = candles.length > 0 ? candles[candles.length - 1]! : null
-
-    if (latestCandle && latestCandle.time >= setup.generatedAt && (targetTime - latestCandle.time) <= CLOSE_ENOUGH_MS) {
-      // Latest candle is close enough to the window boundary — use it with partial coverage
-      resolutionCandle = latestCandle
-      partialResolution = true
-    } else if (now >= targetTime + GRACE_PERIOD_MS) {
-      // Past 24h grace period with no usable candle — truly unresolvable
-      return {
-        ...emptyOutcome(window),
-        resolvedAt: now,
-        result: 'unresolvable',
-        resolutionReason: 'unresolvable',
-        coverageStatus: 'insufficient',
-        candleCountUsed: traversal.length,
-      }
-    } else {
-      // Within grace period — stay pending, candles may arrive on next poll/backfill
-      return null
-    }
-  }
-
-  const candlesToInspect = traversal.length > 0 ? traversal : [resolutionCandle]
-  let highestHigh = -Infinity
-  let lowestLow = Infinity
-  let result: SetupOutcome['result'] = 'expired'
-  let resolutionReason: SetupResolutionReason = 'expired'
-  let priceAtResolution = resolutionCandle.close
-  let targetHit = false
-  let stopHit = false
-  let inspectedCandles = 0
-
-  for (const candle of candlesToInspect) {
-    inspectedCandles += 1
-    highestHigh = Math.max(highestHigh, candle.high)
-    lowestLow = Math.min(lowestLow, candle.low)
-
-    const hitTarget = didHitTarget(setup, candle)
-    const hitStop = didHitStop(setup, candle)
-
-    if (hitTarget && hitStop) {
-      const toStop = Math.abs(candle.open - setup.stopPrice)
-      const toTarget = Math.abs(candle.open - setup.targetPrice)
-      if (toStop <= toTarget) {
-        result = 'loss'
-        resolutionReason = 'stop'
-        priceAtResolution = setup.stopPrice
-        stopHit = true
-      } else {
-        result = 'win'
-        resolutionReason = 'target'
-        priceAtResolution = setup.targetPrice
-        targetHit = true
-      }
-      break
-    }
-
-    if (hitTarget) {
-      result = 'win'
-      resolutionReason = 'target'
-      priceAtResolution = setup.targetPrice
-      targetHit = true
-      break
-    }
-
-    if (hitStop) {
-      result = 'loss'
-      resolutionReason = 'stop'
-      priceAtResolution = setup.stopPrice
-      stopHit = true
-      break
-    }
-  }
-
-  if (highestHigh === -Infinity || lowestLow === Infinity) {
-    highestHigh = resolutionCandle.high
-    lowestLow = resolutionCandle.low
-  }
-
-  const stopDistance = Math.abs(setup.entryPrice - setup.stopPrice)
-  const returnPct =
-    setup.direction === 'long'
-      ? ((priceAtResolution - setup.entryPrice) / setup.entryPrice) * 100
-      : ((setup.entryPrice - priceAtResolution) / setup.entryPrice) * 100
-  const rAchieved =
-    stopDistance > 0
-      ? setup.direction === 'long'
-        ? (priceAtResolution - setup.entryPrice) / stopDistance
-        : (setup.entryPrice - priceAtResolution) / stopDistance
-      : null
-
-  const coverageStatus: SetupCoverageStatus =
-    partialResolution || usedBackfill ? 'partial' : 'full'
-
-  return {
-    window,
-    resolvedAt: now,
-    result,
-    resolutionReason,
-    coverageStatus,
-    candleCountUsed: traversal.length > 0
-      ? inspectedCandles + 1   // traversal candles + the resolution candle
-      : inspectedCandles,       // candlesToInspect was [resolutionCandle], already counted
-    returnPct,
-    rAchieved,
-    mfe: computeMfe(setup, highestHigh, lowestLow),
-    mfePct: computeMfePct(setup, highestHigh, lowestLow),
-    mae: computeMae(setup, highestHigh, lowestLow),
-    maePct: computeMaePct(setup, highestHigh, lowestLow),
-    targetHit,
-    stopHit,
-    priceAtResolution,
-  }
-}
-
-function didHitTarget(setup: SuggestedSetup, candle: Candle): boolean {
-  return setup.direction === 'long' ? candle.high >= setup.targetPrice : candle.low <= setup.targetPrice
-}
-
-function didHitStop(setup: SuggestedSetup, candle: Candle): boolean {
-  return setup.direction === 'long' ? candle.low <= setup.stopPrice : candle.high >= setup.stopPrice
-}
-
-function computeMfe(setup: SuggestedSetup, highestHigh: number, lowestLow: number): number {
-  return setup.direction === 'long' ? highestHigh - setup.entryPrice : setup.entryPrice - lowestLow
-}
-
-function computeMfePct(setup: SuggestedSetup, highestHigh: number, lowestLow: number): number {
-  return (computeMfe(setup, highestHigh, lowestLow) / setup.entryPrice) * 100
-}
-
-function computeMae(setup: SuggestedSetup, highestHigh: number, lowestLow: number): number {
-  return setup.direction === 'long' ? setup.entryPrice - lowestLow : highestHigh - setup.entryPrice
-}
-
-function computeMaePct(setup: SuggestedSetup, highestHigh: number, lowestLow: number): number {
-  return (computeMae(setup, highestHigh, lowestLow) / setup.entryPrice) * 100
-}
-
-function summarizeCoverage(
-  outcomes: TrackedSetup['outcomes'],
-  current: SetupCoverageStatus | undefined,
-): SetupCoverageStatus {
-  const values = Object.values(outcomes).map((outcome) => outcome.coverageStatus).filter(Boolean) as SetupCoverageStatus[]
-  if (values.includes('insufficient')) return 'insufficient'
-  if (values.includes('partial')) return 'partial'
-  return current ?? 'full'
-}
 
 function downloadBlob(contents: string, filename: string, mimeType: string) {
   const blob = new Blob([contents], { type: mimeType })

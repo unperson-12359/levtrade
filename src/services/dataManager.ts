@@ -200,7 +200,7 @@ export class DataManager {
 
       for (const serverSetup of payload.setups) {
         if (serverSetup.setup && typeof serverSetup.setup.generatedAt === 'number') {
-          this.store.getState().trackSetup(serverSetup.setup)
+          this.store.getState().trackSetup(serverSetup.setup, serverSetup.outcomes, serverSetup.id)
         }
       }
     } catch {

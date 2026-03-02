@@ -1,8 +1,9 @@
 // @ts-ignore — pre-bundled by esbuild during build step
-import { TRACKED_COINS, parseCandle, computeHurst, computeZScore, computeFundingZScore, computeOIDelta, computeATR, computeRealizedVol, computeEntryGeometry, computeComposite, computeSuggestedSetup } from './_signals.mjs'
+import { TRACKED_COINS, parseCandle, computeHurst, computeZScore, computeFundingZScore, computeOIDelta, computeATR, computeRealizedVol, computeEntryGeometry, computeComposite, computeSuggestedSetup, resolveSetupWindow, emptyOutcome, SETUP_WINDOWS } from './_signals.mjs'
 import type { TrackedCoin, Candle, FundingSnapshot, OISnapshot, RawCandle, FundingHistoryEntry } from '../src/types/market'
 import type { AssetSignals } from '../src/types/signals'
 import type { SuggestedSetup } from '../src/types/setup'
+import type { SetupWindow, SetupOutcome } from '../src/types/setup'
 
 const HYPERLIQUID_API = 'https://api.hyperliquid.xyz/info'
 const COINALYZE_API = 'https://api.coinalyze.net/v1'
@@ -27,6 +28,7 @@ interface CoinResult {
   error?: string
   setupGenerated: boolean
   setupId?: string
+  outcomesResolved: number
 }
 
 interface VercelRequest {
@@ -77,6 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ok: false,
           error: err instanceof Error ? err.message : `Failed to process ${coin}`,
           setupGenerated: false,
+          outcomesResolved: 0,
         })
       }
       await sleep(300)
@@ -105,7 +108,7 @@ async function processCoin(
   // 1. Get current price
   const currentPrice = parseFloat(mids[coin] ?? '')
   if (!isFinite(currentPrice) || currentPrice <= 0) {
-    return { coin, ok: false, error: 'No mid price', setupGenerated: false }
+    return { coin, ok: false, error: 'No mid price', setupGenerated: false, outcomesResolved: 0 }
   }
 
   // 2. Store current OI snapshot in Supabase (self-accumulating backup)
@@ -126,7 +129,7 @@ async function processCoin(
   const candles: Candle[] = rawCandles.map(parseCandle)
 
   if (candles.length < 20) {
-    return { coin, ok: false, error: `Only ${candles.length} candles`, setupGenerated: false }
+    return { coin, ok: false, error: `Only ${candles.length} candles`, setupGenerated: false, outcomesResolved: 0 }
   }
 
   const closes = candles.map((c) => c.close)
@@ -183,21 +186,22 @@ async function processCoin(
     source: 'server',
   })
 
-  if (!setup) {
-    return { coin, ok: true, setupGenerated: false }
+  let setupGenerated = false
+  let setupId: string | undefined
+
+  if (setup) {
+    const isDuplicate = await checkDuplicate(coin, setup.direction, setup.entryPrice, now)
+    if (!isDuplicate) {
+      setupId = `${coin}-${setup.direction}-${now}-${randomSuffix()}`
+      await persistServerSetup(setupId, coin, setup)
+      setupGenerated = true
+    }
   }
 
-  // 8. Dedup against recent server setups
-  const isDuplicate = await checkDuplicate(coin, setup.direction, setup.entryPrice, now)
-  if (isDuplicate) {
-    return { coin, ok: true, setupGenerated: false }
-  }
+  // 8. Resolve outcomes for pending server setups using the candles we already have
+  const outcomesResolved = await resolveServerOutcomes(coin, candles, now)
 
-  // 9. Persist setup
-  const setupId = `${coin}-${setup.direction}-${now}-${randomSuffix()}`
-  await persistServerSetup(setupId, coin, setup)
-
-  return { coin, ok: true, setupGenerated: true, setupId }
+  return { coin, ok: true, setupGenerated, setupId, outcomesResolved }
 }
 
 // --- Hyperliquid API ---
@@ -324,6 +328,69 @@ async function persistServerSetup(id: string, coin: string, setup: SuggestedSetu
   if (!res.ok) {
     throw new Error(`Failed to persist server setup: ${res.status}`)
   }
+}
+
+// --- Outcome resolution ---
+
+async function resolveServerOutcomes(coin: string, candles: Candle[], now: number): Promise<number> {
+  let resolved = 0
+  try {
+    // Fetch server setups for this coin that have pending outcomes (last 7 days)
+    const cutoff = new Date(now - 7 * 24 * MS_PER_HOUR).toISOString()
+    const res = await fetch(
+      `${restBaseUrl()}/server_setups?coin=eq.${coin}&generated_at=gte.${cutoff}&order=generated_at.desc&limit=50`,
+      { headers: supabaseHeaders() },
+    )
+    if (!res.ok) return 0
+
+    const rows = (await res.json()) as Array<{
+      id: string
+      setup_json: SuggestedSetup
+      outcomes_json: Record<SetupWindow, SetupOutcome> | null
+    }>
+
+    const windows: SetupWindow[] = ['4h', '24h', '72h']
+
+    for (const row of rows) {
+      const currentOutcomes: Record<SetupWindow, SetupOutcome> = row.outcomes_json ?? {
+        '4h': emptyOutcome('4h'),
+        '24h': emptyOutcome('24h'),
+        '72h': emptyOutcome('72h'),
+      }
+
+      let changed = false
+      const nextOutcomes = { ...currentOutcomes }
+
+      for (const window of windows) {
+        if (currentOutcomes[window].result !== 'pending') continue
+
+        const outcome = resolveSetupWindow(row.setup_json, window, candles, now)
+        if (outcome) {
+          nextOutcomes[window] = outcome
+          changed = true
+        }
+      }
+
+      if (changed) {
+        await updateSetupOutcomes(row.id, nextOutcomes)
+        resolved++
+      }
+    }
+  } catch {
+    // Non-critical: outcomes will be resolved on next run
+  }
+  return resolved
+}
+
+async function updateSetupOutcomes(setupId: string, outcomes: Record<SetupWindow, SetupOutcome>): Promise<void> {
+  await fetch(
+    `${restBaseUrl()}/server_setups?id=eq.${setupId}`,
+    {
+      method: 'PATCH',
+      headers: { ...supabaseHeaders(), Prefer: 'return=minimal' },
+      body: JSON.stringify({ outcomes_json: outcomes }),
+    },
+  )
 }
 
 // --- Utilities ---
