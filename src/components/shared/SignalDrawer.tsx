@@ -75,7 +75,7 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
   const description =
     signalKind === 'setup'
       ? isHistoricalSetup
-        ? 'This view shows the stored setup snapshot from when the dashboard suggested the trade, along with how each scoring window resolved.'
+        ? 'Stored snapshot from when the dashboard suggested the trade. The chart is centered around the original trigger time so you can review the exact setup and how each scoring window resolved.'
         : 'This view shows the current suggested setup, its generated levels, and the market context used to propose it.'
       : provenance[signalKind].description
 

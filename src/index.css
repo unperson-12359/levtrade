@@ -1505,7 +1505,8 @@ button {
     minmax(52px, 0.55fr)
     repeat(3, minmax(88px, 0.9fr))
     minmax(60px, 0.7fr)
-    repeat(3, minmax(92px, 0.95fr));
+    repeat(3, minmax(92px, 0.95fr))
+    minmax(88px, 0.85fr);
 }
 
 .setup-history__recent-row--clickable {
@@ -1518,9 +1519,20 @@ button {
   background: color-mix(in srgb, var(--color-bg-input) 95%, var(--color-signal-blue) 5%);
 }
 
+.setup-history__recent-row--clickable:hover .setup-history__review-action {
+  color: var(--color-text-primary);
+}
+
 .setup-history__recent-row--clickable:focus-visible {
   outline: 2px solid var(--color-signal-blue);
   outline-offset: 2px;
+}
+
+.setup-history__review-action {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-signal-blue);
+  white-space: nowrap;
 }
 
 .setup-history__outcome {
@@ -1732,9 +1744,17 @@ button {
 }
 
 .guide-page__body {
-  max-width: 720px;
   margin: 0 auto;
-  padding: 1.5rem 1.25rem 3rem;
+  width: 100%;
+  padding: 1.5rem 1.5rem 3rem;
+}
+
+.guide-page__body--analytics {
+  max-width: 1200px;
+}
+
+.guide-page__body--methodology {
+  max-width: 1080px;
 }
 
 .guide-section {
@@ -1923,7 +1943,7 @@ button {
 
   .setup-history__tier-row,
   .setup-history__recent-row {
-    min-width: 860px;
+    min-width: 940px;
   }
 
   .signal-drawer__meta-grid {

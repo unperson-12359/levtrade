@@ -54,8 +54,8 @@ export function SetupHistory() {
       </div>
 
       <p className="panel-copy">
-        Locally stored. Outcomes scored from 1h candles over the selected window. Click any recent setup row to review
-        the original suggestion and outcomes.
+        Tracked automatically. Outcomes are scored from 1h candles over the selected window. Click any recent row or
+        use the Review action to inspect the original suggestion and outcomes.
       </p>
 
       <div className="stat-grid setup-history__summary">
@@ -154,6 +154,7 @@ export function SetupHistory() {
             <span>4h</span>
             <span>24h</span>
             <span>72h</span>
+            <span>Review</span>
           </div>
           {recentSetups.length > 0 ? (
             recentSetups.map((tracked) => (
@@ -181,6 +182,9 @@ export function SetupHistory() {
                 <OutcomeCell outcome={tracked.outcomes['4h']} />
                 <OutcomeCell outcome={tracked.outcomes['24h']} />
                 <OutcomeCell outcome={tracked.outcomes['72h']} />
+                <span className="setup-history__review-action" aria-hidden="true">
+                  Review -&gt;
+                </span>
               </div>
             ))
           ) : (

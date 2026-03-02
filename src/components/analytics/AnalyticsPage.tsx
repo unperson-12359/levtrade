@@ -18,7 +18,7 @@ export function AnalyticsPage() {
             X
           </button>
         </div>
-        <div className="guide-page__body">
+        <div className="guide-page__body guide-page__body--analytics">
           <AnalyticsTabs />
         </div>
       </div>

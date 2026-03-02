@@ -19,7 +19,7 @@ export function HowItWorks() {
           </button>
         </div>
 
-        <div className="guide-page__body">
+        <div className="guide-page__body guide-page__body--methodology">
           <Section title="What is this?">
             <p>
               LevTrade is a personal trading dashboard for Hyperliquid perpetual futures.
