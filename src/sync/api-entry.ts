@@ -3,9 +3,7 @@
 
 export {
   emptyRemoteState,
-  isValidSyncScope,
   normalizeRemoteState,
-  normalizeSyncScope,
   mergeRemoteAndLocalState,
   isRiskInputsShape,
 } from './policy'

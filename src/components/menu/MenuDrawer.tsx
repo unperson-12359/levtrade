@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useEntryDecision } from '../../hooks/useEntryDecision'
 import { usePositionRisk } from '../../hooks/usePositionRisk'
 import { useSignals } from '../../hooks/useSignals'
 import { useStore } from '../../store'
-import { normalizeSyncScope } from '../../sync/policy'
 import type { SyncStatus } from '../../types'
 import { timeAgo } from '../../utils/format'
 import { getMethodologySteps } from '../../utils/workflowGuidance'
@@ -28,26 +27,11 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
   const { outputs, riskStatus } = usePositionRisk()
   const steps = getMethodologySteps(signals, decision, outputs, riskStatus)
 
-  const cloudSyncEnabled = useStore((s) => s.cloudSyncEnabled)
-  const cloudSyncScope = useStore((s) => s.cloudSyncScope)
-  const cloudSyncSecret = useStore((s) => s.cloudSyncSecret)
   const syncStatus = useStore((s) => s.syncStatus)
   const syncError = useStore((s) => s.syncError)
-  const configureCloudSync = useStore((s) => s.configureCloudSync)
-  const disableCloudSync = useStore((s) => s.disableCloudSync)
-  const [scopeInput, setScopeInput] = useState(cloudSyncScope)
-  const [secretInput, setSecretInput] = useState(cloudSyncSecret)
-
-  useEffect(() => {
-    setScopeInput(cloudSyncScope)
-  }, [cloudSyncScope])
-
-  useEffect(() => {
-    setSecretInput(cloudSyncSecret)
-  }, [cloudSyncSecret])
-
-  const syncLabel = cloudSyncEnabled ? syncStatusLabel(syncStatus) : 'Off'
-  const syncTone = cloudSyncEnabled ? syncStatusTone(syncStatus) : 'yellow'
+  const lastCloudSyncAt = useStore((s) => s.lastCloudSyncAt)
+  const syncLabel = syncStatusLabel(syncStatus)
+  const syncTone = syncStatusTone(syncStatus)
 
   const [expandedStep, setExpandedStep] = useState<number | null>(null)
 
@@ -143,56 +127,28 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
 
         <div className="menu-drawer__section">
           <div className="menu-drawer__section-title">
-            Cloud Sync
+            Backend Sync
             <span className={`status-pill status-pill--${syncTone} menu-drawer__inline-pill`}>{syncLabel}</span>
           </div>
-          <div className="menu-drawer__sync-form">
-            <input
-              type="text"
-              value={scopeInput}
-              onChange={(e) => setScopeInput(normalizeSyncScope(e.target.value))}
-              placeholder="Workspace id"
-              className="trust-panel__input"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-            <input
-              type="password"
-              value={secretInput}
-              onChange={(e) => setSecretInput(e.target.value)}
-              placeholder="Workspace secret"
-              className="trust-panel__input"
-            />
+          <div className="menu-drawer__muted">
+            App state is shared live through the backend. Local storage is only a startup and offline cache.
+          </div>
+          <div className="menu-drawer__muted">
+            Last sync: {lastCloudSyncAt ? timeAgo(lastCloudSyncAt) : 'Not yet'}
+          </div>
+          {(syncStatus === 'error' || syncStatus === 'offline') && (
             <div className="menu-drawer__sync-buttons">
-              <button
-                type="button"
-                onClick={() => configureCloudSync(scopeInput, secretInput)}
-                className="setup-history__filter"
-              >
-                {cloudSyncEnabled ? 'Update' : 'Enable'}
-              </button>
               <button
                 type="button"
                 onClick={() => {
                   void onSyncNow()
                 }}
                 className="setup-history__filter"
-                disabled={!cloudSyncEnabled}
               >
-                Sync now
-              </button>
-              <button
-                type="button"
-                onClick={disableCloudSync}
-                className="setup-history__filter"
-                disabled={!cloudSyncEnabled && !cloudSyncScope}
-              >
-                Disable
+                Retry sync
               </button>
             </div>
-          </div>
-          <div className="menu-drawer__muted">Workspace id persists locally. Secret is session-only.</div>
+          )}
           {syncError && <div className="action-guidance action-guidance--red">{syncError}</div>}
         </div>
       </nav>
@@ -209,16 +165,16 @@ function syncStatusTone(status: SyncStatus): 'green' | 'yellow' | 'red' {
 function syncStatusLabel(status: SyncStatus): string {
   switch (status) {
     case 'idle':
-      return 'Ready'
+      return 'Starting'
     case 'syncing':
       return 'Syncing'
     case 'synced':
-      return 'Synced'
+      return 'Live'
     case 'error':
       return 'Error'
     case 'offline':
       return 'Offline'
     default:
-      return 'Locked'
+      return 'Starting'
   }
 }

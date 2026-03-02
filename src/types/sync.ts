@@ -12,4 +12,4 @@ export interface RemoteAppStateV1 {
   updatedAt: number
 }
 
-export type SyncStatus = 'locked' | 'idle' | 'syncing' | 'synced' | 'error' | 'offline'
+export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'offline'

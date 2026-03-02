@@ -1,5 +1,3 @@
-import { isValidSyncScope, normalizeSyncScope } from './_sync-policy.mjs'
-
 interface VercelRequest {
   method?: string
   headers: Record<string, string | string[] | undefined>
@@ -15,23 +13,11 @@ const DEFAULT_DAYS = 7
 const MAX_DAYS = 30
 const MAX_FETCH_LIMIT = 1_000
 const MS_PER_DAY = 24 * 60 * 60 * 1000
+const GLOBAL_SCOPE = 'global'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' })
-  }
-
-  const secret = firstHeaderValue(req.headers['x-levtrade-sync-secret'])
-  if (!secret || secret !== process.env.SYNC_SHARED_SECRET) {
-    return res.status(401).json({ ok: false, error: 'Unauthorized' })
-  }
-
-  const scope = normalizeSyncScope(firstHeaderValue(req.headers['x-levtrade-sync-scope']))
-  if (!isValidSyncScope(scope)) {
-    return res.status(400).json({
-      ok: false,
-      error: 'Workspace id must be 3-64 characters and use lowercase letters, numbers, hyphens, or underscores.',
-    })
   }
 
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -41,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const since = resolveSince(req.query)
     const params = new URLSearchParams({
-      scope: `eq.${scope}`,
+      scope: `eq.${GLOBAL_SCOPE}`,
       generated_at: `gte.${since}`,
       order: 'generated_at.desc',
       limit: String(MAX_FETCH_LIMIT),
@@ -117,14 +103,6 @@ function emptyOutcome(window: string) {
     stopHit: false,
     priceAtResolution: null,
   }
-}
-
-function firstHeaderValue(value: string | string[] | undefined): string {
-  if (Array.isArray(value)) {
-    return value[0] ?? ''
-  }
-
-  return typeof value === 'string' ? value : ''
 }
 
 function firstQueryValue(value: string | string[] | undefined): string | null {

@@ -6,10 +6,8 @@ import { ConnectionIndicator } from './ConnectionIndicator'
 export function TopBar() {
   const toggle = useStore((s) => s.toggleSection)
   const syncStatus = useStore((s) => s.syncStatus)
-  const cloudSyncEnabled = useStore((s) => s.cloudSyncEnabled)
 
-  const syncTone = !cloudSyncEnabled ? 'yellow'
-    : syncStatus === 'synced' ? 'green'
+  const syncTone = syncStatus === 'synced' ? 'green'
     : syncStatus === 'error' || syncStatus === 'offline' ? 'red'
     : 'yellow'
 

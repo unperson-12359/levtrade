@@ -19,7 +19,6 @@ var DEFAULT_RISK_INPUTS = {
 };
 
 // src/sync/policy.ts
-var SYNC_SCOPE_PATTERN = /^[a-z0-9][a-z0-9_-]{2,63}$/;
 function emptyRemoteState() {
   return {
     trackedSetups: [],
@@ -30,12 +29,6 @@ function emptyRemoteState() {
     riskInputsUpdatedAt: null,
     updatedAt: 0
   };
-}
-function normalizeSyncScope(scope) {
-  return scope.trim().toLowerCase().replace(/\s+/g, "-");
-}
-function isValidSyncScope(scope) {
-  return SYNC_SCOPE_PATTERN.test(scope);
 }
 function normalizeRemoteState(value) {
   if (typeof value !== "object" || value === null) {
@@ -136,8 +129,6 @@ function mergeTrackedOutcomes(local, remote) {
 export {
   emptyRemoteState,
   isRiskInputsShape,
-  isValidSyncScope,
   mergeRemoteAndLocalState,
-  normalizeRemoteState,
-  normalizeSyncScope
+  normalizeRemoteState
 };

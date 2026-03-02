@@ -31,7 +31,6 @@ export const useStore = create<AppStore>()(
         trackedOutcomes: state.trackedOutcomes,
         trackerLastRunAt: state.trackerLastRunAt,
         trackedSetups: state.trackedSetups,
-        cloudSyncScope: state.cloudSyncScope,
         lastCloudSyncAt: state.lastCloudSyncAt,
         riskInputsUpdatedAt: state.riskInputsUpdatedAt,
         analyticsTab: state.analyticsTab,
@@ -39,9 +38,7 @@ export const useStore = create<AppStore>()(
       }),
       merge: (persistedState, currentState) => {
         const merged = { ...currentState, ...(persistedState as Partial<AppStore>) }
-        merged.cloudSyncEnabled = false
-        merged.cloudSyncSecret = currentState.cloudSyncSecret
-        merged.syncStatus = 'locked'
+        merged.syncStatus = 'idle'
         merged.syncError = null
         if (merged.riskInputs && merged.riskInputs.leverage > 40) {
           merged.riskInputs = { ...merged.riskInputs, leverage: 40 }

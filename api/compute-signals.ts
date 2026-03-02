@@ -1,6 +1,5 @@
 // @ts-ignore — pre-bundled by esbuild during build step
 import { TRACKED_COINS, parseCandle, computeHurst, computeZScore, computeFundingZScore, computeOIDelta, computeATR, computeRealizedVol, computeEntryGeometry, computeComposite, computeSuggestedSetup, resolveSetupWindow, emptyOutcome, SETUP_WINDOWS } from './_signals.mjs'
-import { isValidSyncScope, normalizeSyncScope } from './_sync-policy.mjs'
 import type { TrackedCoin, Candle, FundingSnapshot, OISnapshot, RawCandle, FundingHistoryEntry } from '../src/types/market'
 import type { AssetSignals } from '../src/types/signals'
 import type { SuggestedSetup } from '../src/types/setup'
@@ -14,6 +13,7 @@ const FUNDING_WINDOW = 30
 const OI_LOOKBACK_HOURS = 24
 const SETUP_DEDUPE_WINDOW_MS = 4 * MS_PER_HOUR
 const ENTRY_SIMILARITY_THRESHOLD = 0.02
+const GLOBAL_SCOPE = 'global'
 
 // Coinalyze symbols for Hyperliquid (exchange code H)
 const COINALYZE_SYMBOLS: Record<TrackedCoin, string> = {
@@ -58,7 +58,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const now = Date.now()
-  const serverScope = getServerSetupsScope()
   const results: CoinResult[] = []
 
   try {
@@ -73,7 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Process each coin sequentially (rate-limit friendly)
     for (const coin of TRACKED_COINS) {
       try {
-        const result = await processCoin(coin, mids, meta.universe, assetCtxs, now, serverScope)
+        const result = await processCoin(coin, mids, meta.universe, assetCtxs, now, GLOBAL_SCOPE)
         results.push(result)
       } catch (err) {
         results.push({
@@ -421,16 +420,7 @@ function validateEnv(): string | null {
   if (!process.env.SUPABASE_URL) return 'SUPABASE_URL not configured'
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return 'SUPABASE_SERVICE_ROLE_KEY not configured'
   if (!process.env.CRON_SECRET) return 'CRON_SECRET not configured'
-  if (!process.env.SERVER_SETUPS_SCOPE) return 'SERVER_SETUPS_SCOPE not configured'
-  const scope = normalizeSyncScope(process.env.SERVER_SETUPS_SCOPE)
-  if (!isValidSyncScope(scope)) {
-    return 'SERVER_SETUPS_SCOPE must be 3-64 characters and use lowercase letters, numbers, hyphens, or underscores'
-  }
   return null
-}
-
-function getServerSetupsScope(): string {
-  return normalizeSyncScope(process.env.SERVER_SETUPS_SCOPE ?? '')
 }
 
 function buildServerSetupId(scope: string, setup: SuggestedSetup): string {

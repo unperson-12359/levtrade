@@ -4,10 +4,8 @@ import type { RemoteAppStateV1 } from '../types/sync'
 import type { TrackedSignalOutcome, TrackedSignalRecord } from '../types/tracker'
 import {
   emptyRemoteState,
-  isValidSyncScope,
   mergeRemoteAndLocalState,
   normalizeRemoteState,
-  normalizeSyncScope,
   stableSerializeState,
   isRiskInputsShape,
 } from '../sync/policy'
@@ -16,10 +14,8 @@ import {
 export {
   emptyRemoteState,
   isRiskInputsShape,
-  isValidSyncScope,
   mergeRemoteAndLocalState,
   normalizeRemoteState,
-  normalizeSyncScope,
   stableSerializeState,
 }
 
@@ -62,14 +58,9 @@ export function buildRemoteAppState(input: SyncStateInput): RemoteAppStateV1 {
   }
 }
 
-export async function fetchRemoteState(scope: string, secret: string): Promise<RemoteAppStateV1 | null> {
-  const normalizedScope = requireValidScope(scope)
+export async function fetchRemoteState(): Promise<RemoteAppStateV1 | null> {
   const res = await fetch(SYNC_ENDPOINT, {
     method: 'GET',
-    headers: {
-      'x-levtrade-sync-scope': normalizedScope,
-      'x-levtrade-sync-secret': secret,
-    },
   })
 
   const payload = (await res.json()) as SyncResponse
@@ -80,14 +71,11 @@ export async function fetchRemoteState(scope: string, secret: string): Promise<R
   return normalizeRemoteState(payload.state)
 }
 
-export async function pushRemoteState(scope: string, secret: string, state: RemoteAppStateV1): Promise<RemoteAppStateV1> {
-  const normalizedScope = requireValidScope(scope)
+export async function pushRemoteState(state: RemoteAppStateV1): Promise<RemoteAppStateV1> {
   const res = await fetch(SYNC_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-levtrade-sync-scope': normalizedScope,
-      'x-levtrade-sync-secret': secret,
     },
     body: JSON.stringify({
       state,
@@ -106,13 +94,4 @@ export async function pushRemoteState(scope: string, secret: string, state: Remo
   }
 
   return acceptedState
-}
-
-function requireValidScope(scope: string): string {
-  const normalizedScope = normalizeSyncScope(scope)
-  if (!isValidSyncScope(normalizedScope)) {
-    throw new Error('Workspace id must be 3-64 characters and use lowercase letters, numbers, hyphens, or underscores.')
-  }
-
-  return normalizedScope
 }

@@ -233,9 +233,6 @@ export class DataManager {
 
   private async fetchServerSetups(): Promise<void> {
     const state = this.store.getState()
-    if (!state.cloudSyncEnabled || !state.cloudSyncScope || !state.cloudSyncSecret) {
-      return
-    }
 
     try {
       const latestLocalSetupAt = state.trackedSetups.reduce(
@@ -249,12 +246,7 @@ export class DataManager {
         params.set('days', '7')
       }
 
-      const res = await fetch(`/api/server-setups?${params.toString()}`, {
-        headers: {
-          'x-levtrade-sync-scope': state.cloudSyncScope,
-          'x-levtrade-sync-secret': state.cloudSyncSecret,
-        },
-      })
+      const res = await fetch(`/api/server-setups?${params.toString()}`)
       if (!res.ok) return
 
       const payload = (await res.json()) as {

@@ -12,9 +12,6 @@ import {
 const SYNC_DEBOUNCE_MS = 2_000
 
 export function useCloudSync() {
-  const cloudSyncEnabled = useStore((s) => s.cloudSyncEnabled)
-  const cloudSyncScope = useStore((s) => s.cloudSyncScope)
-  const cloudSyncSecret = useStore((s) => s.cloudSyncSecret)
   const trackedSetups = useStore((s) => s.trackedSetups)
   const trackedSignals = useStore((s) => s.trackedSignals)
   const trackedOutcomes = useStore((s) => s.trackedOutcomes)
@@ -40,12 +37,6 @@ export function useCloudSync() {
   const lastSyncedRef = useRef('')
 
   async function syncNow() {
-    if (!cloudSyncEnabled || !cloudSyncScope || !cloudSyncSecret) {
-      useStore.getState().setSyncStatus('locked')
-      useStore.getState().setSyncError('Add a workspace id and workspace secret to enable cloud sync.')
-      return
-    }
-
     useStore.getState().setSyncStatus('syncing')
     useStore.getState().setSyncError(null)
 
@@ -59,7 +50,7 @@ export function useCloudSync() {
         riskInputsUpdatedAt: useStore.getState().riskInputsUpdatedAt,
       })
 
-      const remoteState = await fetchRemoteState(cloudSyncScope, cloudSyncSecret)
+      const remoteState = await fetchRemoteState()
       const mergedState = mergeRemoteAndLocalState(localState, remoteState ?? emptyRemoteState())
       applyMergedState(mergedState)
 
@@ -68,7 +59,7 @@ export function useCloudSync() {
       const acceptedState =
         remoteSerialized === mergedSerialized
           ? mergedState
-          : await pushRemoteState(cloudSyncScope, cloudSyncSecret, mergedState)
+          : await pushRemoteState(mergedState)
 
       applyMergedState(acceptedState)
       lastSyncedRef.current = stableSerializeState(acceptedState)
@@ -85,19 +76,11 @@ export function useCloudSync() {
   }
 
   useEffect(() => {
-    if (!cloudSyncEnabled || !cloudSyncScope || !cloudSyncSecret) {
-      hasHydratedRef.current = false
-      lastSyncedRef.current = ''
-      useStore.getState().setSyncStatus('locked')
-      useStore.getState().setSyncError(null)
-      return
-    }
-
     void syncNow()
-  }, [cloudSyncEnabled, cloudSyncScope, cloudSyncSecret])
+  }, [])
 
   useEffect(() => {
-    if (!cloudSyncEnabled || !cloudSyncScope || !cloudSyncSecret || !hasHydratedRef.current) {
+    if (!hasHydratedRef.current && !lastSyncedRef.current) {
       return
     }
 
@@ -109,7 +92,12 @@ export function useCloudSync() {
 
     const timer = window.setTimeout(async () => {
       try {
-        const acceptedState = await pushRemoteState(cloudSyncScope, cloudSyncSecret, snapshot)
+        if (!hasHydratedRef.current) {
+          await syncNow()
+          return
+        }
+
+        const acceptedState = await pushRemoteState(snapshot)
         applyMergedState(acceptedState)
         lastSyncedRef.current = stableSerializeState(acceptedState)
         useStore.getState().setLastCloudSyncAt(Date.now())
@@ -123,7 +111,7 @@ export function useCloudSync() {
     }, SYNC_DEBOUNCE_MS)
 
     return () => window.clearTimeout(timer)
-  }, [cloudSyncEnabled, cloudSyncScope, cloudSyncSecret, serializedSnapshot, snapshot])
+  }, [serializedSnapshot, snapshot])
 
   return { syncNow }
 }

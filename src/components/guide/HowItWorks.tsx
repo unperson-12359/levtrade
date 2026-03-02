@@ -216,15 +216,15 @@ export function HowItWorks() {
 
           <Section title="Cloud sync">
             <p>
-              Everything is stored locally in your browser by default. To share history across
-              devices, use the same workspace id and workspace secret on each device.
+              State is synced automatically through the backend and shared across all sessions.
+              Local storage is used only as a startup and offline cache in this build.
             </p>
             <ul className="guide-list">
               <li><strong>What syncs:</strong> setup history, signal tracker records, outcomes, and risk input defaults</li>
-              <li><strong>How it works:</strong> after any state change, a 2-second debounce waits for more changes, then pushes to the server</li>
+              <li><strong>How it works:</strong> after any state change, a 2-second debounce waits for more changes, then pushes to the backend</li>
               <li><strong>Conflict resolution:</strong> the merge keeps the most complete and most resolved records instead of using simple last-write-wins</li>
-              <li><strong>Workspace model:</strong> the same workspace id + secret on two devices = one shared workspace</li>
-              <li><strong>Secret storage:</strong> the workspace id persists locally, but the secret is session-only and must be re-entered after reload</li>
+              <li><strong>Visibility:</strong> every session sees the same shared state because there is no account or private workspace layer</li>
+              <li><strong>Fallback:</strong> if the network drops, the app keeps working from local cache and resyncs when the backend is reachable again</li>
               <li><strong>Retention:</strong> 90 days. Older setups are pruned automatically</li>
             </ul>
           </Section>
@@ -234,7 +234,7 @@ export function HowItWorks() {
               <div className="guide-callout__title">For the most accurate track record:</div>
               <ul className="guide-list">
                 <li><strong>Keep the tab open</strong> - the dashboard captures setups and resolves outcomes while running. More uptime means fewer gaps.</li>
-                <li><strong>Use one workspace across devices</strong> - shared sync keeps one unified history instead of splitting it per browser.</li>
+                <li><strong>Keep the site live</strong> - always-on backend sync works best when at least one session stays active and polling.</li>
                 <li><strong>Wait a few days</strong> - a meaningful sample needs 20+ setups across different market conditions. The tier breakdown shows whether high-confidence setups outperform low-confidence ones.</li>
                 <li><strong>Check all 3 windows</strong> - a setup that loses at 4h might win at 24h or 72h, which helps you judge timeframe fit.</li>
               </ul>

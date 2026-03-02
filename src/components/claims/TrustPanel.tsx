@@ -10,14 +10,12 @@ export function TrustPanel() {
   const importJson = useStore((s) => s.importSetupsJson)
   const clearSetupHistory = useStore((s) => s.clearSetupHistory)
   const clearTrackerHistory = useStore((s) => s.clearTrackerHistory)
-  const cloudSyncEnabled = useStore((s) => s.cloudSyncEnabled)
-  const cloudSyncScope = useStore((s) => s.cloudSyncScope)
   const syncStatus = useStore((s) => s.syncStatus)
   const lastCloudSyncAt = useStore((s) => s.lastCloudSyncAt)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const syncLabel = cloudSyncEnabled ? syncStatusLabel(syncStatus) : 'Cloud sync off'
-  const syncTone = cloudSyncEnabled ? syncStatusTone(syncStatus) : 'yellow'
+  const syncLabel = syncStatusLabel(syncStatus)
+  const syncTone = syncStatusTone(syncStatus)
 
   return (
     <section className="panel-shell trust-panel">
@@ -30,17 +28,16 @@ export function TrustPanel() {
       </div>
 
       <p className="panel-copy">
-        {cloudSyncEnabled
-          ? 'Syncing this workspace across devices via cloud. Local storage acts as cache.'
-          : 'History is local to this browser. Add a workspace id and secret for cross-device sync.'}
+        App state is synced automatically through the backend and shared across all sessions. Local storage is used
+        as a startup and offline cache.
       </p>
 
       <div className="stat-grid trust-panel__stats">
         <Stat label="Storage key" value={STORAGE_KEY} tone="yellow" />
-        <Stat label="Workspace id" value={cloudSyncScope || 'Not set'} tone={cloudSyncScope ? 'green' : 'yellow'} />
-        <Stat label="Cloud sync" value={syncLabel} tone={syncTone} />
-        <Stat label="Last cloud sync" value={lastCloudSyncAt ? formatTimestamp(lastCloudSyncAt) : 'Never'} tone="yellow" />
-        <Stat label="Secret storage" value="Session only" tone="green" />
+        <Stat label="Backend sync" value={syncLabel} tone={syncTone} />
+        <Stat label="Last backend sync" value={lastCloudSyncAt ? formatTimestamp(lastCloudSyncAt) : 'Not yet'} tone="yellow" />
+        <Stat label="Local cache" value="Startup + offline fallback" tone="green" />
+        <Stat label="State model" value="Global shared backend state" tone="green" />
         <Stat label="Retention" value="90 days" tone="green" />
         <Stat label="Sync scope" value="Setups + tracker + risk defaults" tone="green" />
         <Stat label="Resolution basis" value="4h / 24h / 72h from 1h candles" tone="green" />
@@ -63,7 +60,7 @@ export function TrustPanel() {
         <button
           type="button"
           onClick={() => {
-            if (window.confirm('Clear all locally saved setup and tracker history for this browser?')) {
+            if (window.confirm('Clear all locally cached setup and tracker history for this browser?')) {
               clearSetupHistory()
               clearTrackerHistory()
             }
@@ -119,17 +116,17 @@ function syncStatusTone(status: SyncStatus): 'green' | 'yellow' | 'red' {
 function syncStatusLabel(status: SyncStatus): string {
   switch (status) {
     case 'idle':
-      return 'Ready to sync'
+      return 'Starting'
     case 'syncing':
       return 'Syncing now'
     case 'synced':
-      return 'Cloud synced'
+      return 'Live'
     case 'error':
       return 'Sync error'
     case 'offline':
       return 'Offline'
     default:
-      return 'Locked'
+      return 'Starting'
   }
 }
 

@@ -1224,3 +1224,70 @@ Finish the remaining remediation work by isolating supplementary `server_setups`
   - `HowItWorks` overlay text
   - analytics overlay close control
   - workspace sync drawer flow
+
+---
+
+## 2026-03-02 - Codex  Always-On Global Backend Sync
+
+### Goal
+Replace the manual workspace-id/workspace-secret sync model with a single always-on global backend state so the site syncs automatically with no user setup and every session sees the same shared state.
+
+### Files Changed
+- `api/sync.js`
+- `api/server-setups.ts`
+- `api/compute-signals.ts`
+- `api/_sync-policy.mjs`
+- `src/components/claims/TrustPanel.tsx`
+- `src/components/guide/HowItWorks.tsx`
+- `src/components/menu/MenuDrawer.tsx`
+- `src/components/topbar/TopBar.tsx`
+- `src/hooks/useCloudSync.ts`
+- `src/services/dataManager.ts`
+- `src/services/sync.ts`
+- `src/store/index.ts`
+- `src/store/syncSlice.ts`
+- `src/sync/api-entry.ts`
+- `src/sync/policy.ts`
+- `src/types/sync.ts`
+
+### What changed
+- Removed client-side sync credentials and manual enable/disable flow:
+  - deleted `cloudSyncEnabled`, `cloudSyncScope`, `cloudSyncSecret`
+  - removed workspace validation helpers from the shared sync policy
+  - the client now treats backend sync as always-on
+- Converted the sync hook and client service layer to automatic global hydration and push:
+  - `fetchRemoteState()` and `pushRemoteState()` no longer accept scope/secret
+  - `useCloudSync()` now hydrates on boot and keeps pushing changes automatically
+  - retry remains available only as a status action when sync is offline/error
+- Simplified backend sync and supplementary setup hydration to one global scope:
+  - `/api/sync` now always reads/writes `scope = 'global'`
+  - `/api/server-setups` now always reads `scope = 'global'`
+  - `api/compute-signals.ts` now writes server setups to the same global scope
+- Reworked sync-related UI and copy:
+  - `MenuDrawer` now shows status-only backend sync information instead of credential inputs
+  - `TrustPanel` now explains backend sync as global shared state with local cache fallback
+  - `HowItWorks` now documents automatic backend sync instead of workspace-based sync
+  - `TopBar` sync dot now reflects status directly with no disabled state concept
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: `0`
+- Warnings: `0`
+- Output sizes:
+  - `dist/index.html`: `0.46 kB` (gzip `0.31 kB`)
+  - `dist/assets/index-Dm2cDel3.css`: `63.60 kB` (gzip `10.98 kB`)
+  - `dist/assets/HowItWorks-taWAKpTn.js`: `12.53 kB` (gzip `4.24 kB`)
+  - `dist/assets/AnalyticsPage-BZDqQG7z.js`: `16.47 kB` (gzip `4.52 kB`)
+  - `dist/assets/index-CjwltFud.js`: `485.83 kB` (gzip `150.06 kB`)
+
+### Notes
+- This is a product-level reversal: all sessions now share one global backend state intentionally.
+- Local storage remains in place only as a startup/offline cache, not as a private sync namespace.
+- Existing schema `scope` columns were left intact for compatibility, but active reads and writes now target `global`.
+- Local-only files such as `.claude/settings.local.json` and `codex-prompt.txt` were intentionally left untouched.
+
+### Follow-up / Remaining Verification
+- Manual browser QA is still recommended for:
+  - sync status behavior after reload
+  - offline/error recovery and retry button behavior
+  - public-session confirmation that multiple devices see the same shared state

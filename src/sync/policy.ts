@@ -7,8 +7,6 @@ import type { TrackedSetup } from '../types/setup'
 import type { RemoteAppStateV1 } from '../types/sync'
 import type { TrackedSignalOutcome, TrackedSignalRecord } from '../types/tracker'
 
-const SYNC_SCOPE_PATTERN = /^[a-z0-9][a-z0-9_-]{2,63}$/
-
 export function emptyRemoteState(): RemoteAppStateV1 {
   return {
     trackedSetups: [],
@@ -19,14 +17,6 @@ export function emptyRemoteState(): RemoteAppStateV1 {
     riskInputsUpdatedAt: null,
     updatedAt: 0,
   }
-}
-
-export function normalizeSyncScope(scope: string): string {
-  return scope.trim().toLowerCase().replace(/\s+/g, '-')
-}
-
-export function isValidSyncScope(scope: string): boolean {
-  return SYNC_SCOPE_PATTERN.test(scope)
 }
 
 export function normalizeRemoteState(value: unknown): RemoteAppStateV1 | null {

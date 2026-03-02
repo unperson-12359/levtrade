@@ -1,12 +1,11 @@
 import {
   emptyRemoteState,
-  isValidSyncScope,
   normalizeRemoteState,
-  normalizeSyncScope,
   mergeRemoteAndLocalState,
 } from './_sync-policy.mjs'
 
 const SCHEMA_VERSION = 1
+const GLOBAL_SCOPE = 'global'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -19,22 +18,9 @@ export default async function handler(req, res) {
     return sendJson(res, 503, { ok: false, error: envError })
   }
 
-  const secret = req.headers['x-levtrade-sync-secret']
-  if (!secret || secret !== process.env.SYNC_SHARED_SECRET) {
-    return sendJson(res, 401, { ok: false, error: 'Invalid sync secret.' })
-  }
-
-  const scope = normalizeSyncScope(firstHeaderValue(req.headers['x-levtrade-sync-scope']))
-  if (!isValidSyncScope(scope)) {
-    return sendJson(res, 400, {
-      ok: false,
-      error: 'Workspace id must be 3-64 characters and use lowercase letters, numbers, hyphens, or underscores.',
-    })
-  }
-
   try {
     if (req.method === 'GET') {
-      const row = await fetchCurrentRow(scope)
+      const row = await fetchCurrentRow(GLOBAL_SCOPE)
       const normalizedState = row?.state_json ? normalizeRemoteState(row.state_json) : null
       return sendJson(res, 200, {
         ok: true,
@@ -50,14 +36,14 @@ export default async function handler(req, res) {
       return sendJson(res, 400, { ok: false, error: 'Invalid sync payload.' })
     }
 
-    const existingRow = await fetchCurrentRow(scope)
+    const existingRow = await fetchCurrentRow(GLOBAL_SCOPE)
     const mergedState = mergeRemoteAndLocalState(
       existingRow?.state_json ? normalizeRemoteState(existingRow.state_json) : emptyRemoteState(),
       incomingState,
     )
     mergedState.updatedAt = Date.now()
 
-    const saved = await upsertRow(scope, mergedState)
+    const saved = await upsertRow(GLOBAL_SCOPE, mergedState)
     return sendJson(res, 200, {
       ok: true,
       acceptedState: saved.state_json,
@@ -71,7 +57,7 @@ export default async function handler(req, res) {
 }
 
 function validateEnv() {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.SYNC_SHARED_SECRET) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return 'Cloud sync is not configured on the server yet.'
   }
   return null
@@ -105,7 +91,7 @@ async function upsertRow(scope, state) {
         state_json: state,
         schema_version: SCHEMA_VERSION,
         updated_at: updatedAt,
-        updated_by: 'shared-secret-sync',
+        updated_by: 'global-sync',
       },
     ]),
   })
@@ -135,12 +121,4 @@ function supabaseHeaders() {
 
 function sendJson(res, status, payload) {
   res.status(status).json(payload)
-}
-
-function firstHeaderValue(value) {
-  if (Array.isArray(value)) {
-    return value[0] ?? ''
-  }
-
-  return typeof value === 'string' ? value : ''
 }
