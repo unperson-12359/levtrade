@@ -8,7 +8,7 @@ export interface RiskInputs {
   direction: TradeDirection
   entryPrice: number
   accountSize: number
-  positionSize: number        // in USD
+  positionSize: number        // margin (collateral) in USD
   leverage: number
   stopPrice: number | null    // user-set stop, null if not set
   targetPrice: number | null  // user-set target, null if not set
@@ -47,7 +47,8 @@ export interface RiskOutputs {
   rrRatio: number                 // reward / risk
 
   // Position sizing
-  suggestedPositionSize: number   // for 1% account risk
+  notionalValue: number           // margin × leverage
+  suggestedPositionSize: number   // margin for 1% account risk
   suggestedLeverage: number       // corresponding leverage
 
   // Overall grade

@@ -282,7 +282,7 @@ export function getRiskWorkflowGuidance(
     return {
       tone: 'green',
       label: 'SAFE ENOUGH',
-      summary: 'The current stop, leverage, and size look reasonable for this setup.',
+      summary: outputs.tradeGradeExplanation,
       action: 'If you take the trade, use the suggested size and respect the stop.',
       nextStep: 'Only proceed if you are comfortable with the loss at stop.',
       canProceed: true,
@@ -293,9 +293,9 @@ export function getRiskWorkflowGuidance(
     return {
       tone: 'yellow',
       label: 'REDUCE SIZE',
-      summary: 'The setup is tradable, but the current leverage or size is tighter than ideal.',
-      action: 'Reduce leverage or position size before entering.',
-      nextStep: 'You want a wider margin before liquidation and a smaller account hit at stop.',
+      summary: outputs.tradeGradeExplanation,
+      action: 'Reduce leverage or margin size before entering.',
+      nextStep: 'You want a wider buffer before liquidation and a smaller capital hit at stop.',
       canProceed: false,
     }
   }
@@ -303,9 +303,9 @@ export function getRiskWorkflowGuidance(
   return {
     tone: 'red',
     label: 'DO NOT TAKE',
-    summary: 'With the current parameters, the downside is too aggressive for this trade.',
+    summary: outputs.tradeGradeExplanation,
     action: 'Do not enter unless you materially reduce the risk.',
-    nextStep: 'Lower size, widen the stop, or wait for a better setup.',
+    nextStep: 'Lower margin, widen the stop, or wait for a better setup.',
     canProceed: false,
   }
 }

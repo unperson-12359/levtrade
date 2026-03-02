@@ -29,9 +29,12 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
   let liquidationFallback: ReturnType<typeof findMinimumLiquidationScenario> = null
   let liquidationFallbackExplanation: string | null = null
 
+  // positionSize = margin (collateral). Notional = margin × leverage.
+  const notionalValue = hasPositionSizeInput ? positionSize * leverage : 0
+
   if (hasPositionSizeInput) {
-    const effectivePos = positionSize
-    const marginUsed = effectivePos / leverage
+    const effectivePos = notionalValue
+    const marginUsed = positionSize // margin IS the input now
     const availableMargin = accountSize - marginUsed
     const maintenanceMargin = effectivePos * maintenanceMarginRate
     const marginBuffer = availableMargin - maintenanceMargin
@@ -74,7 +77,7 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
   const stopDistance = Math.abs(entryPrice - effectiveStopPrice)
 
   // --- Loss at Stop ---
-  const effectivePositionSize = positionSize > 0 ? positionSize : accountSize * leverage
+  const effectivePositionSize = positionSize > 0 ? notionalValue : accountSize * leverage
   const lossAtStop = effectivePositionSize * (stopDistance / entryPrice)
   const lossAtStopPercent = accountSize > 0 ? (lossAtStop / accountSize) * 100 : 0
 
@@ -94,14 +97,17 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
   // --- Reward/Risk Ratio ---
   const rrRatio = stopDistance > 0 ? targetDistance / stopDistance : 0
 
-  // --- Suggested Position Size (1% account risk) ---
+  // --- Suggested Position Size (1% account risk → suggests margin) ---
   const riskPerUnit = stopDistance / entryPrice
-  const suggestedPositionSize = riskPerUnit > 0
+  const suggestedNotional = riskPerUnit > 0
     ? (accountSize * 0.01) / riskPerUnit
     : 0
-  const suggestedLeverage = entryPrice > 0
-    ? suggestedPositionSize / (accountSize > 0 ? accountSize : 1)
+  const suggestedLeverage = accountSize > 0
+    ? suggestedNotional / accountSize
     : 1
+  const suggestedPositionSize = suggestedLeverage > 0
+    ? suggestedNotional / suggestedLeverage
+    : 0
 
   // --- Trade Grade ---
   const { tradeGrade, tradeGradeLabel, tradeGradeExplanation } = gradeTradeSetup({
@@ -112,6 +118,7 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
     stopDistance,
     atr,
     entryPrice,
+    notionalValue: effectivePositionSize,
   })
 
   return {
@@ -138,6 +145,7 @@ export function computeRisk(inputs: RiskInputs, atr: number): RiskOutputs {
     profitAtTarget,
     profitAtTargetPercent,
     rrRatio,
+    notionalValue,
     suggestedPositionSize,
     suggestedLeverage,
     tradeGrade,
@@ -154,6 +162,7 @@ interface GradeInput {
   stopDistance: number
   atr: number
   entryPrice: number
+  notionalValue: number
 }
 
 function gradeTradeSetup(input: GradeInput): {
@@ -222,9 +231,10 @@ function gradeTradeSetup(input: GradeInput): {
     tradeGradeLabel = 'TOO RISKY'
   }
 
+  const stopPct = input.entryPrice > 0 ? ((input.stopDistance / input.entryPrice) * 100).toFixed(1) : '?'
   const tradeGradeExplanation = issues.length > 0
     ? `${tradeGradeLabel} — ${issues.join('. ')}.`
-    : `${tradeGradeLabel} — R:R is favorable, stop is in a safe zone, and leverage is reasonable.`
+    : `${tradeGradeLabel} — ${input.rrRatio.toFixed(1)}:1 R:R, stop ${stopPct}% from entry, ${input.leverage}x leverage, risking ${input.lossAtStopPercent.toFixed(1)}% of capital.`
 
   return { tradeGrade, tradeGradeLabel, tradeGradeExplanation }
 }
@@ -254,6 +264,7 @@ function emptyOutputs(): RiskOutputs {
     profitAtTarget: 0,
     profitAtTargetPercent: 0,
     rrRatio: 0,
+    notionalValue: 0,
     suggestedPositionSize: 0,
     suggestedLeverage: 0,
     tradeGrade: 'yellow',
@@ -287,6 +298,7 @@ function invalidInputOutputs(message: string): RiskOutputs {
     profitAtTarget: 0,
     profitAtTargetPercent: 0,
     rrRatio: 0,
+    notionalValue: 0,
     suggestedPositionSize: 0,
     suggestedLeverage: 0,
     tradeGrade: 'red',
@@ -325,8 +337,8 @@ function findMinimumLiquidationScenario(inputs: RiskInputs): {
 function computeLiquidationPrice(inputs: Pick<RiskInputs, 'direction' | 'entryPrice' | 'accountSize' | 'positionSize' | 'leverage'>): number {
   const { direction, entryPrice, accountSize, positionSize, leverage } = inputs
   const maintenanceMarginRate = 0.005
-  const effectivePos = positionSize > 0 ? positionSize : accountSize * leverage
-  const marginUsed = effectivePos / leverage
+  const effectivePos = positionSize > 0 ? positionSize * leverage : accountSize * leverage
+  const marginUsed = positionSize > 0 ? positionSize : accountSize
   const availableMargin = accountSize - marginUsed
   const maintenanceMargin = effectivePos * maintenanceMarginRate
   const marginBuffer = availableMargin - maintenanceMargin

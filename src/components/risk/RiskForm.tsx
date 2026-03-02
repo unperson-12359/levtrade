@@ -4,14 +4,17 @@ import { usePositionRisk } from '../../hooks/usePositionRisk'
 import { useMarketData } from '../../hooks/useMarketData'
 import { useStore } from '../../store'
 import { SIGNAL_COLORS } from '../../utils/colors'
+import { formatUSD } from '../../utils/format'
 
-const LEVERAGE_CHIPS = [1, 5, 15, 30, 50]
+const LEVERAGE_CHIPS = [1, 5, 10, 20, 40]
+const MAX_LEVERAGE = 40
 
 export function RiskForm() {
-  const { inputs, updateInput } = usePositionRisk()
+  const { inputs, outputs, updateInput } = usePositionRisk()
   const selectCoin = useStore((s) => s.selectCoin)
   const prices = useStore((s) => s.prices)
   const { price } = useMarketData(inputs.coin)
+  const notional = inputs.positionSize > 0 ? inputs.positionSize * inputs.leverage : 0
 
   return (
     <div className="space-y-3">
@@ -83,16 +86,16 @@ export function RiskForm() {
         />
       </div>
 
-      {/* Row 3: Account + Position + Leverage */}
+      {/* Row 3: Capital + Margin + Leverage */}
       <div className="grid grid-cols-3 gap-2">
         <CompactField
-          label="Account"
+          label="Capital"
           value={inputs.accountSize || ''}
           onChange={(v) => updateInput('accountSize', v)}
           placeholder="1000"
         />
         <CompactField
-          label="Position"
+          label="Margin"
           value={inputs.positionSize || ''}
           onChange={(v) => updateInput('positionSize', v)}
           placeholder="100"
@@ -103,10 +106,10 @@ export function RiskForm() {
             <input
               type="number"
               min={1}
-              max={50}
+              max={MAX_LEVERAGE}
               step={0.5}
               value={inputs.leverage}
-              onChange={(e) => updateInput('leverage', Math.min(50, Math.max(1, parseFloat(e.target.value) || 1)))}
+              onChange={(e) => updateInput('leverage', Math.min(MAX_LEVERAGE, Math.max(1, parseFloat(e.target.value) || 1)))}
               className="w-full rounded-lg border border-border-subtle bg-bg-input px-3 py-1.5 pr-6 font-mono text-sm text-text-primary focus:border-border-focus focus:outline-none"
             />
             <span
@@ -119,21 +122,28 @@ export function RiskForm() {
         </div>
       </div>
 
-      {/* Leverage chips */}
-      <div className="flex gap-1.5">
-        {LEVERAGE_CHIPS.map((lev) => (
-          <button
-            key={lev}
-            onClick={() => updateInput('leverage', lev)}
-            className={`rounded-md border px-2 py-0.5 text-xs transition-colors ${
-              inputs.leverage === lev
-                ? 'border-signal-blue/40 bg-signal-blue/10 text-text-primary'
-                : 'border-border-subtle bg-bg-input text-text-muted hover:text-text-secondary'
-            }`}
-          >
-            {lev}x
-          </button>
-        ))}
+      {/* Leverage chips + Notional display */}
+      <div className="flex items-center gap-3">
+        <div className="flex gap-1.5">
+          {LEVERAGE_CHIPS.map((lev) => (
+            <button
+              key={lev}
+              onClick={() => updateInput('leverage', lev)}
+              className={`rounded-md border px-2 py-0.5 text-xs transition-colors ${
+                inputs.leverage === lev
+                  ? 'border-signal-blue/40 bg-signal-blue/10 text-text-primary'
+                  : 'border-border-subtle bg-bg-input text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              {lev}x
+            </button>
+          ))}
+        </div>
+        {notional > 0 && (
+          <span className="text-xs text-text-muted ml-auto">
+            Notional <span className="font-mono text-text-secondary">{formatUSD(notional)}</span>
+          </span>
+        )}
       </div>
 
       {/* Row 4: Stop + Target */}
@@ -142,15 +152,16 @@ export function RiskForm() {
           label="Stop Price"
           value={inputs.stopPrice ?? ''}
           onChange={(v) => updateInput('stopPrice', v > 0 ? v : null)}
-          placeholder="Auto (1.5x ATR)"
+          placeholder={outputs?.suggestedStopPrice ? `Auto ${outputs.suggestedStopPrice.toFixed(1)}` : 'Auto (1.5× ATR)'}
         />
         <CompactField
           label="Target Price"
           value={inputs.targetPrice ?? ''}
           onChange={(v) => updateInput('targetPrice', v > 0 ? v : null)}
-          placeholder="Auto (2:1 R:R)"
+          placeholder={outputs?.suggestedTargetPrice ? `Auto ${outputs.suggestedTargetPrice.toFixed(1)}` : 'Auto (2:1 R:R)'}
         />
       </div>
+      <div className="text-xs text-text-muted -mt-1">Leave blank for auto-calculated values based on ATR and R:R.</div>
     </div>
   )
 }

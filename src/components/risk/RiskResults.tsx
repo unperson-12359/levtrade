@@ -42,10 +42,10 @@ export function RiskResults() {
             {riskGuidance.label}
           </span>
           <span className="inline-flex items-center rounded-full border border-border-subtle px-2 py-0.5 text-xs text-text-secondary">
-            {outputs.usedCustomStop ? 'Custom stop' : 'Auto stop'}
+            Stop {formatPrice(outputs.effectiveStopPrice, inputs.coin)}
           </span>
           <span className="inline-flex items-center rounded-full border border-border-subtle px-2 py-0.5 text-xs text-text-secondary">
-            {outputs.usedCustomTarget ? 'Custom target' : 'Auto target'}
+            Target {formatPrice(outputs.effectiveTargetPrice, inputs.coin)}
           </span>
         </div>
       </div>
@@ -114,7 +114,7 @@ export function RiskResults() {
                   value={!hasPositionSizeInput ? '--' : isImmune ? '100%+' : formatPercent(outputs.liquidationDistance, 1)}
                   tone={!hasPositionSizeInput ? 'yellow' : liqColor}
                 />
-                <Stat label="1% size" value={formatUSD(outputs.suggestedPositionSize)} tone="green" />
+                <Stat label="1% margin" value={formatUSD(outputs.suggestedPositionSize)} tone="green" />
                 <Stat label="1% leverage" value={`${outputs.suggestedLeverage.toFixed(1)}x`} tone="green" />
               </div>
               <div className="mt-3 space-y-2 text-sm text-text-secondary">

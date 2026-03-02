@@ -687,9 +687,10 @@ function computeRisk(inputs, atr) {
   let liquidationDistance = 0;
   let liquidationFallback = null;
   let liquidationFallbackExplanation = null;
+  const notionalValue = hasPositionSizeInput ? positionSize * leverage : 0;
   if (hasPositionSizeInput) {
-    const effectivePos = positionSize;
-    const marginUsed = effectivePos / leverage;
+    const effectivePos = notionalValue;
+    const marginUsed = positionSize;
     const availableMargin = accountSize - marginUsed;
     const maintenanceMargin = effectivePos * maintenanceMarginRate;
     const marginBuffer = availableMargin - maintenanceMargin;
@@ -717,7 +718,7 @@ function computeRisk(inputs, atr) {
   const usedCustomStop = stopPrice !== null && stopValidationMessage === null;
   const effectiveStopPrice = usedCustomStop ? stopPrice : suggestedStopPrice;
   const stopDistance = Math.abs(entryPrice - effectiveStopPrice);
-  const effectivePositionSize = positionSize > 0 ? positionSize : accountSize * leverage;
+  const effectivePositionSize = positionSize > 0 ? notionalValue : accountSize * leverage;
   const lossAtStop = effectivePositionSize * (stopDistance / entryPrice);
   const lossAtStopPercent = accountSize > 0 ? lossAtStop / accountSize * 100 : 0;
   const suggestedTargetPrice = direction === "long" ? entryPrice + stopDistance * 2 : entryPrice - stopDistance * 2;
@@ -729,8 +730,9 @@ function computeRisk(inputs, atr) {
   const profitAtTargetPercent = accountSize > 0 ? profitAtTarget / accountSize * 100 : 0;
   const rrRatio = stopDistance > 0 ? targetDistance / stopDistance : 0;
   const riskPerUnit = stopDistance / entryPrice;
-  const suggestedPositionSize = riskPerUnit > 0 ? accountSize * 0.01 / riskPerUnit : 0;
-  const suggestedLeverage = entryPrice > 0 ? suggestedPositionSize / (accountSize > 0 ? accountSize : 1) : 1;
+  const suggestedNotional = riskPerUnit > 0 ? accountSize * 0.01 / riskPerUnit : 0;
+  const suggestedLeverage = accountSize > 0 ? suggestedNotional / accountSize : 1;
+  const suggestedPositionSize = suggestedLeverage > 0 ? suggestedNotional / suggestedLeverage : 0;
   const { tradeGrade, tradeGradeLabel, tradeGradeExplanation } = gradeTradeSetup({
     liquidationDistance,
     lossAtStopPercent,
@@ -738,7 +740,8 @@ function computeRisk(inputs, atr) {
     leverage,
     stopDistance,
     atr,
-    entryPrice
+    entryPrice,
+    notionalValue: effectivePositionSize
   });
   return {
     liquidationPrice,
@@ -764,6 +767,7 @@ function computeRisk(inputs, atr) {
     profitAtTarget,
     profitAtTargetPercent,
     rrRatio,
+    notionalValue,
     suggestedPositionSize,
     suggestedLeverage,
     tradeGrade,
@@ -819,7 +823,8 @@ function gradeTradeSetup(input) {
     tradeGrade = "red";
     tradeGradeLabel = "TOO RISKY";
   }
-  const tradeGradeExplanation = issues.length > 0 ? `${tradeGradeLabel} \u2014 ${issues.join(". ")}.` : `${tradeGradeLabel} \u2014 R:R is favorable, stop is in a safe zone, and leverage is reasonable.`;
+  const stopPct = input.entryPrice > 0 ? (input.stopDistance / input.entryPrice * 100).toFixed(1) : "?";
+  const tradeGradeExplanation = issues.length > 0 ? `${tradeGradeLabel} \u2014 ${issues.join(". ")}.` : `${tradeGradeLabel} \u2014 ${input.rrRatio.toFixed(1)}:1 R:R, stop ${stopPct}% from entry, ${input.leverage}x leverage, risking ${input.lossAtStopPercent.toFixed(1)}% of capital.`;
   return { tradeGrade, tradeGradeLabel, tradeGradeExplanation };
 }
 function emptyOutputs() {
@@ -847,6 +852,7 @@ function emptyOutputs() {
     profitAtTarget: 0,
     profitAtTargetPercent: 0,
     rrRatio: 0,
+    notionalValue: 0,
     suggestedPositionSize: 0,
     suggestedLeverage: 0,
     tradeGrade: "yellow",
@@ -879,6 +885,7 @@ function invalidInputOutputs(message) {
     profitAtTarget: 0,
     profitAtTargetPercent: 0,
     rrRatio: 0,
+    notionalValue: 0,
     suggestedPositionSize: 0,
     suggestedLeverage: 0,
     tradeGrade: "red",
@@ -908,8 +915,8 @@ function findMinimumLiquidationScenario(inputs) {
 function computeLiquidationPrice(inputs) {
   const { direction, entryPrice, accountSize, positionSize, leverage } = inputs;
   const maintenanceMarginRate = 5e-3;
-  const effectivePos = positionSize > 0 ? positionSize : accountSize * leverage;
-  const marginUsed = effectivePos / leverage;
+  const effectivePos = positionSize > 0 ? positionSize * leverage : accountSize * leverage;
+  const marginUsed = positionSize > 0 ? positionSize : accountSize;
   const availableMargin = accountSize - marginUsed;
   const maintenanceMargin = effectivePos * maintenanceMarginRate;
   const marginBuffer = availableMargin - maintenanceMargin;
