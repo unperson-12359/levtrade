@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { TrackedCoin } from '../../types/market'
 import type { SuggestedSetup, TrackedSetup } from '../../types/setup'
 import { formatLeverage, formatPrice, formatUSD, timeAgo } from '../../utils/format'
+import { formatConfidenceTier, formatEntryQuality, formatTradeGrade } from '../../utils/setupFormat'
 import {
   getSignalProvenance,
   type SignalSeriesKind,
@@ -24,9 +25,11 @@ interface SignalDrawerProps {
 export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }: SignalDrawerProps) {
   const interval = useStore((s) => s.selectedInterval)
   const provenance = getSignalProvenance(interval)
-  const drawerRef = useRef<HTMLDivElement>(null)
+  const drawerRef = useRef<HTMLElement>(null)
   const activeSetup = trackedSetup?.setup ?? setup ?? null
-  const isHistoricalSetup = signalKind === 'setup' && Boolean(trackedSetup)
+  const isSetup = signalKind === 'setup'
+  const isHistoricalSetup = isSetup && Boolean(trackedSetup)
+  const showRail = signalKind !== 'setup' || Boolean(activeSetup)
 
   useEffect(() => {
     if (!signalKind) return
@@ -66,23 +69,14 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
 
   if (!signalKind) return null
 
-  const title =
-    signalKind === 'setup'
-      ? isHistoricalSetup
-        ? 'Tracked Setup Verification'
-        : 'Suggested Setup Verification'
-      : provenance[signalKind].title
-  const description =
-    signalKind === 'setup'
-      ? isHistoricalSetup
-        ? 'Stored snapshot from when the dashboard suggested the trade. The chart is centered around the original trigger time so you can review the exact setup and how each scoring window resolved.'
-        : 'This view shows the current suggested setup, its generated levels, and the market context used to propose it.'
-      : provenance[signalKind].description
+  const title = getTitle(signalKind, isHistoricalSetup)
+  const description = getDescription(signalKind, isHistoricalSetup, provenance)
+  const inspectionNote = signalKind === 'setup' ? null : getInspectionNote(signalKind)
 
   return createPortal(
     <>
       <div className="signal-drawer__backdrop" onClick={onClose} />
-      <div
+      <section
         ref={drawerRef}
         className="signal-drawer signal-drawer--open"
         tabIndex={-1}
@@ -91,70 +85,129 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
         aria-label={title}
         onKeyDown={handleKeyDown}
       >
-        <div className="signal-drawer__header">
-          <div>
-            <span className="panel-kicker">Signal Verification</span>
-            <h3 className="signal-drawer__title">{title}</h3>
-          </div>
-          <button className="signal-drawer__close" onClick={onClose} aria-label="Close">
-            {'\u00D7'}
-          </button>
-        </div>
-
-        {signalKind === 'setup' ? (
-          <>
-            <PriceChart coin={coin} embedded showHeader={false} verificationSetup={activeSetup ?? undefined} />
-            {activeSetup ? (
-              <div className="signal-drawer__provenance">
-                <div className="signal-drawer__meta-grid">
-                  <MetaItem label="Direction" value={activeSetup.direction.toUpperCase()} />
-                  <MetaItem label="Entry" value={formatPrice(activeSetup.entryPrice, coin)} />
-                  <MetaItem label="Stop" value={formatPrice(activeSetup.stopPrice, coin)} />
-                  <MetaItem label="Target" value={formatPrice(activeSetup.targetPrice, coin)} />
-                  <MetaItem label="Mean target" value={formatPrice(activeSetup.meanReversionTarget, coin)} />
-                  <MetaItem label="Leverage" value={formatLeverage(activeSetup.suggestedLeverage)} />
-                  <MetaItem label="Position size" value={formatUSD(activeSetup.suggestedPositionSize)} />
-                  <MetaItem label="Generated" value={formatTimestamp(activeSetup.generatedAt)} />
-                  <MetaItem label="Age" value={timeAgo(activeSetup.generatedAt)} />
-                  <MetaItem label="Confidence tier" value={activeSetup.confidenceTier.toUpperCase()} />
-                  <MetaItem label="Entry quality" value={activeSetup.entryQuality.toUpperCase()} />
-                  {activeSetup.source && <MetaItem label="Source" value={activeSetup.source.toUpperCase()} />}
-                  {trackedSetup?.coverageStatus && <MetaItem label="Coverage" value={trackedSetup.coverageStatus.toUpperCase()} />}
-                </div>
-                <p className="panel-copy">{activeSetup.summary}</p>
-                <p className="panel-copy">{description}</p>
-                {trackedSetup ? (
-                  <div className="signal-drawer__outcome-grid">
-                    <OutcomeCard trackedSetup={trackedSetup} window="4h" />
-                    <OutcomeCard trackedSetup={trackedSetup} window="24h" />
-                    <OutcomeCard trackedSetup={trackedSetup} window="72h" />
-                  </div>
-                ) : (
-                  <p className="panel-copy signal-drawer__source-note">
-                    Source: derived from current decision state, entry geometry, composite signal, and `computeRisk()` suggestions using Hyperliquid hourly candles and live price.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="panel-copy">No actionable setup is available to verify right now.</p>
-            )}
-          </>
-        ) : (
-          <>
-            <VerificationChart coin={coin} kind={signalKind} height={240} />
-            <div className="signal-drawer__provenance">
-              <p className="panel-copy">{description}</p>
-              <div className="signal-drawer__meta-grid">
-                <MetaItem label="Source" value={provenance[signalKind].source} />
-                <MetaItem label="Request type" value={provenance[signalKind].requestType} />
-                <MetaItem label="Timeframe" value={provenance[signalKind].timeframe} />
-                <MetaItem label="Lookback" value={provenance[signalKind].lookback} />
-                <MetaItem label="Update cadence" value={provenance[signalKind].updateCadence} />
-              </div>
+        <div className="signal-drawer__frame">
+          <div className="signal-drawer__header">
+            <div className="signal-drawer__header-copy">
+              <span className="panel-kicker">{isHistoricalSetup ? 'Setup Autopsy' : 'Verification Workspace'}</span>
+              <h3 className="signal-drawer__title">{title}</h3>
+              <p className="signal-drawer__subtitle">{description}</p>
             </div>
-          </>
-        )}
-      </div>
+            <button className="signal-drawer__close" onClick={onClose} aria-label="Close">
+              {'\u00D7'}
+            </button>
+          </div>
+
+          <div className={`signal-drawer__content${showRail ? '' : ' signal-drawer__content--single'}`}>
+            {isSetup ? (
+              <>
+                <div className="signal-drawer__main">
+                  <PriceChart coin={coin} embedded showHeader={false} verificationSetup={activeSetup ?? undefined} />
+                  {activeSetup ? (
+                    <section className="signal-drawer__section">
+                      <div className="signal-drawer__section-title">
+                        {isHistoricalSetup ? 'Stored snapshot' : 'Current setup context'}
+                      </div>
+                      <p className="signal-drawer__copy">
+                        {isHistoricalSetup
+                          ? 'This is the stored setup snapshot from when the dashboard suggested the trade. The chart is centered around the original trigger time so you can inspect the levels and the follow-through.'
+                          : 'This is the live setup the dashboard would act on right now, using the same chart context, geometry, and trade levels shown in the main workflow.'}
+                      </p>
+                      <p className="signal-drawer__copy">{activeSetup.summary}</p>
+                    </section>
+                  ) : (
+                    <section className="signal-drawer__section">
+                      <div className="signal-drawer__section-title">No actionable setup</div>
+                      <p className="signal-drawer__copy">No actionable setup is available to verify right now.</p>
+                    </section>
+                  )}
+                </div>
+
+                {activeSetup && (
+                  <aside className="signal-drawer__rail">
+                    <section className="signal-drawer__section">
+                      <div className="signal-drawer__section-title">
+                        {isHistoricalSetup ? 'Snapshot' : 'Current context'}
+                      </div>
+                      <div className="signal-drawer__kv-grid">
+                        <MetaItem label="Direction" value={activeSetup.direction.toUpperCase()} />
+                        <MetaItem label="Trade grade" value={formatTradeGrade(activeSetup.tradeGrade)} />
+                        <MetaItem label="Confidence tier" value={formatConfidenceTier(activeSetup.confidenceTier)} />
+                        <MetaItem label="Entry quality" value={formatEntryQuality(activeSetup.entryQuality)} />
+                        <MetaItem label="Generated" value={formatTimestamp(activeSetup.generatedAt)} />
+                        <MetaItem label="Age" value={timeAgo(activeSetup.generatedAt)} />
+                        {activeSetup.source && <MetaItem label="Source" value={activeSetup.source.toUpperCase()} />}
+                        {trackedSetup?.coverageStatus && <MetaItem label="Coverage" value={trackedSetup.coverageStatus.toUpperCase()} />}
+                      </div>
+                    </section>
+
+                    <section className="signal-drawer__section">
+                      <div className="signal-drawer__section-title">Trade levels</div>
+                      <div className="signal-drawer__kv-grid">
+                        <MetaItem label="Entry" value={formatPrice(activeSetup.entryPrice, coin)} />
+                        <MetaItem label="Stop" value={formatPrice(activeSetup.stopPrice, coin)} />
+                        <MetaItem label="Target" value={formatPrice(activeSetup.targetPrice, coin)} />
+                        <MetaItem label="Mean target" value={formatPrice(activeSetup.meanReversionTarget, coin)} />
+                        <MetaItem label="Leverage" value={formatLeverage(activeSetup.suggestedLeverage)} />
+                        <MetaItem label="Position size" value={formatUSD(activeSetup.suggestedPositionSize)} />
+                      </div>
+                    </section>
+
+                    {trackedSetup ? (
+                      <section className="signal-drawer__section">
+                        <div className="signal-drawer__section-title">Resolution</div>
+                        <div className="signal-drawer__outcome-grid">
+                          <OutcomeCard trackedSetup={trackedSetup} window="4h" />
+                          <OutcomeCard trackedSetup={trackedSetup} window="24h" />
+                          <OutcomeCard trackedSetup={trackedSetup} window="72h" />
+                        </div>
+                      </section>
+                    ) : (
+                      <section className="signal-drawer__section">
+                        <div className="signal-drawer__section-title">Provenance</div>
+                        <p className="signal-drawer__copy">
+                          Source: derived from current decision state, entry geometry, composite signal, and
+                          `computeRisk()` suggestions using Hyperliquid hourly candles and live price.
+                        </p>
+                      </section>
+                    )}
+                  </aside>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="signal-drawer__main">
+                  <VerificationChart coin={coin} kind={signalKind} height={440} />
+                  <section className="signal-drawer__section">
+                    <div className="signal-drawer__section-title">Indicator interpretation</div>
+                    <p className="signal-drawer__copy">{description}</p>
+                    <p className="signal-drawer__copy">
+                      Use this full-screen view to inspect how the live series is behaving, not just the latest pill value.
+                    </p>
+                  </section>
+                </div>
+
+                <aside className="signal-drawer__rail">
+                  <section className="signal-drawer__section">
+                    <div className="signal-drawer__section-title">Data provenance</div>
+                    <div className="signal-drawer__kv-grid">
+                      <MetaItem label="Source" value={provenance[signalKind].source} />
+                      <MetaItem label="Request type" value={provenance[signalKind].requestType} />
+                      <MetaItem label="Timeframe" value={provenance[signalKind].timeframe} />
+                      <MetaItem label="Lookback" value={provenance[signalKind].lookback} />
+                      <MetaItem label="Update cadence" value={provenance[signalKind].updateCadence} />
+                    </div>
+                  </section>
+
+                  <section className="signal-drawer__section">
+                    <div className="signal-drawer__section-title">What to inspect</div>
+                    <p className="signal-drawer__copy">{inspectionNote}</p>
+                  </section>
+                </aside>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
     </>,
     document.body,
   )
@@ -164,7 +217,7 @@ function MetaItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="signal-drawer__meta-item">
       <span className="stat-label">{label}</span>
-      <span className="panel-copy">{value}</span>
+      <span className="signal-drawer__meta-value">{value}</span>
     </div>
   )
 }
@@ -188,7 +241,7 @@ function OutcomeCard({
     <div className="signal-drawer__meta-item">
       <span className="stat-label">{window} outcome</span>
       <span className={`stat-value ${resultTone}`}>{outcome.result.toUpperCase()}</span>
-      <div className="panel-copy">
+      <div className="signal-drawer__meta-copy">
         {[
           outcome.rAchieved !== null ? `${outcome.rAchieved >= 0 ? '+' : ''}${outcome.rAchieved.toFixed(1)}R` : null,
           outcome.resolutionReason ?? null,
@@ -209,4 +262,45 @@ function formatTimestamp(timestamp: number): string {
     hour: 'numeric',
     minute: '2-digit',
   })
+}
+
+function getTitle(signalKind: SignalDrawerKind, isHistoricalSetup: boolean): string {
+  if (signalKind === 'setup') {
+    return isHistoricalSetup ? 'Tracked Setup Autopsy' : 'Live Setup Verification'
+  }
+  if (signalKind === 'hurst') return 'Market Verification'
+  if (signalKind === 'fundingRate') return 'Funding Verification'
+  if (signalKind === 'atr') return 'Volatility Verification'
+  if (signalKind === 'distanceFromMean' || signalKind === 'stretchZ') return 'Entry Geometry Verification'
+  return 'Signal Verification'
+}
+
+function getDescription(
+  signalKind: SignalDrawerKind,
+  isHistoricalSetup: boolean,
+  provenance: ReturnType<typeof getSignalProvenance>,
+): string {
+  if (signalKind === 'setup') {
+    return isHistoricalSetup
+      ? 'Stored snapshot from when the dashboard suggested the trade. Use this workspace to run a full post-mortem on the levels, timing, and resolved outcome windows.'
+      : 'Current suggested setup with full chart context, trade geometry, and the same generated levels the dashboard is surfacing right now.'
+  }
+  return provenance[signalKind].description
+}
+
+function getInspectionNote(signalKind: SignalSeriesKind): string {
+  switch (signalKind) {
+    case 'hurst':
+      return 'Check whether the line stays above or below the regime thresholds or just chops around neutral. Durable moves matter more than one isolated print.'
+    case 'fundingRate':
+      return 'Look for crowding extremes and whether funding is reverting or staying pinned. Persistent extremes usually matter more than a single hourly spike.'
+    case 'atr':
+      return 'Check whether volatility is expanding or compressing before trusting stop distance. Spiking ATR often changes the quality of the setup.'
+    case 'distanceFromMean':
+      return 'Check whether price is genuinely displaced from the 20-period mean or already reverting back toward it. The more displacement, the more reversion fuel remains.'
+    case 'stretchZ':
+      return 'Check whether the stretch is statistically unusual enough to justify the entry geometry instead of chasing a move that is already normalizing.'
+    case 'zScore':
+      return 'Check how often the series pushes beyond the stretch thresholds and whether extremes actually mean-revert or keep trending through them.'
+  }
 }
