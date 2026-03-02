@@ -51,13 +51,13 @@ export function DashboardLayout() {
       <main className="dashboard-shell">
         <section className="workspace-stack dashboard-main">
           <div className="chart-anchor">
-            <section className="panel-shell panel-shell--chart">
+            <div className="chart-anchor__frame panel-shell panel-shell--chart">
               <div className="panel-kicker">Price map</div>
               <p className="panel-copy signal-chart-block__copy">
                 Keep price action, stretch, and key levels in view while you work through the setup checklist below.
               </p>
               <PriceChart coin={coin} embedded showHeader={false} />
-            </section>
+            </div>
           </div>
           <DecisionHero />
           <MarketRail />

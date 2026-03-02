@@ -995,3 +995,40 @@ Improve the chart-centric layout proposal by making the chart the first visible 
 - Production alias: `https://levtrade.vercel.app`
 - Deployment status: `Ready`
 - Alias verification: HTTP `200`
+
+---
+
+## 2026-03-02 - Codex  Sticky Chart Scroll-Under Flow Refinement
+
+### Goal
+Make the desktop sticky chart feel less intrusive by turning it into a framed visual stage, so cards scroll beneath it with softer side boundaries and a cleaner bottom transition instead of disappearing behind a hard-edged floating rectangle.
+
+### Files Changed
+- `src/components/layout/DashboardLayout.tsx`
+- `src/index.css`
+
+### What changed
+- Replaced the plain sticky chart wrapper with a dedicated `.chart-anchor__frame` shell inside the existing `.chart-anchor`.
+- Added left and right gradient edge treatments to the sticky chart anchor so the chart sides help frame the content lane during scroll.
+- Added an inner chart-frame glaze plus a soft bottom shelf fade so the next cards recede under the chart more naturally.
+- Increased the visual separation after the sticky chart slightly so the first panel below does not collide with the chart as abruptly.
+- Kept the existing sticky risk wrapper architecture unchanged, with the chart still above cards but below the top bar and signal drawer.
+- Disabled the decorative sticky-stage treatments again at `<= 960px` so tablet and mobile still use the simpler stacked layout.
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- Errors: 0
+- Warnings: 0
+- Modules transformed: 113
+- Output sizes:
+  - `dist/index.html`: 0.46 kB (gzip 0.31 kB)
+  - `dist/assets/index-Cma5URac.css`: 54.59 kB (gzip 9.89 kB)
+  - `dist/assets/index-D8ouht2I.js`: 496.17 kB (gzip 152.65 kB)
+
+### Notes
+- This pass changes only layout structure and CSS layering. No signal, tracker, sync, or chart-model logic changed.
+- The intended visual result is a subtler “scroll-behind the chart stage” effect, not a hard content split.
+- Manual desktop QA is still recommended at `1280px` and `1440px` to validate the feel of the side fades and bottom shelf during long scrolls.
+
+### Deployment
+- Not deployed in this pass.
