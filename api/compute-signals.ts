@@ -1,3 +1,16 @@
+import { TRACKED_COINS, parseCandle } from '../src/types/market'
+import type { TrackedCoin, Candle, FundingSnapshot, OISnapshot, RawCandle, FundingHistoryEntry } from '../src/types/market'
+import type { AssetSignals } from '../src/types/signals'
+import type { SuggestedSetup } from '../src/types/setup'
+import { computeHurst } from '../src/signals/hurst'
+import { computeZScore } from '../src/signals/zscore'
+import { computeFundingZScore } from '../src/signals/funding'
+import { computeOIDelta } from '../src/signals/oiDelta'
+import { computeATR, computeRealizedVol } from '../src/signals/volatility'
+import { computeEntryGeometry } from '../src/signals/entryGeometry'
+import { computeComposite } from '../src/signals/composite'
+import { computeSuggestedSetup } from '../src/signals/setup'
+
 const HYPERLIQUID_API = 'https://api.hyperliquid.xyz/info'
 const COINALYZE_API = 'https://api.coinalyze.net/v1'
 const MS_PER_HOUR = 3_600_000
@@ -7,7 +20,8 @@ const OI_LOOKBACK_HOURS = 24
 const SETUP_DEDUPE_WINDOW_MS = 4 * MS_PER_HOUR
 const ENTRY_SIMILARITY_THRESHOLD = 0.02
 
-const COINALYZE_SYMBOLS: Record<string, string> = {
+// Coinalyze symbols for Hyperliquid (exchange code H)
+const COINALYZE_SYMBOLS: Record<TrackedCoin, string> = {
   BTC: 'BTCUSD_PERP.H',
   ETH: 'ETHUSD_PERP.H',
   SOL: 'SOLUSD_PERP.H',
@@ -32,53 +46,6 @@ interface VercelResponse {
   json: (body: unknown) => void
 }
 
-// Lazy-loaded signal modules (loaded once on first invocation)
-let modules: {
-  TRACKED_COINS: readonly string[]
-  parseCandle: (raw: any) => any
-  computeHurst: (closes: number[], period: number) => any
-  computeZScore: (closes: number[], period: number) => any
-  computeFundingZScore: (history: any[]) => any
-  computeOIDelta: (oiHistory: any[], closes: number[]) => any
-  computeATR: (candles: any[]) => any
-  computeRealizedVol: (closes: number[]) => any
-  computeEntryGeometry: (closes: number[], atr: any, period: number) => any
-  computeComposite: (hurst: any, zScore: any, funding: any, oiDelta: any) => any
-  computeSuggestedSetup: (coin: any, signals: any, price: number, options?: any) => any | null
-} | null = null
-
-async function loadModules() {
-  if (modules) return modules
-
-  const [market, hurst, zscore, funding, oiDelta, volatility, entryGeometry, composite, setup] =
-    await Promise.all([
-      import('../src/types/market'),
-      import('../src/signals/hurst'),
-      import('../src/signals/zscore'),
-      import('../src/signals/funding'),
-      import('../src/signals/oiDelta'),
-      import('../src/signals/volatility'),
-      import('../src/signals/entryGeometry'),
-      import('../src/signals/composite'),
-      import('../src/signals/setup'),
-    ])
-
-  modules = {
-    TRACKED_COINS: market.TRACKED_COINS,
-    parseCandle: market.parseCandle,
-    computeHurst: hurst.computeHurst,
-    computeZScore: zscore.computeZScore,
-    computeFundingZScore: funding.computeFundingZScore,
-    computeOIDelta: oiDelta.computeOIDelta,
-    computeATR: volatility.computeATR,
-    computeRealizedVol: volatility.computeRealizedVol,
-    computeEntryGeometry: entryGeometry.computeEntryGeometry,
-    computeComposite: composite.computeComposite,
-    computeSuggestedSetup: setup.computeSuggestedSetup,
-  }
-  return modules
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' })
@@ -94,22 +61,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ ok: false, error: envError })
   }
 
-  let mod: NonNullable<typeof modules>
-  try {
-    mod = await loadModules()
-  } catch (err) {
-    return res.status(500).json({
-      ok: false,
-      error: 'Failed to load signal modules',
-      detail: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-    })
-  }
-
   const now = Date.now()
   const results: CoinResult[] = []
 
   try {
+    // Fetch prices and OI context for all coins at once
     const [mids, [meta, assetCtxs]] = await Promise.all([
       hlPost<Record<string, string>>({ type: 'allMids' }),
       hlPost<[{ universe: { name: string }[] }, { openInterest: string; funding: string }[]]>({
@@ -117,9 +73,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     ])
 
-    for (const coin of mod.TRACKED_COINS) {
+    // Process each coin sequentially (rate-limit friendly)
+    for (const coin of TRACKED_COINS) {
       try {
-        const result = await processCoin(mod, coin, mids, meta.universe, assetCtxs, now)
+        const result = await processCoin(coin, mids, meta.universe, assetCtxs, now)
         results.push(result)
       } catch (err) {
         results.push({
@@ -146,18 +103,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 async function processCoin(
-  mod: NonNullable<typeof modules>,
-  coin: string,
+  coin: TrackedCoin,
   mids: Record<string, string>,
   universe: { name: string }[],
   assetCtxs: { openInterest: string; funding: string }[],
   now: number,
 ): Promise<CoinResult> {
+  // 1. Get current price
   const currentPrice = parseFloat(mids[coin] ?? '')
   if (!isFinite(currentPrice) || currentPrice <= 0) {
     return { coin, ok: false, error: 'No mid price', setupGenerated: false }
   }
 
+  // 2. Store current OI snapshot in Supabase (self-accumulating backup)
   const coinIdx = universe.findIndex((u) => u.name === coin)
   if (coinIdx >= 0 && assetCtxs[coinIdx]) {
     const currentOI = parseFloat(assetCtxs[coinIdx]!.openInterest)
@@ -166,48 +124,52 @@ async function processCoin(
     }
   }
 
+  // 3. Fetch 120h candles from Hyperliquid
   const startTime = now - CANDLE_COUNT * MS_PER_HOUR
-  const rawCandles = await hlPost<any[]>({
+  const rawCandles = await hlPost<RawCandle[]>({
     type: 'candleSnapshot',
     req: { coin, interval: '1h', startTime, endTime: now },
   })
-  const candles = rawCandles.map(mod.parseCandle)
+  const candles: Candle[] = rawCandles.map(parseCandle)
 
   if (candles.length < 20) {
     return { coin, ok: false, error: `Only ${candles.length} candles`, setupGenerated: false }
   }
 
-  const closes = candles.map((c: any) => c.close)
+  const closes = candles.map((c) => c.close)
 
+  // 4. Fetch 30h funding history from Hyperliquid
   const fundingStart = now - FUNDING_WINDOW * MS_PER_HOUR
-  const fundingEntries = await hlPost<any[]>({
+  const fundingEntries = await hlPost<FundingHistoryEntry[]>({
     type: 'fundingHistory',
     coin,
     startTime: fundingStart,
   })
-  const fundingHistory = fundingEntries
-    .map((entry: any) => ({ time: entry.time, rate: parseFloat(entry.fundingRate) }))
-    .filter((s: any) => isFinite(s.rate))
+  const fundingHistory: FundingSnapshot[] = fundingEntries
+    .map((entry) => ({ time: entry.time, rate: parseFloat(entry.fundingRate) }))
+    .filter((s) => isFinite(s.rate))
 
+  // 5. Fetch OI history: try Coinalyze first, fall back to Supabase
   const oiHistory = await fetchOIFromCoinalyze(coin, now).catch(() => null)
     ?? await fetchOIFromSupabase(coin)
 
-  const hurst = mod.computeHurst(closes, 100)
-  const zScore = mod.computeZScore(closes, 20)
-  const funding = mod.computeFundingZScore(fundingHistory)
-  const oiDelta = mod.computeOIDelta(oiHistory, closes)
-  const volResult = mod.computeRealizedVol(closes)
-  const atr = mod.computeATR(candles)
+  // 6. Compute all signals
+  const hurst = computeHurst(closes, 100)
+  const zScore = computeZScore(closes, 20)
+  const funding = computeFundingZScore(fundingHistory)
+  const oiDelta = computeOIDelta(oiHistory, closes)
+  const volResult = computeRealizedVol(closes)
+  const atr = computeATR(candles)
   const volatility = { ...volResult, atr }
-  const entryGeometry = mod.computeEntryGeometry(closes, atr, 20)
-  const composite = mod.computeComposite(hurst, zScore, funding, oiDelta)
+  const entryGeometry = computeEntryGeometry(closes, atr, 20)
+  const composite = computeComposite(hurst, zScore, funding, oiDelta)
 
   const latestCandle = candles[candles.length - 1]
   const candleAge = latestCandle ? now - latestCandle.time : Infinity
   const isWarmingUp = candles.length < 100
   const isStale = candleAge > 2 * MS_PER_HOUR
 
-  const signals = {
+  const signals: AssetSignals = {
     coin,
     hurst,
     zScore,
@@ -222,7 +184,8 @@ async function processCoin(
     warmupProgress: Math.min(1, candles.length / 100),
   }
 
-  const setup = mod.computeSuggestedSetup(coin, signals, currentPrice, {
+  // 7. Generate setup
+  const setup = computeSuggestedSetup(coin, signals, currentPrice, {
     generatedAt: now,
     source: 'server',
   })
@@ -231,11 +194,13 @@ async function processCoin(
     return { coin, ok: true, setupGenerated: false }
   }
 
+  // 8. Dedup against recent server setups
   const isDuplicate = await checkDuplicate(coin, setup.direction, setup.entryPrice, now)
   if (isDuplicate) {
     return { coin, ok: true, setupGenerated: false }
   }
 
+  // 9. Persist setup
   const setupId = `${coin}-${setup.direction}-${now}-${randomSuffix()}`
   await persistServerSetup(setupId, coin, setup)
 
@@ -245,38 +210,37 @@ async function processCoin(
 // --- Hyperliquid API ---
 
 async function hlPost<T>(body: Record<string, unknown>): Promise<T> {
-  const r = await fetch(HYPERLIQUID_API, {
+  const res = await fetch(HYPERLIQUID_API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!r.ok) {
-    throw new Error(`Hyperliquid API error: ${r.status}`)
+  if (!res.ok) {
+    throw new Error(`Hyperliquid API error: ${res.status}`)
   }
-  return r.json() as Promise<T>
+  return res.json() as Promise<T>
 }
 
 // --- Coinalyze API ---
 
-async function fetchOIFromCoinalyze(coin: string, now: number): Promise<Array<{ time: number; oi: number }>> {
+async function fetchOIFromCoinalyze(coin: TrackedCoin, now: number): Promise<OISnapshot[]> {
   const apiKey = process.env.COINALYZE_API_KEY
   if (!apiKey) return []
 
   const symbol = COINALYZE_SYMBOLS[coin]
-  if (!symbol) return []
   const from = Math.floor((now - OI_LOOKBACK_HOURS * MS_PER_HOUR) / 1000)
   const to = Math.floor(now / 1000)
 
-  const r = await fetch(
+  const res = await fetch(
     `${COINALYZE_API}/open-interest-history?symbols=${symbol}&interval=hour_1&from=${from}&to=${to}`,
     { headers: { api_key: apiKey } },
   )
 
-  if (!r.ok) {
-    throw new Error(`Coinalyze API error: ${r.status}`)
+  if (!res.ok) {
+    throw new Error(`Coinalyze API error: ${res.status}`)
   }
 
-  const data = await r.json() as Array<{ history: Array<{ t: number; c: number }> }>
+  const data = await res.json() as Array<{ history: Array<{ t: number; c: number }> }>
   if (!Array.isArray(data) || data.length === 0 || !Array.isArray(data[0]?.history)) {
     return []
   }
@@ -309,15 +273,15 @@ async function persistOISnapshot(coin: string, oi: number, capturedAt: number): 
   })
 }
 
-async function fetchOIFromSupabase(coin: string): Promise<Array<{ time: number; oi: number }>> {
+async function fetchOIFromSupabase(coin: string): Promise<OISnapshot[]> {
   try {
-    const r = await fetch(
+    const res = await fetch(
       `${restBaseUrl()}/oi_snapshots?coin=eq.${coin}&order=captured_at.desc&limit=24`,
       { headers: supabaseHeaders() },
     )
-    if (!r.ok) return []
+    if (!res.ok) return []
 
-    const rows = (await r.json()) as Array<{ oi: number; captured_at: string }>
+    const rows = (await res.json()) as Array<{ oi: number; captured_at: string }>
     return rows.reverse().map((row) => ({
       time: new Date(row.captured_at).getTime(),
       oi: row.oi,
@@ -335,13 +299,13 @@ async function checkDuplicate(
 ): Promise<boolean> {
   try {
     const cutoff = new Date(now - SETUP_DEDUPE_WINDOW_MS).toISOString()
-    const r = await fetch(
+    const res = await fetch(
       `${restBaseUrl()}/server_setups?coin=eq.${coin}&direction=eq.${direction}&generated_at=gte.${cutoff}&order=generated_at.desc&limit=1`,
       { headers: supabaseHeaders() },
     )
-    if (!r.ok) return false
+    if (!res.ok) return false
 
-    const rows = (await r.json()) as Array<{ setup_json: { entryPrice: number } }>
+    const rows = (await res.json()) as Array<{ setup_json: { entryPrice: number } }>
     if (rows.length === 0) return false
 
     const lastEntry = rows[0]!.setup_json.entryPrice
@@ -352,8 +316,8 @@ async function checkDuplicate(
   }
 }
 
-async function persistServerSetup(id: string, coin: string, setup: any): Promise<void> {
-  const r = await fetch(`${restBaseUrl()}/server_setups`, {
+async function persistServerSetup(id: string, coin: string, setup: SuggestedSetup): Promise<void> {
+  const res = await fetch(`${restBaseUrl()}/server_setups`, {
     method: 'POST',
     headers: { ...supabaseHeaders(), Prefer: 'return=minimal' },
     body: JSON.stringify([{
@@ -364,8 +328,8 @@ async function persistServerSetup(id: string, coin: string, setup: any): Promise
       generated_at: new Date(setup.generatedAt).toISOString(),
     }]),
   })
-  if (!r.ok) {
-    throw new Error(`Failed to persist server setup: ${r.status}`)
+  if (!res.ok) {
+    throw new Error(`Failed to persist server setup: ${res.status}`)
   }
 }
 
