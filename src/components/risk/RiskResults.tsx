@@ -32,35 +32,29 @@ export function RiskResults() {
   const riskGuidance = getRiskWorkflowGuidance(outputs, riskStatus, entryGuidance)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <hr className="risk-divider" />
-      <div>
-        <div className="panel-header">
-          <div>
-            <div className="panel-kicker">Risk Verdict</div>
-            <h3 className="panel-title">Is this trade sized safely enough?</h3>
-          </div>
-          <SignalBadge label={outputs.tradeGradeLabel} color={outputs.tradeGrade} size="sm" />
-        </div>
-        <p className="panel-copy">{riskGuidance.summary}</p>
-        <div className="decision-strip__chips mt-3">
+      <div className="risk-verdict-strip">
+        <SignalBadge label={outputs.tradeGradeLabel} color={outputs.tradeGrade} size="sm" />
+        <p className="risk-verdict-strip__summary">{riskGuidance.summary}</p>
+        <div className="risk-verdict-strip__pills">
           <span className={`status-pill status-pill--${riskGuidance.tone}`}>
             {riskGuidance.label}
           </span>
-          <span className="inline-flex items-center rounded-full border border-border-subtle px-3 py-1 text-sm text-text-secondary">
+          <span className="inline-flex items-center rounded-full border border-border-subtle px-2 py-0.5 text-xs text-text-secondary">
             {outputs.usedCustomStop ? 'Custom stop' : 'Auto stop'}
           </span>
-          <span className="inline-flex items-center rounded-full border border-border-subtle px-3 py-1 text-sm text-text-secondary">
+          <span className="inline-flex items-center rounded-full border border-border-subtle px-2 py-0.5 text-xs text-text-secondary">
             {outputs.usedCustomTarget ? 'Custom target' : 'Auto target'}
           </span>
         </div>
-        {(outputs.stopValidationMessage || outputs.targetValidationMessage) && (
-          <div className="mt-3 space-y-2">
-            {outputs.stopValidationMessage && <WarningText text={outputs.stopValidationMessage} />}
-            {outputs.targetValidationMessage && <WarningText text={outputs.targetValidationMessage} />}
-          </div>
-        )}
       </div>
+      {(outputs.stopValidationMessage || outputs.targetValidationMessage) && (
+        <div className="space-y-1">
+          {outputs.stopValidationMessage && <WarningText text={outputs.stopValidationMessage} />}
+          {outputs.targetValidationMessage && <WarningText text={outputs.targetValidationMessage} />}
+        </div>
+      )}
 
       {outputs.hasInputError ? null : (
         <ExpandableSection sectionId="step3-advanced" title="advanced risk details">
