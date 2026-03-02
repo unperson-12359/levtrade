@@ -34,7 +34,6 @@
 
 :root {
   color-scheme: dark;
-  --sticky-top-offset: 5rem;
 }
 
 html,
@@ -229,14 +228,6 @@ button {
   min-width: 0;
 }
 
-.dashboard-risk__sticky {
-  position: sticky;
-  top: var(--sticky-top-offset);
-  max-height: calc(100vh - var(--sticky-top-offset) - 1rem);
-  overflow-y: auto;
-  min-width: 0;
-}
-
 .dashboard-rail {
   min-width: 0;
 }
@@ -259,94 +250,6 @@ button {
 
 .panel-shell--chart {
   padding: 1rem 1rem 1.1rem;
-}
-
-.chart-anchor {
-  position: sticky;
-  top: var(--sticky-top-offset);
-  z-index: 10;
-  min-width: 0;
-  border-radius: 1.25rem;
-  margin-bottom: 0.35rem;
-  isolation: isolate;
-}
-
-.chart-anchor::before,
-.chart-anchor::after {
-  content: "";
-  position: absolute;
-  top: 1rem;
-  bottom: 1rem;
-  width: 2.4rem;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.chart-anchor::before {
-  left: -0.2rem;
-  border-radius: 1.25rem 0 0 1.25rem;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--color-bg-primary) 92%, transparent),
-    color-mix(in srgb, var(--color-bg-card) 74%, transparent) 42%,
-    transparent
-  );
-}
-
-.chart-anchor::after {
-  right: -0.2rem;
-  border-radius: 0 1.25rem 1.25rem 0;
-  background: linear-gradient(
-    270deg,
-    color-mix(in srgb, var(--color-bg-primary) 92%, transparent),
-    color-mix(in srgb, var(--color-bg-card) 74%, transparent) 42%,
-    transparent
-  );
-}
-
-.chart-anchor__frame {
-  position: relative;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 22%),
-    var(--color-bg-card);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
-  border-color: color-mix(in srgb, var(--color-border-subtle) 80%, transparent);
-}
-
-.chart-anchor__frame > * {
-  position: relative;
-  z-index: 2;
-}
-
-.chart-anchor__frame::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025), transparent 10%, transparent 90%, rgba(255, 255, 255, 0.025)),
-    radial-gradient(circle at top center, rgba(59, 130, 246, 0.08), transparent 40%);
-  z-index: 0;
-}
-
-.chart-anchor__frame::after {
-  content: "";
-  position: absolute;
-  left: 0.85rem;
-  right: 0.85rem;
-  bottom: -1px;
-  height: 3.6rem;
-  border-radius: 0 0 1.1rem 1.1rem;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(18, 18, 26, 0),
-    rgba(18, 18, 26, 0.42) 48%,
-    color-mix(in srgb, var(--color-bg-primary) 88%, transparent)
-  );
-  z-index: 1;
 }
 
 .subpanel-shell,
@@ -1466,34 +1369,6 @@ button {
 
   .dashboard-shell {
     grid-template-columns: 1fr;
-  }
-
-  .chart-anchor {
-    position: static;
-    top: auto;
-    z-index: auto;
-    margin-bottom: 0;
-  }
-
-  .chart-anchor::before,
-  .chart-anchor::after {
-    display: none;
-  }
-
-  .chart-anchor__frame {
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
-  }
-
-  .chart-anchor__frame::before,
-  .chart-anchor__frame::after {
-    display: none;
-  }
-
-  .dashboard-risk__sticky {
-    position: static;
-    top: auto;
-    max-height: none;
-    overflow-y: visible;
   }
 
   .market-rail-grid,
