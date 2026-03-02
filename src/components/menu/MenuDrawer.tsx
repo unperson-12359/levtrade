@@ -43,6 +43,8 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
   const syncLabel = cloudSyncEnabled ? syncStatusLabel(syncStatus) : 'Off'
   const syncTone = cloudSyncEnabled ? syncStatusTone(syncStatus) : 'yellow'
 
+  const [expandedStep, setExpandedStep] = useState<number | null>(null)
+
   const connectionLabel =
     connectionStatus === 'connected' ? 'Connected' :
     connectionStatus === 'connecting' ? 'Connecting...' :
@@ -89,18 +91,36 @@ export function MenuDrawer({ onSyncNow }: MenuDrawerProps) {
           </button>
         </div>
 
-        {/* Compact Workflow */}
+        {/* Collapsible Workflow */}
         <div className="menu-drawer__section">
           <div className="menu-drawer__section-title">Workflow</div>
-          {steps.map((step) => (
-            <div key={step.step} className="menu-drawer__workflow-row">
-              <span className={`menu-drawer__dot menu-drawer__dot--${step.tone}`} />
-              <span className="menu-drawer__workflow-name">{step.title}</span>
-              <span className={`menu-drawer__workflow-label menu-drawer__workflow-label--${step.tone}`}>
-                {step.label}
-              </span>
-            </div>
-          ))}
+          {steps.map((step) => {
+            const isOpen = expandedStep === step.step
+            return (
+              <div key={step.step}>
+                <button
+                  type="button"
+                  className="menu-drawer__workflow-row"
+                  onClick={() => setExpandedStep(isOpen ? null : step.step)}
+                >
+                  <span className={`menu-drawer__dot menu-drawer__dot--${step.tone}`} />
+                  <span className="menu-drawer__workflow-name">{step.title}</span>
+                  <span className={`menu-drawer__workflow-label menu-drawer__workflow-label--${step.tone}`}>
+                    {step.label}
+                  </span>
+                  <span className={`menu-drawer__workflow-chevron ${isOpen ? 'menu-drawer__workflow-chevron--open' : ''}`}>
+                    ▸
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="menu-drawer__workflow-expand">
+                    <div className="menu-drawer__workflow-question">{step.question}</div>
+                    <div className="menu-drawer__workflow-detail">{step.detail}</div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
 
         {/* Cloud Sync */}

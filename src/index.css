@@ -967,7 +967,20 @@ button {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.35rem 0;
+  padding: 0.4rem 0.35rem;
+  width: 100%;
+  border: none;
+  background: none;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: background 150ms;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.menu-drawer__workflow-row:hover {
+  background: color-mix(in srgb, var(--color-bg-card-hover) 60%, transparent);
 }
 
 .menu-drawer__workflow-name {
@@ -982,11 +995,42 @@ button {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 
 .menu-drawer__workflow-label--green { color: var(--color-signal-green); }
 .menu-drawer__workflow-label--yellow { color: var(--color-signal-yellow); }
 .menu-drawer__workflow-label--red { color: var(--color-signal-red); }
+
+.menu-drawer__workflow-chevron {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: transform 150ms;
+  display: inline-block;
+}
+
+.menu-drawer__workflow-chevron--open {
+  transform: rotate(90deg);
+}
+
+.menu-drawer__workflow-expand {
+  padding: 0.2rem 0.35rem 0.5rem 1.6rem;
+}
+
+.menu-drawer__workflow-question {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.menu-drawer__workflow-detail {
+  margin-top: 0.2rem;
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
 
 .menu-drawer__sync-form {
   margin-top: 0.55rem;
