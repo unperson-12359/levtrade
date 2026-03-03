@@ -80,15 +80,16 @@ export function DashboardLayout() {
             </div>
             <PriceChart coin={coin} embedded showHeader={false} />
           </div>
-          <div className="steps-row">
-            <MarketRail />
-            <SignalSection />
-          </div>
         </section>
 
         <aside className="dashboard-risk">
           <RiskSection />
         </aside>
+
+        <div className="steps-row">
+          <MarketRail />
+          <SignalSection />
+        </div>
       </main>
     </div>
   )
