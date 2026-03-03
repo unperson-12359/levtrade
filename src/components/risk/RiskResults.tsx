@@ -59,7 +59,7 @@ export function RiskResults() {
 
       {outputs.hasInputError ? null : (
         <ExpandableSection sectionId="step3-advanced" title="advanced risk details">
-          <div className="space-y-4">
+          <div className="space-y-3">
             <section className="subpanel-shell">
               <div className="panel-kicker">Trade geometry</div>
               <div className="stat-grid">

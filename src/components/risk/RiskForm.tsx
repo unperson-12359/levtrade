@@ -80,7 +80,7 @@ export function RiskForm() {
   const targetPrice = useNumericInput(inputs.targetPrice ?? 0, (v) => updateInput('targetPrice', v > 0 ? v : null))
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Row 1: Asset + Direction */}
       <div className={`flex items-end gap-3 ${locked ? 'opacity-60 pointer-events-none' : ''}`}>
         <div className="flex-1 min-w-0">
