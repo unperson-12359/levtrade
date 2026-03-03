@@ -8,6 +8,7 @@ import {
   fetchCoinGeckoGlobal,
   fetchBinanceFundingRate,
   fetchBinanceOpenInterest,
+  fetchServerSetups,
 } from './api'
 import { HyperliquidWS } from './websocket'
 import { computeSignalsAtTime, generateBackfillTimestamps } from '../signals/backfill'
@@ -75,9 +76,10 @@ export class DataManager {
       this.store.getState().computeAllSignals()
       this.store.getState().generateAllSetups()
       this.store.getState().trackAllDecisionSnapshots()
+      void this.fetchServerSetupHistory()
 
       // Fetch external context (non-blocking — failures don't affect core data)
-      this.fetchAllExternalContext()
+      void this.fetchAllExternalContext()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch initial data'
       this.store.getState().addError(msg)
@@ -182,6 +184,21 @@ export class DataManager {
         this.store.getState().addError(msg)
       }
       await sleep(200)
+    }
+  }
+
+  private async fetchServerSetupHistory(): Promise<void> {
+    try {
+      const state = this.store.getState()
+      const latestTracked = state.trackedSetups[state.trackedSetups.length - 1]
+      const since = latestTracked ? new Date(latestTracked.setup.generatedAt).toISOString() : undefined
+      const setups = await fetchServerSetups(since)
+
+      if (setups.length > 0) {
+        this.store.getState().hydrateServerSetups(setups)
+      }
+    } catch {
+      // Non-critical: the dashboard still works with local history if server hydration fails.
     }
   }
 

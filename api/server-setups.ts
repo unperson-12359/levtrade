@@ -9,9 +9,9 @@ interface VercelResponse {
   json: (body: unknown) => void
 }
 
-const DEFAULT_DAYS = 7
-const MAX_DAYS = 30
-const MAX_FETCH_LIMIT = 1_000
+const DEFAULT_DAYS = 90
+const MAX_DAYS = 90
+const MAX_FETCH_LIMIT = 2_000
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const GLOBAL_SCOPE = 'global'
 
@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       generated_at: `gte.${since}`,
       order: 'generated_at.desc',
       limit: String(MAX_FETCH_LIMIT),
-      select: 'id,coin,direction,setup_json,outcomes_json,generated_at',
+      select: 'id,coin,direction,setup_json,outcomes_json,generated_at,updated_at',
     })
 
     const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/server_setups?${params.toString()}`, {

@@ -1,4 +1,6 @@
 import type { RawCandle, AssetContext, MetaResponse, FundingHistoryEntry, TrackedCoin } from '../types/market'
+import type { TrackedSetup } from '../types/setup'
+import type { CollectorHeartbeat } from '../types/collector'
 
 const API_URL = 'https://api.hyperliquid.xyz/info'
 
@@ -133,4 +135,33 @@ export async function fetchBinanceOpenInterest(coin: TrackedCoin): Promise<numbe
   const priceJson = (await priceRes.json()) as { markPrice?: string }
   const markPrice = parseFloat(priceJson.markPrice ?? '')
   return isFinite(markPrice) ? oi * markPrice : null
+}
+
+export async function fetchServerSetups(since?: string): Promise<TrackedSetup[]> {
+  try {
+    const params = new URLSearchParams()
+    if (since) {
+      params.set('since', since)
+    }
+
+    const res = await fetch(`/api/server-setups${params.size > 0 ? `?${params.toString()}` : ''}`)
+    if (!res.ok) return []
+
+    const payload = (await res.json()) as { ok?: boolean; setups?: TrackedSetup[] }
+    return payload.ok && Array.isArray(payload.setups) ? payload.setups : []
+  } catch {
+    return []
+  }
+}
+
+export async function fetchCollectorHeartbeat(): Promise<(CollectorHeartbeat & { status: string }) | null> {
+  try {
+    const res = await fetch('/api/collector-heartbeat')
+    if (!res.ok) return null
+
+    const payload = (await res.json()) as { ok?: boolean; heartbeat?: (CollectorHeartbeat & { status: string }) | null }
+    return payload.ok ? (payload.heartbeat ?? null) : null
+  } catch {
+    return null
+  }
 }

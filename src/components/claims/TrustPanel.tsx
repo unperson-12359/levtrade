@@ -1,5 +1,8 @@
-import { useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../../store'
+import { fetchCollectorHeartbeat } from '../../services/api'
+import { timeAgo } from '../../utils/format'
+import type { CollectorHeartbeat } from '../../types/collector'
 
 const STORAGE_KEY = 'levtrade-storage'
 
@@ -10,6 +13,53 @@ export function TrustPanel() {
   const clearSetupHistory = useStore((s) => s.clearSetupHistory)
   const clearTrackerHistory = useStore((s) => s.clearTrackerHistory)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [collectorHeartbeat, setCollectorHeartbeat] = useState<(CollectorHeartbeat & { status: string }) | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    void fetchCollectorHeartbeat().then((heartbeat) => {
+      if (active) {
+        setCollectorHeartbeat(heartbeat)
+      }
+    })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const collectorStatus = useMemo<{
+    label: string
+    tone: 'green' | 'yellow' | 'red'
+    lastRun: string
+  }>(() => {
+    if (!collectorHeartbeat) {
+      return { label: 'Unavailable', tone: 'yellow', lastRun: 'No server heartbeat' }
+    }
+
+    if (collectorHeartbeat.status === 'live') {
+      return {
+        label: 'Live',
+        tone: 'green',
+        lastRun: collectorHeartbeat.lastRunAt ? timeAgo(collectorHeartbeat.lastRunAt) : 'No recent run',
+      }
+    }
+
+    if (collectorHeartbeat.status === 'error') {
+      return {
+        label: 'Error',
+        tone: 'red',
+        lastRun: collectorHeartbeat.lastRunAt ? timeAgo(collectorHeartbeat.lastRunAt) : 'No recent run',
+      }
+    }
+
+    return {
+      label: 'Stale',
+      tone: 'yellow',
+      lastRun: collectorHeartbeat.lastRunAt ? timeAgo(collectorHeartbeat.lastRunAt) : 'No recent run',
+    }
+  }, [collectorHeartbeat])
 
   return (
     <section className="panel-shell trust-panel">
@@ -18,24 +68,31 @@ export function TrustPanel() {
           <div className="panel-kicker">Trust and storage</div>
           <h3 className="panel-title">What is actually being saved and scored</h3>
         </div>
-        <span className="status-pill status-pill--green">LOCAL ONLY</span>
+        <span className={`status-pill status-pill--${collectorStatus.tone}`}>SERVER HISTORY</span>
       </div>
 
       <p className="panel-copy">
-        This build stores state locally in this browser to avoid Vercel transfer limits. Setup history, tracker results,
-        and risk defaults persist after refresh, but they are not shared through the backend.
+        Historical setups and resolved outcomes can hydrate from the backend collector when it is available. Risk
+        defaults, tracker state, and local exports still persist in this browser.
       </p>
 
       <div className="stat-grid trust-panel__stats">
         <Stat label="Storage key" value={STORAGE_KEY} tone="yellow" />
-        <Stat label="Storage mode" value="This browser only" tone="green" />
-        <Stat label="Backend sync" value="Disabled" tone="green" />
-        <Stat label="Persistence" value="Refresh-safe local storage" tone="green" />
-        <Stat label="State model" value="Local-only app state" tone="green" />
+        <Stat label="History source" value="Server collector + local merge" tone="green" />
+        <Stat label="Collector status" value={collectorStatus.label} tone={collectorStatus.tone} />
+        <Stat label="Last server run" value={collectorStatus.lastRun} tone={collectorStatus.tone} />
+        <Stat label="Persistence" value="Supabase + browser cache" tone="green" />
+        <Stat label="State model" value="Server setups, local tracker/risk" tone="green" />
         <Stat label="Retention" value="90 days" tone="green" />
-        <Stat label="Saved scope" value="Setups + tracker + risk defaults" tone="green" />
+        <Stat label="Saved scope" value="Server setups + local tracker/risk" tone="green" />
         <Stat label="Resolution basis" value="4h / 24h / 72h from 1h candles" tone="green" />
       </div>
+
+      {collectorHeartbeat?.lastError && (
+        <div className="panel-copy">
+          Collector note: {collectorHeartbeat.lastError}
+        </div>
+      )}
 
       <div className="setup-history__filters">
         <button type="button" onClick={exportCsv} className="setup-history__filter">

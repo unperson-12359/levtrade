@@ -42,7 +42,7 @@ export function HowItWorks() {
           <Section title="Where the data comes from">
             <p>
               Prices stream in real time over a WebSocket connection to Hyperliquid.
-              Every 60 seconds, the dashboard also polls for:
+              While this browser tab is open, the dashboard also polls every 60 seconds for:
             </p>
             <ul className="guide-list">
               <li>1-hour candles (last 120 hours) for all 4 coins</li>
@@ -136,7 +136,7 @@ export function HowItWorks() {
               you can measure strategy accuracy over time.
             </p>
             <div className="guide-callout">
-              <div className="guide-callout__title">Every 60 seconds, for all 4 coins:</div>
+              <div className="guide-callout__title">Collector cadence: every 5 minutes on the server, with 60-second local refresh while this tab is open</div>
               <ol className="guide-list guide-list--numbered">
                 <li>Signals are recomputed from the latest candles and market data</li>
                 <li>If the decision for a coin is LONG or SHORT (not WAIT/AVOID), a suggested setup is generated</li>
@@ -146,15 +146,15 @@ export function HowItWorks() {
               </ol>
             </div>
             <p>
-              This runs in the background for <strong>all coins simultaneously</strong>. You can be
-              looking at BTC and the dashboard will still capture an ETH setup if ETH fires.
+              The Oracle collector runs this for <strong>all coins simultaneously</strong> even when your browser is
+              closed. When the site is open, the local dashboard still mirrors the same logic for live review.
             </p>
           </Section>
 
           <Section title="How outcomes are scored">
             <p>
               Each setup has three independent scoring windows. The resolution engine runs
-              every 60 seconds and also on app startup.
+              continuously on the collector and the browser also refreshes resolutions whenever the site is open.
             </p>
             <div className="guide-grid">
               <GridCard
@@ -222,15 +222,15 @@ export function HowItWorks() {
 
           <Section title="Storage model">
             <p>
-              State now stays local in this browser to avoid Vercel transfer limits. The dashboard keeps using live
-              Hyperliquid market data, but your tracked setups, outcomes, and risk defaults are saved only in browser
-              storage unless you export them.
+              LevTrade now uses a split model. Long-term setup history is collected on the Oracle-backed server
+              collector and stored in Supabase, while browser-local state still holds your live tracker details and
+              risk defaults.
             </p>
             <ul className="guide-list">
-              <li><strong>What is stored:</strong> setup history, signal tracker records, outcomes, and risk input defaults</li>
-              <li><strong>Where it lives:</strong> in this browser under the app storage key, so refreshes keep your data</li>
-              <li><strong>Sharing:</strong> there is no automatic cross-device sync in this build; use Export JSON if you want a manual backup</li>
-              <li><strong>Fallback:</strong> because the app is local-only, your history does not depend on a backend session staying alive</li>
+              <li><strong>Server-collected:</strong> historical setup suggestions, resolved 4h / 24h / 72h outcomes, and collector heartbeat</li>
+              <li><strong>Browser-local:</strong> live tracker records, risk input defaults, UI state, and imported/exported cache</li>
+              <li><strong>Where it lives:</strong> server history lives in Supabase; local state stays under the app storage key in this browser</li>
+              <li><strong>Fallback:</strong> if the server history endpoint is unavailable, the dashboard still works with local cached history</li>
               <li><strong>Retention:</strong> 90 days. Older setups are pruned automatically</li>
             </ul>
           </Section>
@@ -239,8 +239,9 @@ export function HowItWorks() {
             <div className="guide-callout">
               <div className="guide-callout__title">For the most accurate track record:</div>
               <ul className="guide-list">
-                <li><strong>Keep the tab open</strong> - the dashboard captures setups and resolves outcomes while running. More uptime means fewer gaps.</li>
-                <li><strong>Export occasionally</strong> - if you care about preserving your track record across browsers or devices, export JSON from the trust panel.</li>
+                <li><strong>Keep the collector healthy</strong> - the Oracle VM collector samples the market every 5 minutes and resolves outcomes without needing this browser open.</li>
+                <li><strong>Open the site to review</strong> - the frontend hydrates server history on load, so you can inspect fresh setups and autopsies after time away.</li>
+                <li><strong>Export occasionally</strong> - if you care about preserving your local tracker notes and local cache, export JSON from the trust panel.</li>
                 <li><strong>Wait a few days</strong> - a meaningful sample needs 20+ setups across different market conditions. The tier breakdown shows whether high-confidence setups outperform low-confidence ones.</li>
                 <li><strong>Check all 3 windows</strong> - a setup that loses at 4h might win at 24h or 72h, which helps you judge timeframe fit.</li>
               </ul>

@@ -117,13 +117,15 @@ export function MenuDrawer() {
         <div className="menu-drawer__section">
           <div className="menu-drawer__section-title">
             Storage
-            <span className="status-pill status-pill--green menu-drawer__inline-pill">LOCAL</span>
+            <span className="status-pill status-pill--green menu-drawer__inline-pill">SERVER HISTORY</span>
           </div>
           <div className="menu-drawer__muted">
-            This build now runs local-only to avoid Vercel transfer limits. Your setups, tracker history, and risk defaults stay in this browser.
+            Historical setups and resolved outcomes can hydrate from the Oracle-backed collector. Tracker state and
+            risk defaults still stay local to this browser.
           </div>
           <div className="menu-drawer__muted">
-            Data stays available after refresh through browser storage.
+            Browser storage still keeps your local state after refresh, while server history keeps growing even when
+            this tab is closed.
           </div>
         </div>
       </nav>

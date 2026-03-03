@@ -50,7 +50,7 @@ export function TopBar() {
         </div>
 
         <ConnectionIndicator />
-        <span className="topbar-sync-dot topbar-sync-dot--green" title="Storage: local browser only" />
+        <span className="topbar-sync-dot topbar-sync-dot--green" title="History: server-backed collector + local browser cache" />
       </div>
     </header>
   )

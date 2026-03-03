@@ -1589,3 +1589,88 @@ Stop the site from consuming Vercel Fast Origin Transfer by removing the live fr
   - confirming the menu/trust copy clearly communicates local-only storage
   - verifying historical review still works after a hard refresh on production
   - validating that no stale browser tab is still running an older always-on sync bundle
+
+---
+
+## 2026-03-03 - Codex  Oracle VM Collector Foundation
+
+### Goal
+Move long-term setup collection off the browser and onto the existing Oracle VM so setup suggestions and outcomes can keep accumulating while the frontend is closed.
+
+### Files Changed
+- `.env.collector.example`
+- `.gitignore`
+- `COLLAB_LOG.md`
+- `api/collector-heartbeat.ts`
+- `api/compute-signals.ts`
+- `api/server-setups.ts`
+- `deploy/oracle/README.md`
+- `deploy/oracle/levtrade-collector.service`
+- `package.json`
+- `scripts/collector-loop.ts`
+- `scripts/run-collector.ts`
+- `src/components/claims/TrustPanel.tsx`
+- `src/components/guide/HowItWorks.tsx`
+- `src/components/menu/MenuDrawer.tsx`
+- `src/components/topbar/TopBar.tsx`
+- `src/server/collector/runCollector.ts`
+- `src/services/api.ts`
+- `src/services/dataManager.ts`
+- `src/store/setupSlice.ts`
+- `src/types/collector.ts`
+- `supabase/collector_heartbeat.sql`
+- `supabase/oi_snapshots.sql`
+- `supabase/server_setups.sql`
+
+### What changed
+- Extracted the server collection flow into `src/server/collector/runCollector.ts` so the same logic can run from Vercel or directly on the Oracle VM
+- Reduced `api/compute-signals.ts` to a thin wrapper that validates the cron secret and delegates to `runCollector()`
+- Added standalone VM runner scripts:
+  - `scripts/run-collector.ts` for one-shot execution
+  - `scripts/collector-loop.ts` for the 5-minute always-on loop
+- Added Oracle deployment assets:
+  - `deploy/oracle/levtrade-collector.service`
+  - `deploy/oracle/README.md`
+  - `.env.collector.example`
+- Added collector heartbeat support through:
+  - `api/collector-heartbeat.ts`
+  - `supabase/collector_heartbeat.sql`
+  - trust-panel status display for last server run / heartbeat health
+- Added history hydration back into the frontend through `fetchServerSetups()` and `hydrateServerSetups()` without reintroducing old full app-state sync
+- Updated setup-store merge logic so server-collected setups merge into the existing `trackedSetups` model by deterministic ID / semantic setup key
+- Expanded `server_setups.sql` to match the collector runtime with `outcomes_json`, `updated_at`, and `scope = 'global'`
+- Added `supabase/oi_snapshots.sql` for server-side OI history persistence
+- Updated menu, trust, methodology, and topbar copy to describe the new split model:
+  - server-backed historical setup collection
+  - browser-local tracker/risk/UI state
+
+### Build Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run build:collector`: PASS
+- Errors: `0`
+- Warnings:
+  - Vite chunk-size warning: main bundle is `513.80 kB` after minification
+- Output sizes:
+  - `dist/index.html`: `0.46 kB` (gzip `0.31 kB`)
+  - `dist/assets/index-DtZI_nSQ.css`: `77.33 kB` (gzip `12.81 kB`)
+  - `dist/assets/HowItWorks-DPqvE5Mb.js`: `13.01 kB` (gzip `4.44 kB`)
+  - `dist/assets/AnalyticsPage-DULhyQ8q.js`: `24.10 kB` (gzip `6.26 kB`)
+  - `dist/assets/index-gTjggHRE.js`: `513.80 kB` (gzip `158.58 kB`)
+  - `dist-server/run-collector.mjs`: `57.6 kB`
+  - `dist-server/collector-loop.mjs`: `58.0 kB`
+
+### Notes
+- The old `/api/sync` app-state sync path was not re-enabled; this pass only restores read-only server setup history hydration.
+- `dist-server/` is now ignored; the collector runtime should be built on the Oracle VM during deployment rather than committed.
+- The collector uses `scope = 'global'` and is intentionally single-dataset for long-term accuracy tracking.
+
+### Follow-up / Remaining Verification
+- Claude still needs to:
+  - apply the new Supabase SQL files in the target project
+  - deploy the collector to the Oracle VM over SSH
+  - create and start the `systemd` service
+  - verify `collector_heartbeat` and `server_setups` rows are updating on the live backend
+- Manual browser QA is still recommended for:
+  - trust-panel heartbeat display when the heartbeat endpoint is unavailable
+  - startup hydration of server-collected setups into analytics/autopsy history
+  - copy clarity around server-backed history vs browser-local tracker state
