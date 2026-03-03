@@ -1,184 +1,121 @@
-import { usePositionRisk } from '../../hooks/usePositionRisk'
-import { useEntryDecision } from '../../hooks/useEntryDecision'
+import type { ReactNode } from 'react'
+import { useSuggestedPosition } from '../../hooks/useSuggestedPosition'
 import { formatPercent, formatPrice, formatUSD } from '../../utils/format'
 import { formatRR } from '../../utils/setupFormat'
-import { SIGNAL_COLORS, SIGNAL_TEXT_CLASSES } from '../../utils/colors'
-import { getEntryWorkflowGuidance, getMarketWorkflowGuidance, getRiskWorkflowGuidance } from '../../utils/workflowGuidance'
+import { SIGNAL_TEXT_CLASSES } from '../../utils/colors'
 import { SignalBadge } from '../shared/SignalBadge'
 import { ExpandableSection } from '../shared/ExpandableSection'
 import { JargonTerm } from '../shared/JargonTerm'
-import { useSignals } from '../../hooks/useSignals'
 
 export function RiskResults() {
-  const { inputs, outputs, isReady, riskStatus } = usePositionRisk()
-  const { signals } = useSignals(inputs.coin)
-  const decision = useEntryDecision(inputs.coin)
+  const composition = useSuggestedPosition()
+  const { setup, outputs, inputs } = composition
 
-  if (!isReady || !outputs) {
+  if (composition.status === 'no-setup' || !setup) {
     return (
-      <>
+      <div className="space-y-3 opacity-70">
         <hr className="risk-divider" />
-        <div className="text-base text-text-muted">Enter trade parameters to see live risk geometry.</div>
-      </>
+        <div className="workflow-summary-card">
+          <div className="workflow-summary-card__kicker">Position composition unavailable</div>
+          <p className="workflow-summary-card__copy">
+            Step 3 unlocks only when Step 2 identifies a valid long or short setup.
+          </p>
+        </div>
+      </div>
     )
   }
 
-  const isImmune = outputs.effectiveImmune
-  const hasPositionSizeInput = inputs.positionSize > 0
-  const liqColor = isImmune || outputs.liquidationDistance > 20 ? 'green' as const : outputs.liquidationDistance > 10 ? 'yellow' as const : 'red' as const
-  const rrColor = outputs.rrRatio >= 3 ? 'green' as const : outputs.rrRatio >= 2 ? 'yellow' as const : 'red' as const
-  const lossColor = outputs.lossAtStopPercent < 1 ? 'green' as const : outputs.lossAtStopPercent < 2 ? 'yellow' as const : 'red' as const
-  const marketGuidance = getMarketWorkflowGuidance(signals)
-  const entryGuidance = getEntryWorkflowGuidance(signals, decision, marketGuidance)
-  const riskGuidance = getRiskWorkflowGuidance(outputs, riskStatus, entryGuidance)
+  if (composition.status === 'invalid' || !outputs || outputs.hasInputError) {
+    return (
+      <div className="space-y-3">
+        <hr className="risk-divider" />
+        <div className="workflow-summary-card">
+          <div className="workflow-summary-card__kicker">Position composition needs capital</div>
+          <p className="workflow-summary-card__copy">{composition.display.explanation}</p>
+        </div>
+      </div>
+    )
+  }
+
+  const liqColor =
+    outputs.effectiveImmune || outputs.liquidationDistance > 20
+      ? 'green'
+      : outputs.liquidationDistance > 10
+        ? 'yellow'
+        : 'red'
+  const rrColor = outputs.rrRatio >= 3 ? 'green' : outputs.rrRatio >= 2 ? 'yellow' : 'red'
+  const lossColor =
+    outputs.lossAtStopPercent < 1 ? 'green' : outputs.lossAtStopPercent < 2 ? 'yellow' : 'red'
+  const targetGainColor = outputs.profitAtTargetPercent >= 2 ? 'green' : outputs.profitAtTargetPercent >= 1 ? 'yellow' : 'red'
 
   return (
     <div className="space-y-3">
       <hr className="risk-divider" />
+
       <div className="risk-verdict-strip">
         <SignalBadge label={outputs.tradeGradeLabel} color={outputs.tradeGrade} size="sm" />
-        <p className="risk-verdict-strip__summary">{riskGuidance.summary}</p>
+        <p className="risk-verdict-strip__summary">{outputs.tradeGradeExplanation}</p>
         <div className="risk-verdict-strip__pills">
-          <span className={`status-pill status-pill--${riskGuidance.tone}`}>
-            {riskGuidance.label}
+          <span className={`status-pill status-pill--${setup.direction === 'long' ? 'green' : 'red'}`}>
+            {setup.direction.toUpperCase()}
           </span>
+          <span className={`status-pill status-pill--${outputs.tradeGrade}`}>{outputs.tradeGradeLabel}</span>
           <span className="inline-flex items-center rounded-full border border-border-subtle px-2 py-0.5 text-xs text-text-secondary">
-            Stop {formatPrice(outputs.effectiveStopPrice, inputs.coin)}
-          </span>
-          <span className="inline-flex items-center rounded-full border border-border-subtle px-2 py-0.5 text-xs text-text-secondary">
-            Target {formatPrice(outputs.effectiveTargetPrice, inputs.coin)}
+            Capital {formatUSD(inputs.accountSize)}
           </span>
         </div>
       </div>
-      {(outputs.stopValidationMessage || outputs.targetValidationMessage) && (
-        <div className="space-y-1">
-          {outputs.stopValidationMessage && <WarningText text={outputs.stopValidationMessage} />}
-          {outputs.targetValidationMessage && <WarningText text={outputs.targetValidationMessage} />}
+
+      <p className="panel-copy">
+        Derived automatically from the current {setup.coin} setup and your account capital.
+      </p>
+
+      <div className="stat-grid">
+        <Stat label="Capital used" value={formatUSD(inputs.positionSize)} tone="yellow" />
+        <Stat label="Suggested leverage" value={`${inputs.leverage.toFixed(1)}x`} tone="yellow" />
+        <Stat label="Notional" value={formatUSD(outputs.notionalValue)} tone="green" />
+        <Stat label="Account hit at stop" value={formatPercent(outputs.lossAtStopPercent, 1)} tone={lossColor} />
+        <Stat label={<JargonTerm term="R:R">Reward vs risk</JargonTerm>} value={formatRR(outputs.rrRatio)} tone={rrColor} />
+        <Stat
+          label="Liquidation safety"
+          value={outputs.effectiveImmune ? 'IMMUNE' : formatPercent(outputs.liquidationDistance, 1)}
+          tone={liqColor}
+        />
+        <Stat label="Target gain" value={formatPercent(outputs.profitAtTargetPercent, 1)} tone={targetGainColor} />
+        <Stat label="Trade timeframe" value={setup.timeframe} tone="yellow" />
+      </div>
+
+      <ExpandableSection sectionId="step3-advanced" title="advanced composition details">
+        <div className="space-y-3">
+          <section className="subpanel-shell">
+            <div className="panel-kicker">Setup geometry</div>
+            <div className="stat-grid">
+              <Stat label="Entry" value={formatPrice(setup.entryPrice, setup.coin)} tone="yellow" />
+              <Stat label="Stop" value={formatPrice(setup.stopPrice, setup.coin)} tone="red" />
+              <Stat label="Target" value={formatPrice(setup.targetPrice, setup.coin)} tone="green" />
+              <Stat label="Mean target" value={formatPrice(setup.meanReversionTarget, setup.coin)} tone="yellow" />
+            </div>
+          </section>
+
+          <section className="subpanel-shell">
+            <div className="panel-kicker">Capital geometry</div>
+            <div className="stat-grid">
+              <Stat label="Risk at stop" value={formatUSD(outputs.lossAtStop)} tone={lossColor} />
+              <Stat label="Target payout" value={formatUSD(outputs.profitAtTarget)} tone="green" />
+              <Stat label="Liquidation" value={outputs.effectiveImmune ? 'IMMUNE' : formatPrice(outputs.liquidationPrice, setup.coin)} tone={liqColor} />
+              <Stat label="Distance" value={outputs.effectiveImmune ? '100%+' : formatPercent(outputs.liquidationDistance, 1)} tone={liqColor} />
+            </div>
+            {outputs.liquidationFallbackExplanation && (
+              <div className="panel-copy">{outputs.liquidationFallbackExplanation}</div>
+            )}
+          </section>
         </div>
-      )}
-
-      {outputs.hasInputError ? null : (
-        <ExpandableSection sectionId="step3-advanced" title="advanced risk details">
-          <div className="space-y-3">
-            <section className="subpanel-shell">
-              <div className="panel-kicker">Trade geometry</div>
-              <div className="stat-grid">
-                <Stat label="Risk at stop" value={formatUSD(outputs.lossAtStop)} tone={lossColor} />
-                <Stat label="Target payout" value={formatUSD(outputs.profitAtTarget)} tone="green" />
-                <Stat label="Account hit" value={formatPercent(outputs.lossAtStopPercent, 1)} tone={lossColor} />
-                <Stat label="Account gain" value={formatPercent(outputs.profitAtTargetPercent, 1)} tone="green" />
-              </div>
-              <div className="mt-3">
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="text-text-secondary">Risk</span>
-                  <span className={`font-mono font-bold ${SIGNAL_TEXT_CLASSES[rrColor]}`}>
-                    <JargonTerm term="R:R" /> {formatRR(outputs.rrRatio)}
-                  </span>
-                  <span className="text-text-secondary">Reward</span>
-                </div>
-                <div className="flex h-3 gap-1 overflow-hidden rounded-full">
-                  <div
-                    style={{
-                      width: `${(1 / (1 + outputs.rrRatio)) * 100}%`,
-                      backgroundColor: SIGNAL_COLORS.red,
-                      minWidth: '12%',
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: `${(outputs.rrRatio / (1 + outputs.rrRatio)) * 100}%`,
-                      backgroundColor: SIGNAL_COLORS.green,
-                      minWidth: '12%',
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-text-muted">Effective stop</span>
-                  <span className="font-mono text-signal-red">{formatPrice(outputs.effectiveStopPrice, inputs.coin)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-text-muted">Effective target</span>
-                  <span className="font-mono text-signal-green">{formatPrice(outputs.effectiveTargetPrice, inputs.coin)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-text-muted">Suggested stop</span>
-                  <span className="font-mono text-text-secondary">{formatPrice(outputs.suggestedStopPrice, inputs.coin)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-text-muted">Suggested target</span>
-                  <span className="font-mono text-text-secondary">{formatPrice(outputs.suggestedTargetPrice, inputs.coin)}</span>
-                </div>
-              </div>
-            </section>
-
-            <section className="subpanel-shell">
-              <div className="panel-kicker"><JargonTerm term="Liquidation">Liquidation</JargonTerm> and size</div>
-              <div className="stat-grid">
-                <Stat
-                  label={<JargonTerm term="Liquidation" />}
-                  value={!hasPositionSizeInput ? 'ENTER SIZE' : isImmune ? 'IMMUNE' : formatPrice(outputs.liquidationPrice, inputs.coin)}
-                  tone={!hasPositionSizeInput ? 'yellow' : liqColor}
-                />
-                <Stat
-                  label="Distance"
-                  value={!hasPositionSizeInput ? '--' : isImmune ? '100%+' : formatPercent(outputs.liquidationDistance, 1)}
-                  tone={!hasPositionSizeInput ? 'yellow' : liqColor}
-                />
-                <Stat label="1% margin" value={formatUSD(outputs.suggestedPositionSize)} tone="green" />
-                <Stat label="1% leverage" value={`${outputs.suggestedLeverage.toFixed(1)}x`} tone="green" />
-              </div>
-              <div className="mt-3 space-y-2 text-sm text-text-secondary">
-                {!hasPositionSizeInput ? (
-                  <div>{outputs.liquidationFallbackExplanation}</div>
-                ) : outputs.hasLiquidation ? (
-                  <div>
-                    Current setup liquidates at {formatPrice(outputs.liquidationPrice, inputs.coin)}, about{' '}
-                    {formatPercent(outputs.liquidationDistance, 1)} from entry.
-                  </div>
-                ) : outputs.minLeverageForLiquidation !== null && outputs.liquidationPriceAtMinLeverage !== null ? (
-                  <>
-                    <div>{outputs.liquidationFallbackExplanation}</div>
-                    <div className="inline-flex flex-wrap items-center gap-2">
-                      <span className="warning-chip warning-chip--yellow">
-                        Min leverage with liq: {outputs.minLeverageForLiquidation.toFixed(1)}x
-                      </span>
-                      <span className="warning-chip warning-chip--yellow">
-                        Liq there: {formatPrice(outputs.liquidationPriceAtMinLeverage, inputs.coin)}
-                      </span>
-                      {outputs.liquidationDistanceAtMinLeverage !== null && (
-                        <span className="warning-chip warning-chip--yellow">
-                          Distance there: {formatPercent(outputs.liquidationDistanceAtMinLeverage, 1)}
-                        </span>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    This setup stays non-liquidatable even through the fallback leverage search. The notional is too conservative relative to account size.
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        </ExpandableSection>
-      )}
+      </ExpandableSection>
     </div>
   )
 }
 
-function WarningText({ text }: { text: string }) {
-  return <div className="warning-chip warning-chip--red">{text}</div>
-}
-
-interface StatProps {
-  label: React.ReactNode
-  value: string
-  tone: 'green' | 'yellow' | 'red'
-}
-
-function Stat({ label, value, tone }: StatProps) {
+function Stat({ label, value, tone }: { label: ReactNode; value: string; tone: 'green' | 'yellow' | 'red' }) {
   return (
     <div className="stat-card">
       <div className="stat-label">{label}</div>

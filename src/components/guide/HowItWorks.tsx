@@ -116,18 +116,22 @@ export function HowItWorks() {
             </div>
           </Section>
 
-          <Section title="Step 3 - Risk Sizing">
+          <Section title="Step 3 - Position Composition">
             <p>
-              The risk panel lets you verify position size, leverage, and liquidation
-              before entering. You input your account size and the dashboard computes:
+              The position composition panel turns the current suggested setup into an execution plan for your capital.
+              You only input account size. LevTrade then derives:
             </p>
             <ul className="guide-list">
-              <li><strong>Account hit at stop</strong> - what percent of your account you lose if stopped out</li>
-              <li><strong>R:R ratio</strong> - reward-to-risk. Green at 3:1+, yellow at 2:1+, red below</li>
+              <li><strong>Capital used</strong> - margin allocated from your account size</li>
+              <li><strong>Suggested leverage</strong> - leverage derived from the setup geometry and ATR</li>
+              <li><strong>Notional size</strong> - effective position size after leverage</li>
+              <li><strong>Account hit at stop</strong> - what percent of your account is lost if the setup fails</li>
               <li><strong>Liquidation price and distance</strong> - how far price must move against you to liquidate</li>
-              <li><strong>Suggested leverage</strong> - the leverage that risks about 1% of your account at the stop</li>
-              <li><strong>Trade grade</strong> - overall assessment combining signal quality and risk geometry</li>
+              <li><strong>Trade grade</strong> - overall assessment of the final account-sized composition</li>
             </ul>
+            <p>
+              If Step 2 does not identify a valid setup, Step 3 stays disabled. There is no manual fallback form.
+            </p>
           </Section>
 
           <Section title="How setups are captured">

@@ -7,7 +7,7 @@ export function RiskSection() {
     <aside className="risk-stack">
       <section className="panel-shell">
         <StepLabel step={3} />
-        <h2 className="panel-title" style={{ marginTop: '0.25rem' }}>Size the trade</h2>
+        <h2 className="panel-title" style={{ marginTop: '0.25rem' }}>Position composition</h2>
         <RiskForm />
         <RiskResults />
       </section>

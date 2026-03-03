@@ -2179,3 +2179,39 @@ Eliminate the remaining 1-setup cross-device mismatch by making setup-history an
 ### Remaining risks / follow-up
 - Legacy local-only setups will still remain on a device, but they no longer affect canonical setup-history counts once server history is available
 - Signal accuracy still has its own canonical/fallback path and should be reviewed separately if cross-device parity remains off there
+
+---
+
+## 2026-03-03 18:25 - Codex - Automatic Position Composition
+
+### Goal
+Convert Step 3 from a manual risk form into a setup-driven position composition card where LevTrade suggests the full position automatically and the user only enters account capital.
+
+### Files changed
+- `src/types/position.ts`
+- `src/hooks/useSuggestedPosition.ts`
+- `src/hooks/usePositionRisk.ts`
+- `src/components/risk/RiskForm.tsx`
+- `src/components/risk/RiskResults.tsx`
+- `src/components/risk/RiskSection.tsx`
+- `src/components/setup/SetupCard.tsx`
+- `src/components/guide/HowItWorks.tsx`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added a new `SuggestedPositionComposition` type and `useSuggestedPosition()` hook to derive Step 3 from the current suggested setup plus account capital
+- Updated `usePositionRisk()` to follow the suggested setup automatically instead of relying on editable manual trade geometry
+- Rebuilt `RiskForm` into a capital-only input with preset chips and read-only setup identity details
+- Rebuilt `RiskResults` into an automatic position composition surface showing capital used, leverage, notional, liquidation, account hit at stop, and other account-sized outputs
+- Renamed Step 3 to `Position composition`
+- Removed duplicate account-specific risk metrics from `SetupCard` so Step 2 stays the trade idea and Step 3 becomes the account-sized execution answer
+- Updated methodology copy to explain that Step 3 is automatic and disables itself when there is no valid setup
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+
+### Remaining risks / follow-up
+- The existing risk store still persists legacy geometry fields for compatibility, but the Step 3 UI no longer uses them directly
+- `suggestedPositionSize` on `SuggestedSetup` remains legacy data; Step 3 now uses account capital as the margin base and the setup's leverage suggestion for the real composition
