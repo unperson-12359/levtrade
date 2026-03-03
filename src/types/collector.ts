@@ -9,6 +9,8 @@ export interface CollectorCoinResult {
   setupGenerated: boolean
   setupId?: string
   outcomesResolved: number
+  signalsTracked: number
+  signalsResolved: number
 }
 
 export interface CollectorRunResult {

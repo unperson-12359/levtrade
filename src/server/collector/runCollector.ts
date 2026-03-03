@@ -12,6 +12,11 @@ import {
   computeSuggestedSetup,
   resolveSetupWindow,
   emptyOutcome,
+  buildTrackedRecords,
+  shouldTrackRecord,
+  scoreDirection,
+  emptySignalOutcome,
+  TRACKER_WINDOWS,
 } from '../../signals/api-entry'
 import type {
   TrackedCoin,
@@ -23,8 +28,10 @@ import type {
 } from '../../types/market'
 import type { AssetSignals } from '../../types/signals'
 import type { SuggestedSetup, SetupOutcome, SetupWindow } from '../../types/setup'
+import type { TrackedSignalRecord, TrackedSignalOutcome, TrackerWindow } from '../../types/tracker'
 import type { CollectorCoinResult, CollectorRunResult } from '../../types/collector'
 import { buildSetupId } from '../../utils/identity'
+import { floorToHour } from '../../utils/candleTime'
 
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 const HYPERLIQUID_API = 'https://api.hyperliquid.xyz/info'
@@ -36,7 +43,11 @@ const CANDLE_COUNT = 120
 const FUNDING_WINDOW = 30
 const OI_LOOKBACK_HOURS = 24
 const SETUP_DEDUPE_WINDOW_MS = 4 * MS_PER_HOUR
+const SIGNAL_DEDUPE_WINDOW_MS = 4 * MS_PER_HOUR
 const ENTRY_SIMILARITY_THRESHOLD = 0.02
+const SIGNAL_DEDUPE_FETCH_LIMIT = 400
+const SIGNAL_RESOLUTION_PAGE_SIZE = 500
+const SIGNAL_RESOLUTION_MAX_ROWS = 5_000
 
 const COINALYZE_SYMBOLS: Record<TrackedCoin, string> = {
   BTC: 'BTCUSD_PERP.H',
@@ -75,6 +86,8 @@ export async function runCollector(now = Date.now()): Promise<CollectorRunResult
           error: err instanceof Error ? err.message : `Failed to process ${coin}`,
           setupGenerated: false,
           outcomesResolved: 0,
+          signalsTracked: 0,
+          signalsResolved: 0,
         })
       }
       await sleep(300)
@@ -99,7 +112,7 @@ async function processCoin(
 ): Promise<CollectorCoinResult> {
   const currentPrice = parseFloat(mids[coin] ?? '')
   if (!isFinite(currentPrice) || currentPrice <= 0) {
-    return { coin, ok: false, error: 'No mid price', setupGenerated: false, outcomesResolved: 0 }
+    return { coin, ok: false, error: 'No mid price', setupGenerated: false, outcomesResolved: 0, signalsTracked: 0, signalsResolved: 0 }
   }
 
   const coinIdx = universe.findIndex((u) => u.name === coin)
@@ -117,7 +130,7 @@ async function processCoin(
   })
   const candles: Candle[] = rawCandles.map(parseCandle)
   if (candles.length < 20) {
-    return { coin, ok: false, error: `Only ${candles.length} candles`, setupGenerated: false, outcomesResolved: 0 }
+    return { coin, ok: false, error: `Only ${candles.length} candles`, setupGenerated: false, outcomesResolved: 0, signalsTracked: 0, signalsResolved: 0 }
   }
 
   const fundingStart = now - FUNDING_WINDOW * MS_PER_HOUR
@@ -180,7 +193,8 @@ async function processCoin(
   }
 
   const outcomesResolved = await resolveServerOutcomes(scope, coin, candles, now)
-  return { coin, ok: true, setupGenerated, setupId, outcomesResolved }
+  const signalResult = await trackSignalsForCoin(scope, coin, signals, currentPrice, candles, now)
+  return { coin, ok: true, setupGenerated, setupId, outcomesResolved, signalsTracked: signalResult.tracked, signalsResolved: signalResult.resolved }
 }
 
 function validateCollectorEnv(): string | null {
@@ -422,6 +436,210 @@ async function updateCollectorHeartbeat(
     },
     body: JSON.stringify([payload]),
   })
+}
+
+async function trackSignalsForCoin(
+  scope: string,
+  coin: TrackedCoin,
+  signals: AssetSignals,
+  referencePrice: number,
+  candles: Candle[],
+  now: number,
+): Promise<{ tracked: number; resolved: number }> {
+  try {
+    if (!isFinite(referencePrice) || referencePrice <= 0 || signals.isWarmingUp || signals.isStale) {
+      return { tracked: 0, resolved: 0 }
+    }
+
+    const records = buildTrackedRecords(coin, signals, referencePrice)
+    const recentRecords = await fetchRecentTrackedSignals(scope, coin, now)
+    const newRecords = records.filter((record) => shouldTrackRecord(record, recentRecords))
+
+    let tracked = 0
+    for (const record of newRecords) {
+      await persistTrackedSignal(record.id, scope, coin, record, now)
+      tracked++
+    }
+
+    const resolved = await resolveSignalOutcomes(scope, coin, candles, now)
+    return { tracked, resolved }
+  } catch {
+    return { tracked: 0, resolved: 0 }
+  }
+}
+
+async function fetchRecentTrackedSignals(
+  scope: string,
+  coin: string,
+  now: number,
+): Promise<TrackedSignalRecord[]> {
+  try {
+    const cutoff = new Date(now - SIGNAL_DEDUPE_WINDOW_MS).toISOString()
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      coin: `eq.${coin}`,
+      recorded_at: `gte.${cutoff}`,
+      order: 'recorded_at.desc',
+      limit: String(SIGNAL_DEDUPE_FETCH_LIMIT),
+      select: 'signal_json',
+    })
+    const res = await fetch(`${restBaseUrl()}/tracked_signals?${params.toString()}`, {
+      headers: supabaseHeaders(),
+    })
+    if (!res.ok) return []
+    const rows = (await res.json()) as Array<{ signal_json: TrackedSignalRecord }>
+    return rows.map((r) => r.signal_json)
+  } catch {
+    return []
+  }
+}
+
+async function persistTrackedSignal(
+  id: string,
+  scope: string,
+  coin: string,
+  record: TrackedSignalRecord,
+  now: number,
+): Promise<void> {
+  const windows: TrackerWindow[] = ['4h', '24h', '72h']
+  const outcomes: Record<string, TrackedSignalOutcome> = {}
+  for (const w of windows) {
+    outcomes[w] = { ...emptySignalOutcome(w), recordId: record.id }
+  }
+
+  await fetch(`${restBaseUrl()}/tracked_signals?on_conflict=id`, {
+    method: 'POST',
+    headers: {
+      ...supabaseHeaders(),
+      Prefer: 'resolution=ignore-duplicates,return=minimal',
+    },
+    body: JSON.stringify([{
+      id,
+      scope,
+      coin,
+      kind: record.kind,
+      direction: record.direction,
+      signal_json: record,
+      outcomes_json: outcomes,
+      recorded_at: new Date(record.timestamp).toISOString(),
+      updated_at: new Date(now).toISOString(),
+    }]),
+  })
+}
+
+async function resolveSignalOutcomes(
+  scope: string,
+  coin: string,
+  candles: Candle[],
+  now: number,
+): Promise<number> {
+  let resolved = 0
+  try {
+    const cutoff = new Date(now - 7 * 24 * MS_PER_HOUR).toISOString()
+    const rows = await fetchTrackedSignalsForResolution(scope, coin, cutoff)
+
+    const windows: TrackerWindow[] = ['4h', '24h', '72h']
+
+    for (const row of rows) {
+      const record = row.signal_json
+      let changed = false
+      const nextOutcomes = { ...row.outcomes_json }
+
+      for (const window of windows) {
+        const outcome = nextOutcomes[window]
+        if (outcome.resolvedAt !== null) continue
+
+        const targetTime = record.timestamp + TRACKER_WINDOWS[window]
+        if (now < targetTime) continue
+
+        const futurePrice = findSignalFuturePrice(candles, targetTime)
+        if (futurePrice === null) continue
+
+        const returnPct = ((futurePrice - record.referencePrice) / record.referencePrice) * 100
+        const correct = scoreDirection(record.direction, returnPct)
+
+        nextOutcomes[window] = {
+          ...outcome,
+          resolvedAt: now,
+          futurePrice,
+          returnPct,
+          correct,
+        }
+        changed = true
+      }
+
+      if (changed) {
+        await fetch(`${restBaseUrl()}/tracked_signals?id=eq.${row.id}`, {
+          method: 'PATCH',
+          headers: { ...supabaseHeaders(), Prefer: 'return=minimal' },
+          body: JSON.stringify({
+            outcomes_json: nextOutcomes,
+            updated_at: new Date(now).toISOString(),
+          }),
+        })
+        resolved++
+      }
+    }
+  } catch {
+    // Non-critical: outcomes will be resolved on a later run.
+  }
+  return resolved
+}
+
+async function fetchTrackedSignalsForResolution(
+  scope: string,
+  coin: string,
+  cutoff: string,
+): Promise<Array<{
+  id: string
+  signal_json: TrackedSignalRecord
+  outcomes_json: Record<TrackerWindow, TrackedSignalOutcome>
+}>> {
+  const rows: Array<{
+    id: string
+    signal_json: TrackedSignalRecord
+    outcomes_json: Record<TrackerWindow, TrackedSignalOutcome>
+  }> = []
+
+  for (let offset = 0; offset < SIGNAL_RESOLUTION_MAX_ROWS; offset += SIGNAL_RESOLUTION_PAGE_SIZE) {
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      coin: `eq.${coin}`,
+      recorded_at: `gte.${cutoff}`,
+      order: 'recorded_at.desc',
+      limit: String(SIGNAL_RESOLUTION_PAGE_SIZE),
+      offset: String(offset),
+      select: 'id,signal_json,outcomes_json',
+    })
+    const res = await fetch(`${restBaseUrl()}/tracked_signals?${params.toString()}`, {
+      headers: supabaseHeaders(),
+    })
+    if (!res.ok) {
+      return rows
+    }
+
+    const page = (await res.json()) as Array<{
+      id: string
+      signal_json: TrackedSignalRecord
+      outcomes_json: Record<TrackerWindow, TrackedSignalOutcome>
+    }>
+
+    rows.push(...page)
+    if (page.length < SIGNAL_RESOLUTION_PAGE_SIZE) {
+      break
+    }
+  }
+
+  return rows
+}
+
+function findSignalFuturePrice(candles: Candle[], targetTime: number): number | null {
+  const bucketTime = floorToHour(targetTime)
+  const match = candles.find((c) => c.time === bucketTime)
+  if (match && isFinite(match.close) && match.close > 0) {
+    return match.close
+  }
+  return null
 }
 
 function sleep(ms: number): Promise<void> {

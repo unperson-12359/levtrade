@@ -1846,3 +1846,201 @@ Codex: please review these 4 fixes for correctness. Key areas to verify:
 4. `clearSetupHistory()` only clearing local is safe and doesn't leave stale UI
 5. `dedupeSetups()` helper correctly handles edge cases (empty arrays, all duplicates)
 6. `useHotPredictions` semantic key dedup doesn't miss any edge cases
+
+---
+
+## 2026-03-03 12:08 - Codex - Finish Server-Authoritative Accuracy Hardening
+
+### Goal
+Finish Claude's partial server-authoritative signal-accuracy implementation so the Accuracy tab is truthful on backend failure, the collector dedupe window remains reliable as the dataset grows, and the accuracy API stops silently truncating canonical history.
+
+### Files changed
+- `src/services/api.ts`
+- `src/hooks/useServerTrackerStats.ts`
+- `src/components/tracker/AccuracyPanel.tsx`
+- `api/signal-accuracy.ts`
+- `src/server/collector/runCollector.ts`
+- `src/components/claims/TrustPanel.tsx`
+- `src/components/guide/HowItWorks.tsx`
+- `COLLAB_LOG.md`
+
+### What changed
+- `fetchSignalAccuracy()` now returns `{ stats, error }` so the client can distinguish real backend failure from valid empty stats
+- `useServerTrackerStats()` now exposes an explicit `error` state
+- `AccuracyPanel` now renders an unavailable state instead of misleading zero counts when `/api/signal-accuracy` cannot be loaded
+- `/api/signal-accuracy` now paginates through `tracked_signals` instead of using a fixed `5000` row cap
+- collector-side tracker dedupe query depth increased to `400` records per coin within the dedupe window
+- collector-side signal outcome resolution now paginates pending `tracked_signals` rows instead of using a fixed `200` row cap
+- trust/methodology copy now reflects server-authoritative analytics and local-browser fallback more accurately
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+
+### Remaining risks / follow-up
+- `supabase/tracked_signals.sql` still needs to be applied to the live Supabase project before server-authoritative signal accuracy can work in production
+- the collector service on Oracle must be redeployed/restarted after the SQL is applied
+- the frontend/API changes are not deployed by this pass
+- the existing Vite main-bundle warning remains a performance concern only
+
+---
+
+## 2026-03-03 12:43 - Codex - Add Ralph Loop Guardrails Scaffold
+
+### Goal
+Implement the repo-side guardrail framework for a safe Ralph loop so LevTrade can move toward supervised continuous operations without allowing silent production mutations.
+
+### Files changed
+- `.gitignore`
+- `package.json`
+- `ops/README.md`
+- `ops/command-profiles.json`
+- `ops/ralph-approvals.json`
+- `ops/ralph-next-task.md`
+- `ops/ralph-queue.json`
+- `ops/ralph-state.json`
+- `ops/prompts/implementation.md`
+- `ops/prompts/review.md`
+- `ops/prompts/deploy.md`
+- `scripts/ralph-loop.ts`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added a repo-visible `ops/` control plane for Ralph:
+  - task queue
+  - loop state
+  - approval gates
+  - command allowlists
+  - prompt templates
+- Added `scripts/ralph-loop.ts` with guarded modes:
+  - `run`
+  - `pause`
+  - `resume`
+  - `next`
+- The loop now:
+  - refuses to run while paused
+  - blocks on unmet approvals
+  - blocks mutating tasks when dirty tracked files exist outside protected local-only paths
+  - runs only declared command profiles
+  - auto-pauses after repeated failures
+  - writes runtime logs under `ops/logs/`
+  - generates `ops/ralph-next-task.md` for the next bounded agent task
+- Seeded an initial queue focused on the current real next steps:
+  - apply `tracked_signals.sql`
+  - redeploy Oracle collector
+  - deploy frontend/API
+  - verify cross-device parity
+  - bundle reduction follow-up
+- Added package scripts:
+  - `npm run ralph:once`
+  - `npm run ralph:pause`
+  - `npm run ralph:resume`
+  - `npm run ralph:next`
+- Added ignore rules for Ralph runtime artifacts and `.claude/worktrees/`
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+- `npm run ralph:once`: PASS (safe no-op because paused by default)
+- `npm run ralph:next`: PASS
+
+### Remaining risks / follow-up
+- Ralph currently prepares and guards tasks but does not invoke the coding model directly; it generates the next bounded task brief for a supervising operator/agent
+- Production approvals remain all `false` by default and must stay explicit
+- The current repo still contains separate uncommitted product work unrelated to Ralph; do not mix those into a Ralph-only commit without review
+
+---
+
+## 2026-03-03 12:58 - Codex - Add Ralph Autonomous Watch Mode
+
+### Goal
+Allow Ralph to keep cycling automatically instead of stopping at approval gates, while preserving a simple stop path for the operator.
+
+### Files changed
+- `package.json`
+- `ops/README.md`
+- `ops/ralph-state.json`
+- `scripts/ralph-loop.ts`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added `autonomous` state and configurable loop interval to `ops/ralph-state.json`
+- Added new Ralph modes in `scripts/ralph-loop.ts`:
+  - `auto-on`
+  - `auto-off`
+  - `watch`
+- Ralph can now:
+  - re-select tasks in `awaiting_approval` when `autonomous` mode is enabled
+  - log and bypass approval blockers instead of stopping the cycle
+  - run continuously in `watch` mode until paused
+- Added package scripts:
+  - `npm run ralph:auto:on`
+  - `npm run ralph:auto:off`
+  - `npm run ralph:watch`
+- Updated `ops/README.md` with the autonomous run/stop flow
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+- `npm run ralph:auto:on`: PASS
+- `npm run ralph:once`: PASS (approval blocker bypassed in autonomous mode)
+- `npm run ralph:auto:off`: PASS
+
+### Remaining risks / follow-up
+- Autonomous mode only bypasses Ralph queue approval gates; it does not make Ralph a hidden self-editing or self-deploying agent
+- `npm run ralph:watch` will continue cycling until `npm run ralph:pause` is run from another terminal
+
+---
+
+## 2026-03-03 13:06 - Codex - Harden Ralph Autonomous Shell Failure Handling
+
+### Goal
+Make Ralph fail closed instead of crashing when its internal child-process checks are unavailable in the current runtime.
+
+### Files changed
+- `scripts/ralph-loop.ts`
+- `COLLAB_LOG.md`
+
+### What changed
+- Wrapped Ralph's internal `git status --short` repo-safety preflight in a guarded path
+- If shell spawning is unavailable, Ralph now blocks the mutating task with an explicit safety message instead of crashing the whole cycle
+
+### Verification
+- `npm run ralph:once`: PASS (fails closed with explicit block message instead of crashing)
+- `npm run ralph:auto:off`: PASS
+
+### Remaining risks / follow-up
+- In this sandboxed runtime, Ralph's internal command execution still hits `spawn EPERM`; on the user's own terminal the loop should be run directly there for full autonomous cycling
+
+---
+
+## 2026-03-03 13:18 - Codex - Remove Ralph Loop Scaffold
+
+### Goal
+Remove the Ralph loop control plane entirely and return the repo to normal human-driven development.
+
+### Files changed
+- `.gitignore`
+- `package.json`
+- `scripts/ralph-loop.ts` (deleted)
+- `ops/` (deleted)
+- `COLLAB_LOG.md`
+
+### What changed
+- Removed all Ralph package scripts from `package.json`
+- Removed the repo-side Ralph loop runner
+- Removed the `ops/` control files, prompts, approvals, and queue
+- Removed Ralph-specific ignore rules from `.gitignore`
+- Deleted local Ralph runtime artifacts under `ops/`
+
+### Verification
+- `npm run build`: pending after removal
+- `npm run build:collector`: pending after removal
+- `npm run test:logic`: pending after removal
+
+### Remaining risks / follow-up
+- Historical log entries describing Ralph remain in `COLLAB_LOG.md` as part of the repo audit trail
+- Product/tracker work already in progress remains untouched and should be handled normally going forward

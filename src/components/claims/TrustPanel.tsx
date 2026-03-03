@@ -72,19 +72,19 @@ export function TrustPanel() {
       </div>
 
       <p className="panel-copy">
-        Historical setups and resolved outcomes can hydrate from the backend collector when it is available. Risk
-        defaults, tracker state, and local exports still persist in this browser.
+        Historical setups, signal accuracy, and resolved outcomes are collected by the server and match across devices.
+        Risk defaults and UI preferences persist locally in this browser.
       </p>
 
       <div className="stat-grid trust-panel__stats">
         <Stat label="Storage key" value={STORAGE_KEY} tone="yellow" />
-        <Stat label="History source" value="Server collector + local merge" tone="green" />
+        <Stat label="History source" value="Oracle collector" tone="green" />
         <Stat label="Collector status" value={collectorStatus.label} tone={collectorStatus.tone} />
         <Stat label="Last server run" value={collectorStatus.lastRun} tone={collectorStatus.tone} />
         <Stat label="Persistence" value="Supabase + browser cache" tone="green" />
-        <Stat label="State model" value="Server setups, local tracker/risk" tone="green" />
+        <Stat label="State model" value="Server analytics, local risk/UI" tone="green" />
         <Stat label="Retention" value="90 days" tone="green" />
-        <Stat label="Saved scope" value="Server setups + local tracker/risk" tone="green" />
+        <Stat label="Saved scope" value="Server analytics + local browser settings" tone="green" />
         <Stat label="Resolution basis" value="4h / 24h / 72h from 1h candles" tone="green" />
       </div>
 
@@ -111,7 +111,7 @@ export function TrustPanel() {
         <button
           type="button"
           onClick={() => {
-            if (window.confirm('Clear all locally cached setup and tracker history for this browser?')) {
+            if (window.confirm('Clear imported setup history, browser cache, and local tracker fallback for this browser?')) {
               clearSetupHistory()
               clearTrackerHistory()
             }

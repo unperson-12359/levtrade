@@ -222,15 +222,14 @@ export function HowItWorks() {
 
           <Section title="Storage model">
             <p>
-              LevTrade now uses a split model. Long-term setup history is collected on the Oracle-backed server
-              collector and stored in Supabase, while browser-local state still holds your live tracker details and
-              risk defaults.
+              LevTrade uses a server-authoritative model. Setup history and signal accuracy are collected on the Oracle-backed
+              server collector and stored in Supabase. Browser-local state holds risk defaults and UI preferences only.
             </p>
             <ul className="guide-list">
-              <li><strong>Server-collected:</strong> historical setup suggestions, resolved 4h / 24h / 72h outcomes, and collector heartbeat</li>
-              <li><strong>Browser-local:</strong> live tracker records, risk input defaults, UI state, and imported/exported cache</li>
+              <li><strong>Server-collected:</strong> historical setup suggestions, signal accuracy tracking, resolved 4h / 24h / 72h outcomes, and collector heartbeat</li>
+              <li><strong>Browser-local:</strong> risk input defaults, UI state, imported setup history, and fallback tracker cache</li>
               <li><strong>Where it lives:</strong> server history lives in Supabase; local state stays under the app storage key in this browser</li>
-              <li><strong>Fallback:</strong> if the server history endpoint is unavailable, the dashboard still works with local cached history</li>
+              <li><strong>Fallback:</strong> if a server history endpoint is unavailable, the dashboard still works for live review, but canonical analytics may be temporarily unavailable</li>
               <li><strong>Retention:</strong> 90 days. Older setups are pruned automatically</li>
             </ul>
           </Section>
@@ -241,7 +240,7 @@ export function HowItWorks() {
               <ul className="guide-list">
                 <li><strong>Keep the collector healthy</strong> - the Oracle VM collector samples the market every 5 minutes and resolves outcomes without needing this browser open.</li>
                 <li><strong>Open the site to review</strong> - the frontend hydrates server history on load, so you can inspect fresh setups and autopsies after time away.</li>
-                <li><strong>Export occasionally</strong> - if you care about preserving your local tracker notes and local cache, export JSON from the trust panel.</li>
+                <li><strong>Export occasionally</strong> - if you care about preserving imported setup history or browser cache, export JSON from the trust panel.</li>
                 <li><strong>Wait a few days</strong> - a meaningful sample needs 20+ setups across different market conditions. The tier breakdown shows whether high-confidence setups outperform low-confidence ones.</li>
                 <li><strong>Check all 3 windows</strong> - a setup that loses at 4h might win at 24h or 72h, which helps you judge timeframe fit.</li>
               </ul>

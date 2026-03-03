@@ -12,3 +12,15 @@ export { computeEntryGeometry } from './entryGeometry'
 export { computeComposite } from './composite'
 export { computeSuggestedSetup } from './setup'
 export { resolveSetupWindow, emptyOutcome, SETUP_WINDOWS } from './resolveOutcome'
+
+// Shared tracker logic for collector
+export {
+  buildTrackedRecords,
+  shouldTrackRecord,
+  scoreDirection,
+  directionalFromNumber,
+  emptySignalOutcome,
+  TRACKER_WINDOWS,
+} from './trackerLogic'
+export { computeTrackerStats, SIGNAL_KIND_LABELS } from './trackerStats'
+export type { TrackedSignalRecord, TrackedSignalOutcome, TrackerWindow, TrackedSignalKind } from '../types/tracker'

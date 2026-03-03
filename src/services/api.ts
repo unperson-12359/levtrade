@@ -1,6 +1,7 @@
 import type { RawCandle, AssetContext, MetaResponse, FundingHistoryEntry, TrackedCoin } from '../types/market'
 import type { TrackedSetup } from '../types/setup'
 import type { CollectorHeartbeat } from '../types/collector'
+import type { TrackerStats } from '../types/tracker'
 
 const API_URL = 'https://api.hyperliquid.xyz/info'
 
@@ -163,5 +164,41 @@ export async function fetchCollectorHeartbeat(): Promise<(CollectorHeartbeat & {
     return payload.ok ? (payload.heartbeat ?? null) : null
   } catch {
     return null
+  }
+}
+
+export interface SignalAccuracyResponse {
+  stats: TrackerStats | null
+  error: string | null
+}
+
+export async function fetchSignalAccuracy(days?: number): Promise<SignalAccuracyResponse> {
+  try {
+    const params = new URLSearchParams()
+    if (days) params.set('days', String(days))
+    const url = `/api/signal-accuracy${params.size > 0 ? `?${params.toString()}` : ''}`
+    const res = await fetch(url)
+    if (!res.ok) {
+      return {
+        stats: null,
+        error: `Signal accuracy request failed with status ${res.status}.`,
+      }
+    }
+    const payload = (await res.json()) as { ok?: boolean; stats?: TrackerStats; error?: string }
+    if (payload.ok && payload.stats) {
+      return {
+        stats: payload.stats,
+        error: null,
+      }
+    }
+    return {
+      stats: null,
+      error: payload.error ?? 'Signal accuracy is unavailable right now.',
+    }
+  } catch {
+    return {
+      stats: null,
+      error: 'Signal accuracy is unavailable right now.',
+    }
   }
 }

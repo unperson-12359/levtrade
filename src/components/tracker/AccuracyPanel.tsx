@@ -1,4 +1,4 @@
-import { useTrackerStats } from '../../hooks/useTrackerStats'
+import { useServerTrackerStats } from '../../hooks/useServerTrackerStats'
 import { formatPercent, timeAgo } from '../../utils/format'
 
 const toneClasses = {
@@ -8,7 +8,41 @@ const toneClasses = {
 } as const
 
 export function AccuracyPanel() {
-  const stats = useTrackerStats()
+  const { stats, loading, error } = useServerTrackerStats()
+
+  if (loading) {
+    return (
+      <section className="panel-shell">
+        <div className="panel-header">
+          <div>
+            <div className="panel-kicker">Accuracy Tracker</div>
+            <h3 className="panel-title">Loading signal accuracy data...</h3>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className="panel-shell">
+        <div className="panel-header">
+          <div>
+            <div className="panel-kicker">Accuracy Tracker</div>
+            <h3 className="panel-title">Server accuracy is temporarily unavailable</h3>
+          </div>
+          <span className="status-pill status-pill--yellow">UNAVAILABLE</span>
+        </div>
+
+        <p className="panel-copy">
+          Signal accuracy is sourced from the Oracle collector. The server endpoint could not be loaded,
+          so no signal stats are shown right now.
+        </p>
+
+        <p className="panel-copy">{error}</p>
+      </section>
+    )
+  }
 
   return (
     <section className="panel-shell">
@@ -48,8 +82,8 @@ export function AccuracyPanel() {
       )}
 
       <p className="panel-copy">
-        Signal accuracy is tracked locally per device and may differ across browsers.
-        Setup performance (Performance &amp; History tabs) is server-authoritative and consistent across devices.
+        Signal accuracy is tracked by the server collector and consistent across all devices.
+        Results resolve automatically as the collector runs, even when your browser is closed.
       </p>
 
       <p className="panel-copy">
