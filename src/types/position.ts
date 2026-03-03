@@ -7,6 +7,7 @@ export interface SuggestedPositionComposition {
   hasSetup: boolean
   setup: SuggestedSetup | null
   accountSize: number
+  mode: 'validated' | 'provisional' | 'none'
   inputs: RiskInputs
   outputs: RiskOutputs | null
   display: {
@@ -19,8 +20,12 @@ export interface SuggestedPositionComposition {
     tradeGrade: SignalColor | null
     tradeGradeLabel: string | null
     explanation: string
+    modeLabel: string
+    modeExplanation: string
+    confidencePenalty: number | null
+    capitalFraction: number | null
   }
-  status: 'ready' | 'no-setup' | 'invalid'
+  status: 'ready' | 'none' | 'invalid'
 }
 
 export interface PositionDisplayIdentity {

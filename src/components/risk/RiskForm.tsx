@@ -58,13 +58,28 @@ export function RiskForm() {
     min: 1,
     fallback: 1000,
   })
-  const disabled = composition.status === 'no-setup'
+  const disabled = composition.mode === 'none'
+  const helperCopy =
+    composition.mode === 'validated'
+      ? 'LevTrade is using the confirmed Step 2 setup. You only set account capital.'
+      : composition.mode === 'provisional'
+        ? 'LevTrade is sizing a reduced-risk draft from the current directional bias. You only set account capital.'
+        : 'LevTrade will start composing a position as soon as live directional structure appears.'
 
   return (
     <div className="space-y-3">
-      <p className="panel-copy">
-        LevTrade composes the position automatically from the current setup. You only set account capital.
-      </p>
+      <p className="panel-copy">{helperCopy}</p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`status-pill status-pill--${composition.mode === 'validated' ? 'green' : composition.mode === 'provisional' ? 'yellow' : 'red'}`}>
+          {composition.display.modeLabel}
+        </span>
+        {composition.mode !== 'none' && (
+          <span className="inline-flex items-center rounded-full border border-border-subtle px-2 py-0.5 text-xs text-text-secondary">
+            {composition.display.modeExplanation}
+          </span>
+        )}
+      </div>
 
       <div className={disabled ? 'opacity-60 pointer-events-none' : ''}>
         <label className="block text-sm font-medium text-text-muted mb-1">Account Capital</label>
@@ -97,34 +112,42 @@ export function RiskForm() {
 
       {composition.setup ? (
         <div className="stat-grid">
-          <InfoCard label="Asset" value={composition.setup.coin} helper="Current setup" />
-          <InfoCard label="Direction" value={composition.setup.direction.toUpperCase()} helper="From Step 2" />
+          <InfoCard
+            label="Asset"
+            value={composition.setup.coin}
+            helper={composition.mode === 'validated' ? 'Confirmed setup' : 'Current directional bias'}
+          />
+          <InfoCard
+            label="Direction"
+            value={composition.setup.direction.toUpperCase()}
+            helper={composition.mode === 'validated' ? 'Validated by Step 2' : 'Draft bias for reduced-risk sizing'}
+          />
           <InfoCard
             label="Entry"
             value={formatPrice(composition.setup.entryPrice, composition.setup.coin)}
-            helper="Locked from setup"
+            helper={composition.mode === 'validated' ? 'Locked from setup' : 'Draft entry from live price'}
           />
           <InfoCard
             label="Stop"
             value={formatPrice(composition.setup.stopPrice, composition.setup.coin)}
-            helper="Locked from setup"
+            helper={composition.mode === 'validated' ? 'Locked from setup' : 'Auto-derived protective stop'}
           />
           <InfoCard
             label="Target"
             value={formatPrice(composition.setup.targetPrice, composition.setup.coin)}
-            helper="Locked from setup"
+            helper={composition.mode === 'validated' ? 'Locked from setup' : 'Auto-derived draft target'}
           />
           <InfoCard
             label="Suggested leverage"
-            value={formatLeverage(composition.setup.suggestedLeverage)}
-            helper="Derived from ATR and stop"
+            value={formatLeverage(composition.inputs.leverage)}
+            helper={composition.mode === 'validated' ? 'Derived from ATR and stop' : 'Capped lower while confirmation is incomplete'}
           />
         </div>
       ) : (
         <div className="workflow-summary-card">
-          <div className="workflow-summary-card__kicker">Position composition unavailable</div>
+          <div className="workflow-summary-card__kicker">Waiting for directional structure</div>
           <p className="workflow-summary-card__copy">
-            Step 3 unlocks only when Step 2 identifies a valid long or short setup.
+            {composition.display.modeExplanation}
           </p>
         </div>
       )}

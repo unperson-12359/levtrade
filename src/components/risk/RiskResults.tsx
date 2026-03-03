@@ -11,14 +11,14 @@ export function RiskResults() {
   const composition = useSuggestedPosition()
   const { setup, outputs, inputs } = composition
 
-  if (composition.status === 'no-setup' || !setup) {
+  if (composition.mode === 'none' || composition.status === 'none' || !setup) {
     return (
       <div className="space-y-3 opacity-70">
         <hr className="risk-divider" />
         <div className="workflow-summary-card">
-          <div className="workflow-summary-card__kicker">Position composition unavailable</div>
+          <div className="workflow-summary-card__kicker">No directional composition right now</div>
           <p className="workflow-summary-card__copy">
-            Step 3 unlocks only when Step 2 identifies a valid long or short setup.
+            {composition.display.modeExplanation}
           </p>
         </div>
       </div>
@@ -30,7 +30,9 @@ export function RiskResults() {
       <div className="space-y-3">
         <hr className="risk-divider" />
         <div className="workflow-summary-card">
-          <div className="workflow-summary-card__kicker">Position composition needs capital</div>
+          <div className="workflow-summary-card__kicker">
+            {composition.mode === 'validated' ? 'Validated composition needs capital' : 'Provisional composition needs capital'}
+          </div>
           <p className="workflow-summary-card__copy">{composition.display.explanation}</p>
         </div>
       </div>
@@ -53,6 +55,11 @@ export function RiskResults() {
       <hr className="risk-divider" />
 
       <div className="risk-verdict-strip">
+        <SignalBadge
+          label={composition.display.modeLabel}
+          color={composition.mode === 'validated' ? 'green' : 'yellow'}
+          size="sm"
+        />
         <SignalBadge label={outputs.tradeGradeLabel} color={outputs.tradeGrade} size="sm" />
         <p className="risk-verdict-strip__summary">{outputs.tradeGradeExplanation}</p>
         <div className="risk-verdict-strip__pills">
@@ -67,8 +74,17 @@ export function RiskResults() {
       </div>
 
       <p className="panel-copy">
-        Derived automatically from the current {setup.coin} setup and your account capital.
+        {composition.display.modeExplanation}
       </p>
+
+      {composition.mode === 'provisional' && (
+        <div className="workflow-summary-card">
+          <div className="workflow-summary-card__kicker">Reduced-risk draft</div>
+          <p className="workflow-summary-card__copy">
+            Exposure is intentionally reduced while Step 2 is still in caution mode. LevTrade is trimming capital used and capping leverage until confirmation improves.
+          </p>
+        </div>
+      )}
 
       <div className="stat-grid">
         <Stat label="Capital used" value={formatUSD(inputs.positionSize)} tone="yellow" />
@@ -83,6 +99,13 @@ export function RiskResults() {
         />
         <Stat label="Target gain" value={formatPercent(outputs.profitAtTargetPercent, 1)} tone={targetGainColor} />
         <Stat label="Trade timeframe" value={setup.timeframe} tone="yellow" />
+        {composition.mode === 'provisional' && (
+          <Stat
+            label="Capital fraction used"
+            value={formatPercent((composition.display.capitalFraction ?? 0) * 100, 0)}
+            tone="yellow"
+          />
+        )}
       </div>
 
       <ExpandableSection sectionId="step3-advanced" title="advanced composition details">

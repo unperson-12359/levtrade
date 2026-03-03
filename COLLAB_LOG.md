@@ -2215,3 +2215,36 @@ Convert Step 3 from a manual risk form into a setup-driven position composition 
 ### Remaining risks / follow-up
 - The existing risk store still persists legacy geometry fields for compatibility, but the Step 3 UI no longer uses them directly
 - `suggestedPositionSize` on `SuggestedSetup` remains legacy data; Step 3 now uses account capital as the margin base and the setup's leverage suggestion for the real composition
+
+---
+
+## 2026-03-03 18:54 - Codex - Always-On Position Composition
+
+### Goal
+Keep Step 3 active even when Step 2 is not fully validated by introducing a provisional reduced-risk composition instead of turning the panel off.
+
+### Files changed
+- `src/signals/provisionalSetup.ts`
+- `src/types/position.ts`
+- `src/hooks/useSuggestedPosition.ts`
+- `src/components/risk/RiskForm.tsx`
+- `src/components/risk/RiskResults.tsx`
+- `src/components/guide/HowItWorks.tsx`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added `computeProvisionalSetup()` to derive a draft setup from current directional bias when the confirmed Step 2 setup is unavailable
+- Extended `SuggestedPositionComposition` with explicit `validated`, `provisional`, and `none` modes plus display metadata for mode label, explanation, and capital fraction
+- Updated `useSuggestedPosition()` to return a validated composition when a confirmed setup exists, otherwise a provisional reduced-risk composition when live directional structure exists
+- Scaled provisional sizing down automatically by reducing capital used and capping leverage instead of disabling Step 3
+- Reworked `RiskForm` and `RiskResults` to render validated vs provisional states explicitly and reserve a true off state only for stale, warming-up, or fully directionless data
+- Updated methodology copy to explain that weaker directional states now produce provisional reduced-risk compositions instead of turning Step 3 off
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+
+### Remaining risks / follow-up
+- A truly neutral or stale market can still produce a `none` state because LevTrade refuses to invent a direction when the live data is missing or fully directionless
+- The main Vite client chunk remains over the warning threshold; this is performance-only and unrelated to Step 3 behavior

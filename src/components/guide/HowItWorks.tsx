@@ -118,7 +118,7 @@ export function HowItWorks() {
 
           <Section title="Step 3 - Position Composition">
             <p>
-              The position composition panel turns the current suggested setup into an execution plan for your capital.
+              The position composition panel turns the current setup or directional bias into an execution plan for your capital.
               You only input account size. LevTrade then derives:
             </p>
             <ul className="guide-list">
@@ -130,7 +130,8 @@ export function HowItWorks() {
               <li><strong>Trade grade</strong> - overall assessment of the final account-sized composition</li>
             </ul>
             <p>
-              If Step 2 does not identify a valid setup, Step 3 stays disabled. There is no manual fallback form.
+              Validated setups produce a full confirmed composition. Weaker directional states still produce a provisional
+              reduced-risk composition instead of turning the panel off. There is no manual fallback form.
             </p>
           </Section>
 
