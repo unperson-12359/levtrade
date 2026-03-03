@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { createMarketDataSlice, type MarketDataSlice } from './marketDataSlice'
 import { createSetupSlice, type SetupSlice } from './setupSlice'
 import { createSyncSlice, type SyncSlice } from './syncSlice'
@@ -8,6 +8,21 @@ import { createTrackerSlice, type TrackerSlice } from './trackerSlice'
 import { createUISlice, type UISlice } from './uiSlice'
 
 export type AppStore = MarketDataSlice & SignalsSlice & SetupSlice & SyncSlice & TrackerSlice & UISlice
+
+// Debounce localStorage writes so rapid set() calls during polling
+// only serialize once (2s after the last mutation).
+const debouncedStorage = {
+  getItem: (name: string) => localStorage.getItem(name),
+  setItem: (name: string, value: string) => {
+    if (debouncedStorage._timer !== null) clearTimeout(debouncedStorage._timer)
+    debouncedStorage._timer = setTimeout(() => {
+      localStorage.setItem(name, value)
+      debouncedStorage._timer = null
+    }, 2000)
+  },
+  removeItem: (name: string) => localStorage.removeItem(name),
+  _timer: null as ReturnType<typeof setTimeout> | null,
+}
 
 export const useStore = create<AppStore>()(
   persist(
@@ -21,6 +36,7 @@ export const useStore = create<AppStore>()(
     }),
     {
       name: 'levtrade-storage',
+      storage: createJSONStorage(() => debouncedStorage),
       partialize: (state) => ({
         expandedSections: state.expandedSections,
         selectedCoin: state.selectedCoin,

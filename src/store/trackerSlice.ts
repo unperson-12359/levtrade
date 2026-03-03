@@ -52,76 +52,65 @@ export const createTrackerSlice: StateCreator<AppStore, [], [], TrackerSlice> = 
       return
     }
 
-    set((state) => {
-      const records = buildTrackedRecords(coin, signals, referencePrice)
-      const newRecords = records.filter((record) => shouldTrackRecord(record, state.trackedSignals))
+    // Pre-check dedup BEFORE calling set() to avoid no-op state updates
+    const state = get()
+    const records = buildTrackedRecords(coin, signals, referencePrice)
+    const newRecords = records.filter((record) => shouldTrackRecord(record, state.trackedSignals))
+    if (newRecords.length === 0) return
 
-      if (newRecords.length === 0) {
-        return {}
-      }
-
-      const newOutcomes = newRecords.flatMap((record) =>
-        (Object.keys(TRACKER_WINDOWS) as TrackerWindow[]).map((window) => ({
-          recordId: record.id,
-          window,
-          resolvedAt: null,
-          futurePrice: null,
-          returnPct: null,
-          correct: null,
-        })),
-      )
-
-      return {
-        trackedSignals: [...state.trackedSignals, ...newRecords],
-        trackedOutcomes: [...state.trackedOutcomes, ...newOutcomes],
-      }
-    })
-
-    get().pruneTrackerHistory()
-  },
-
-  trackDecisionSnapshot: (coin, decision, referencePrice, timestamp = Date.now()) => {
-    if (!isFinite(referencePrice) || referencePrice <= 0) {
-      return
-    }
-
-    set((state) => {
-      const record = buildRecord({
-        source: 'risk-aware-ui',
-        coin,
-        timestamp,
-        kind: 'decision',
-        direction: mapDecisionDirection(decision.action),
-        strength: decisionStrength(decision.action, decision.riskStatus),
-        label: decision.label,
-        referencePrice,
-        metadata: {
-          reasons: decision.reasons.join(' | '),
-          action: decision.action,
-          riskStatus: decision.riskStatus,
-        },
-      })
-
-      if (!shouldTrackRecord(record, state.trackedSignals)) {
-        return {}
-      }
-
-      const outcomes = (Object.keys(TRACKER_WINDOWS) as TrackerWindow[]).map((window) => ({
+    const newOutcomes = newRecords.flatMap((record) =>
+      (Object.keys(TRACKER_WINDOWS) as TrackerWindow[]).map((window) => ({
         recordId: record.id,
         window,
         resolvedAt: null,
         futurePrice: null,
         returnPct: null,
         correct: null,
-      }))
+      })),
+    )
 
-      return {
-        trackedSignals: [...state.trackedSignals, record],
-        trackedOutcomes: [...state.trackedOutcomes, ...outcomes],
-      }
+    set((s) => ({
+      trackedSignals: [...s.trackedSignals, ...newRecords],
+      trackedOutcomes: [...s.trackedOutcomes, ...newOutcomes],
+    }))
+  },
+
+  trackDecisionSnapshot: (coin, decision, referencePrice, timestamp = Date.now()) => {
+    if (!isFinite(referencePrice) || referencePrice <= 0) return
+
+    // Pre-check dedup BEFORE calling set() to avoid no-op state updates
+    const state = get()
+    const record = buildRecord({
+      source: 'risk-aware-ui',
+      coin,
+      timestamp,
+      kind: 'decision',
+      direction: mapDecisionDirection(decision.action),
+      strength: decisionStrength(decision.action, decision.riskStatus),
+      label: decision.label,
+      referencePrice,
+      metadata: {
+        reasons: decision.reasons.join(' | '),
+        action: decision.action,
+        riskStatus: decision.riskStatus,
+      },
     })
 
-    get().pruneTrackerHistory()
+    if (!shouldTrackRecord(record, state.trackedSignals)) return
+
+    const outcomes = (Object.keys(TRACKER_WINDOWS) as TrackerWindow[]).map((window) => ({
+      recordId: record.id,
+      window,
+      resolvedAt: null,
+      futurePrice: null,
+      returnPct: null,
+      correct: null,
+    }))
+
+    set((s) => ({
+      trackedSignals: [...s.trackedSignals, record],
+      trackedOutcomes: [...s.trackedOutcomes, ...outcomes],
+    }))
   },
 
   trackAllDecisionSnapshots: () => {

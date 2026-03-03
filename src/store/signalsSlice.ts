@@ -100,11 +100,48 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
 
   computeAllSignals: () => {
     const state = get()
+    const newSignals = { ...state.signals }
+    const coinResults: { coin: TrackedCoin; result: AssetSignals; refPrice: number }[] = []
+
     for (const coin of TRACKED_COINS) {
-      if (state.candles[coin].length > 0) {
-        state.computeSignals(coin)
+      const candles = state.candles[coin]
+      if (candles.length < 3) continue
+
+      const closes = candles.map((c) => c.close)
+      const hurst = computeHurst(closes, MIN_CANDLES_HURST)
+      const zScore = computeZScore(closes, MIN_CANDLES_ZSCORE)
+      const funding = computeFundingZScore(state.fundingHistory[coin])
+      const oiDelta = computeOIDelta(state.oiHistory[coin], closes)
+      const { periodsPerYear, staleAfterMs: candleStaleMs } = INTERVAL_CONFIG[state.selectedInterval]
+      const volResult = computeRealizedVol(closes, 20, periodsPerYear)
+      const atr = computeATR(candles)
+      const volatility = { ...volResult, atr }
+      const entryGeometry = computeEntryGeometry(closes, atr, MIN_CANDLES_ZSCORE)
+      const composite = computeComposite(hurst, zScore, funding, oiDelta)
+      const isWarmingUp = candles.length < MIN_CANDLES_HURST
+      const warmupProgress = Math.min(1, candles.length / MIN_CANDLES_HURST)
+      const latestCandle = candles[candles.length - 1]
+      const candleAge = latestCandle ? Date.now() - latestCandle.time : Infinity
+      const isStale = state.lastUpdate === null
+        ? true
+        : (Date.now() - state.lastUpdate) > STALE_AFTER_MS || candleAge > candleStaleMs
+
+      const result: AssetSignals = {
+        coin, hurst, zScore, funding, oiDelta, volatility, entryGeometry, composite,
+        updatedAt: Date.now(), isStale, isWarmingUp, warmupProgress,
       }
+
+      newSignals[coin] = result
+      const refPrice = state.prices[coin] ?? closes[closes.length - 1] ?? 0
+      coinResults.push({ coin, result, refPrice })
     }
-    set({ lastSignalComputedAt: Date.now() })
+
+    // Single set() call for all 4 coins + timestamp
+    set({ signals: newSignals, lastSignalComputedAt: Date.now() })
+
+    // Track signals after the batch set (each checks dedup internally)
+    for (const { coin, result, refPrice } of coinResults) {
+      get().trackSignals(coin, result, refPrice)
+    }
   },
 })
