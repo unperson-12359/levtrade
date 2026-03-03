@@ -2560,3 +2560,13 @@ button {
     padding: 0.45rem 0.65rem;
   }
 }
+
+/* Hot Predictions pulse glow */
+@keyframes prediction-pulse {
+  0%, 100% { box-shadow: 0 0 8px 0 rgba(34, 197, 94, 0.15); }
+  50% { box-shadow: 0 0 16px 4px rgba(34, 197, 94, 0.3); }
+}
+
+.prediction-card--on-fire {
+  animation: prediction-pulse 2s ease-in-out infinite;
+}

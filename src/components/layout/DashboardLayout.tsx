@@ -9,6 +9,7 @@ import { MenuDrawer } from '../menu/MenuDrawer'
 import { RiskSection } from '../risk/RiskSection'
 import { SignalSection } from '../signal/SignalSection'
 import { TopBar } from '../topbar/TopBar'
+import { HotPredictionsBanner } from '../predictions/HotPredictionsBanner'
 
 const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })))
 const HowItWorks = lazy(() => import('../guide/HowItWorks').then((m) => ({ default: m.HowItWorks })))
@@ -53,6 +54,8 @@ export function DashboardLayout() {
       <Suspense fallback={null}>
         <AnalyticsPage />
       </Suspense>
+
+      <HotPredictionsBanner />
 
       <main className="dashboard-shell">
         <section className="workspace-stack dashboard-main">
