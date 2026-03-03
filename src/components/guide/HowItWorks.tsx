@@ -54,6 +54,12 @@ export function HowItWorks() {
               After each poll, signals are recomputed for <strong>all 4 coins simultaneously</strong>,
               regardless of which coin you are viewing. That is what feeds the setup tracker.
             </p>
+            <p>
+              External context panels add sentiment, macro, and cross-exchange confirmation from
+              three additional sources: the Fear &amp; Greed Index (alternative.me), CoinGecko global
+              market data, and Binance Futures funding/OI. These inform Step 1 context but do not
+              change setup math or risk sizing directly.
+            </p>
           </Section>
 
           <Section title="Step 1 - Market Read">

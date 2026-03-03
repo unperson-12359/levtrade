@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useStore } from '../../store'
 import { useSignals } from '../../hooks/useSignals'
-import { formatFundingRate, formatPercent, timeAgo } from '../../utils/format'
+import { formatFundingRate, formatPercent, formatCompact, timeAgo } from '../../utils/format'
 import { getMarketWorkflowGuidance } from '../../utils/workflowGuidance'
+import { classifyFearGreed, classifyBtcDominance, classifyFundingDivergence, classifyOiDivergence } from '../../utils/contextGuidance'
 import type { SignalSeriesKind } from '../../utils/provenance'
 import { ExpandableSection } from '../shared/ExpandableSection'
 import { JargonTerm } from '../shared/JargonTerm'
@@ -20,6 +21,9 @@ export function MarketRail() {
   const { signals, isWarmingUp, warmupProgress } = useSignals(coin)
   const guidance = getMarketWorkflowGuidance(signals)
   const [drawerKind, setDrawerKind] = useState<SignalSeriesKind | null>(null)
+  const fearGreed = useStore((s) => s.fearGreed)
+  const cryptoMacro = useStore((s) => s.cryptoMacro)
+  const binanceContext = useStore((s) => s.binanceContext)
 
   if (!signals) {
     return (
@@ -133,9 +137,94 @@ export function MarketRail() {
             onOpenChart={setDrawerKind}
           />
         </div>
+
+        <ContextPanels
+          fearGreed={fearGreed}
+          cryptoMacro={cryptoMacro}
+          binanceContext={binanceContext}
+          coin={coin}
+        />
       </ExpandableSection>
       <SignalDrawer coin={coin} signalKind={drawerKind} onClose={() => setDrawerKind(null)} />
     </section>
+  )
+}
+
+// ── External Context Panels ──────────────────────────────────────────
+
+import type { FearGreedSnapshot, CryptoMacroSnapshot, BinanceContextSnapshot } from '../../types/context'
+import type { TrackedCoin } from '../../types/market'
+
+interface ContextPanelsProps {
+  fearGreed: FearGreedSnapshot
+  cryptoMacro: CryptoMacroSnapshot
+  binanceContext: BinanceContextSnapshot
+  coin: TrackedCoin
+}
+
+function ContextPanels({ fearGreed, cryptoMacro, binanceContext, coin }: ContextPanelsProps) {
+  const fg = classifyFearGreed(fearGreed.value)
+  const btcDom = classifyBtcDominance(cryptoMacro.btcDominance, cryptoMacro.altSeasonBias)
+  const fundingDiv = classifyFundingDivergence(binanceContext.fundingVsHyperliquid[coin])
+  const oiDiv = classifyOiDivergence(binanceContext.oiVsHyperliquid[coin])
+
+  const hasBinance = binanceContext.fundingRate[coin] !== null
+
+  return (
+    <div className="context-panels">
+      <div className="context-panels__label">External Context</div>
+      <div className="market-rail-grid">
+        <MiniPanel
+          kicker="Sentiment"
+          title={fg.label}
+          tone={fg.tone}
+          rows={[
+            { label: 'Index', value: fearGreed.value !== null ? String(fearGreed.value) : '--' },
+            { label: 'State', value: fearGreed.classification ?? '--' },
+          ]}
+          copy={fg.explanation}
+          footerNote="Alternative.me Fear & Greed"
+        />
+
+        <MiniPanel
+          kicker="Crypto Macro"
+          title={btcDom.label}
+          tone={btcDom.tone}
+          rows={[
+            { label: 'BTC Dom', value: cryptoMacro.btcDominance !== null ? `${cryptoMacro.btcDominance.toFixed(1)}%` : '--' },
+            { label: '24h Mkt Cap', value: cryptoMacro.marketCapChange24h !== null ? formatPercent(cryptoMacro.marketCapChange24h, 2) : '--' },
+            { label: 'Total Vol', value: cryptoMacro.totalVolumeUsd !== null ? `$${formatCompact(cryptoMacro.totalVolumeUsd)}` : '--' },
+          ]}
+          copy={btcDom.explanation}
+          footerNote="CoinGecko Global"
+        />
+
+        {hasBinance ? (
+          <MiniPanel
+            kicker="Binance Cross-Check"
+            title={fundingDiv.label}
+            tone={fundingDiv.tone}
+            rows={[
+              { label: 'Bin. Funding', value: binanceContext.fundingRate[coin] !== null ? formatFundingRate(binanceContext.fundingRate[coin]!) : '--' },
+              { label: 'Funding vs HL', value: fundingDiv.label },
+              { label: 'Bin. OI', value: binanceContext.openInterestUsd[coin] !== null ? `$${formatCompact(binanceContext.openInterestUsd[coin]!)}` : '--' },
+              { label: 'OI vs HL', value: oiDiv.label },
+            ]}
+            copy={fundingDiv.explanation}
+            footerNote="Binance Futures"
+          />
+        ) : (
+          <MiniPanel
+            kicker="Binance Cross-Check"
+            title="Not available"
+            tone="yellow"
+            rows={[]}
+            copy={`${coin} is not listed on Binance Futures. Cross-exchange comparison is unavailable for this asset.`}
+            footerNote="Binance Futures"
+          />
+        )}
+      </div>
+    </div>
   )
 }
 

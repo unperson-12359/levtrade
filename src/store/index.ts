@@ -6,8 +6,9 @@ import { createSyncSlice, type SyncSlice } from './syncSlice'
 import { createSignalsSlice, type SignalsSlice } from './signalsSlice'
 import { createTrackerSlice, type TrackerSlice } from './trackerSlice'
 import { createUISlice, type UISlice } from './uiSlice'
+import { createContextSlice, type ContextSlice } from './contextSlice'
 
-export type AppStore = MarketDataSlice & SignalsSlice & SetupSlice & SyncSlice & TrackerSlice & UISlice
+export type AppStore = MarketDataSlice & SignalsSlice & SetupSlice & SyncSlice & TrackerSlice & UISlice & ContextSlice
 
 // Debounce localStorage writes so rapid set() calls during polling
 // only serialize once (2s after the last mutation).
@@ -33,6 +34,7 @@ export const useStore = create<AppStore>()(
       ...createSyncSlice(...a),
       ...createTrackerSlice(...a),
       ...createUISlice(...a),
+      ...createContextSlice(...a),
     }),
     {
       name: 'levtrade-storage',

@@ -1,5 +1,14 @@
 import { TRACKED_COINS, parseCandle } from '../types/market'
-import { fetchAllMids, fetchMetaAndAssetCtxs, fetchCandles, fetchFundingHistory } from './api'
+import {
+  fetchAllMids,
+  fetchMetaAndAssetCtxs,
+  fetchCandles,
+  fetchFundingHistory,
+  fetchFearGreed,
+  fetchCoinGeckoGlobal,
+  fetchBinanceFundingRate,
+  fetchBinanceOpenInterest,
+} from './api'
 import { HyperliquidWS } from './websocket'
 import { computeSignalsAtTime, generateBackfillTimestamps } from '../signals/backfill'
 import { computeSuggestedSetup } from '../signals/setup'
@@ -8,6 +17,11 @@ import type { StoreApi } from 'zustand'
 import type { AppStore } from '../store'
 
 import { POLL_INTERVAL_MS, SETUP_RESOLUTION_INTERVAL, SETUP_RESOLUTION_LOOKBACK_MS } from '../config/constants'
+import type { TrackedCoin } from '../types/market'
+
+const FEAR_GREED_REFRESH_MS = 15 * 60 * 1000
+const CRYPTO_MACRO_REFRESH_MS = 5 * 60 * 1000
+const BINANCE_CONTEXT_REFRESH_MS = 2 * 60 * 1000
 
 export class DataManager {
   private ws: HyperliquidWS
@@ -60,6 +74,9 @@ export class DataManager {
       this.store.getState().computeAllSignals()
       this.store.getState().generateAllSetups()
       this.store.getState().trackAllDecisionSnapshots()
+
+      // Fetch external context (non-blocking — failures don't affect core data)
+      this.fetchAllExternalContext()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch initial data'
       this.store.getState().addError(msg)
@@ -397,10 +414,154 @@ export class DataManager {
         this.store.getState().resolveSetupOutcomes()
         this.store.getState().pruneTrackerHistory()
         this.store.getState().pruneSetupHistory()
+
+        // Refresh external context at independent cadences
+        this.refreshExternalContextIfNeeded()
       } catch {
         // Polling errors are non-fatal — next poll will try again
       }
     }, POLL_INTERVAL_MS)
+  }
+
+  // ── External context fetching ───────────────────────────────────────
+
+  private async fetchFearGreedContext(): Promise<void> {
+    try {
+      const data = await fetchFearGreed()
+      this.store.getState().setFearGreed({
+        value: data.value,
+        classification: data.classification,
+        timestamp: data.timestamp,
+        source: 'alternative-me',
+      })
+    } catch {
+      // Non-critical: sentiment panel will show unknown state
+    }
+  }
+
+  private async fetchCryptoMacroContext(): Promise<void> {
+    try {
+      const data = await fetchCoinGeckoGlobal()
+      const altSeasonBias =
+        data.btcDominance !== null && data.btcDominance >= 56
+          ? ('btc-headwind' as const)
+          : data.btcDominance !== null && data.btcDominance <= 52 && (data.marketCapChange24h ?? 0) > 0
+            ? ('alt-tailwind' as const)
+            : ('neutral' as const)
+
+      this.store.getState().setCryptoMacro({
+        btcDominance: data.btcDominance,
+        totalMarketCapUsd: data.totalMarketCapUsd,
+        totalVolumeUsd: data.totalVolumeUsd,
+        marketCapChange24h: data.marketCapChange24h,
+        altSeasonBias,
+        timestamp: Date.now(),
+        source: 'coingecko',
+      })
+    } catch {
+      // Non-critical: macro panel will show unknown state
+    }
+  }
+
+  private async fetchBinanceContext(): Promise<void> {
+    try {
+      const state = this.store.getState()
+      const fundingRate = {} as Record<TrackedCoin, number | null>
+      const openInterestUsd = {} as Record<TrackedCoin, number | null>
+      const fundingVsHyperliquid = {} as Record<TrackedCoin, number | null>
+      const oiVsHyperliquid = {} as Record<TrackedCoin, number | null>
+
+      await Promise.all(
+        TRACKED_COINS.map(async (coin) => {
+          const [binFunding, binOi] = await Promise.all([
+            fetchBinanceFundingRate(coin),
+            fetchBinanceOpenInterest(coin),
+          ])
+
+          fundingRate[coin] = binFunding
+          openInterestUsd[coin] = binOi
+
+          // Compute funding divergence vs Hyperliquid
+          const hlFunding = state.signals[coin]?.funding?.currentRate ?? null
+          if (binFunding !== null && hlFunding !== null) {
+            fundingVsHyperliquid[coin] = binFunding - hlFunding
+          } else {
+            fundingVsHyperliquid[coin] = null
+          }
+
+          // Compute OI divergence vs Hyperliquid
+          const hlOiStr = state.assetContexts[coin]?.openInterest
+          const hlOi = hlOiStr ? parseFloat(hlOiStr) : null
+          const hlPrice = state.prices[coin]
+          const hlOiUsd = hlOi !== null && hlPrice !== null && isFinite(hlOi) && isFinite(hlPrice)
+            ? hlOi * hlPrice
+            : null
+          if (binOi !== null && hlOiUsd !== null) {
+            oiVsHyperliquid[coin] = binOi - hlOiUsd
+          } else {
+            oiVsHyperliquid[coin] = null
+          }
+        }),
+      )
+
+      this.store.getState().setBinanceContext({
+        fundingRate,
+        openInterestUsd,
+        fundingVsHyperliquid,
+        oiVsHyperliquid,
+        timestamp: Date.now(),
+        source: 'binance',
+      })
+    } catch {
+      // Non-critical: Binance panel will show unknown state
+    }
+  }
+
+  async fetchAllExternalContext(): Promise<void> {
+    this.store.getState().setContextStatus('loading')
+    try {
+      await Promise.all([
+        this.fetchFearGreedContext(),
+        this.fetchCryptoMacroContext(),
+        this.fetchBinanceContext(),
+      ])
+      this.store.getState().setContextStatus('ready')
+      this.store.getState().setContextError(null)
+    } catch {
+      // If all fail, set error state
+      const state = this.store.getState()
+      if (state.fearGreed.value === null && state.cryptoMacro.btcDominance === null) {
+        this.store.getState().setContextStatus('error')
+        this.store.getState().setContextError('Failed to fetch external context data')
+      } else {
+        this.store.getState().setContextStatus('ready')
+      }
+    }
+  }
+
+  private shouldRefreshContext(lastTimestamp: number | null, intervalMs: number): boolean {
+    if (lastTimestamp === null) return true
+    return Date.now() - lastTimestamp >= intervalMs
+  }
+
+  private async refreshExternalContextIfNeeded(): Promise<void> {
+    const state = this.store.getState()
+
+    const tasks: Promise<void>[] = []
+
+    if (this.shouldRefreshContext(state.fearGreed.timestamp, FEAR_GREED_REFRESH_MS)) {
+      tasks.push(this.fetchFearGreedContext())
+    }
+    if (this.shouldRefreshContext(state.cryptoMacro.timestamp, CRYPTO_MACRO_REFRESH_MS)) {
+      tasks.push(this.fetchCryptoMacroContext())
+    }
+    if (this.shouldRefreshContext(state.binanceContext.timestamp, BINANCE_CONTEXT_REFRESH_MS)) {
+      tasks.push(this.fetchBinanceContext())
+    }
+
+    if (tasks.length > 0) {
+      await Promise.all(tasks)
+    }
   }
 
   destroy(): void {

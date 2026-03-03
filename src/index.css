@@ -1559,6 +1559,22 @@ button {
   color: var(--color-text-muted);
 }
 
+/* ── External Context Panels ──────────────────────────── */
+.context-panels {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-subtle) 60%, transparent);
+}
+
+.context-panels__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.55rem;
+}
+
 .stat-card--clickable {
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease;
