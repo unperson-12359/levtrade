@@ -1,7 +1,7 @@
 import type { TrackedCoin } from '../../types/market'
 import { useStore } from '../../store'
 import { useMarketData } from '../../hooks/useMarketData'
-import { useEntryDecision } from '../../hooks/useEntryDecision'
+import { useSignalDecision } from '../../hooks/useEntryDecision'
 import { formatPrice } from '../../utils/format'
 
 interface AssetPillProps {
@@ -13,7 +13,7 @@ export function AssetPill({ coin, isBest = false }: AssetPillProps) {
   const selectedCoin = useStore((s) => s.selectedCoin)
   const selectCoin = useStore((s) => s.selectCoin)
   const { price, isLoading } = useMarketData(coin)
-  const decision = useEntryDecision(coin, { skipRisk: true })
+  const decision = useSignalDecision(coin)
 
   const isSelected = selectedCoin === coin
   const tone = decision.color

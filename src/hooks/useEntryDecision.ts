@@ -13,11 +13,7 @@ export interface EntryDecisionState {
   riskStatus: RiskStatus
 }
 
-interface EntryDecisionOptions {
-  skipRisk?: boolean
-}
-
-export function useEntryDecision(coin: TrackedCoin, options?: EntryDecisionOptions): EntryDecisionState {
+export function useEntryDecision(coin: TrackedCoin): EntryDecisionState {
   const signals = useStore((s) => s.signals[coin])
   const { inputs, riskStatus } = usePositionRisk()
 
@@ -32,9 +28,7 @@ export function useEntryDecision(coin: TrackedCoin, options?: EntryDecisionOptio
       }
     }
 
-    const activeRiskStatus = options?.skipRisk
-      ? 'unknown'
-      : inputs.coin === coin ? riskStatus : 'unknown'
+    const activeRiskStatus = inputs.coin === coin ? riskStatus : 'unknown'
     const decision = computeDecisionState({
       composite: signals.composite,
       entryGeometry: signals.entryGeometry,
@@ -51,7 +45,35 @@ export function useEntryDecision(coin: TrackedCoin, options?: EntryDecisionOptio
       color: decisionColor(decision.action),
       riskStatus: activeRiskStatus,
     }
-  }, [coin, inputs.coin, riskStatus, signals, options?.skipRisk])
+  }, [coin, inputs.coin, riskStatus, signals])
+}
+
+/** Lightweight signal-only decision — no risk subscription, minimal store reads */
+export function useSignalDecision(coin: TrackedCoin): EntryDecisionState {
+  const signals = useStore((s) => s.signals[coin])
+
+  return useMemo(() => {
+    if (!signals) {
+      return { action: 'wait' as const, label: 'WAIT', reasons: ['loading data'], color: 'yellow' as const, riskStatus: 'unknown' as const }
+    }
+
+    const decision = computeDecisionState({
+      composite: signals.composite,
+      entryGeometry: signals.entryGeometry,
+      hurst: signals.hurst,
+      isStale: signals.isStale,
+      isWarmingUp: signals.isWarmingUp,
+      riskStatus: 'unknown',
+    })
+
+    return {
+      action: decision.action,
+      label: decision.label,
+      reasons: decision.reasons,
+      color: decisionColor(decision.action),
+      riskStatus: 'unknown' as const,
+    }
+  }, [signals])
 }
 
 function decisionColor(action: DecisionAction): SignalColor {
