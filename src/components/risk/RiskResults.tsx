@@ -61,27 +61,20 @@ export function RiskResults() {
         <ExpandableSection sectionId="step3-advanced" title="advanced risk details">
           <div className="space-y-4">
             <section className="subpanel-shell">
-              <div className="panel-kicker">Stop geometry</div>
+              <div className="panel-kicker">Trade geometry</div>
               <div className="stat-grid">
                 <Stat label="Risk at stop" value={formatUSD(outputs.lossAtStop)} tone={lossColor} />
-                <Stat label="Account hit" value={formatPercent(outputs.lossAtStopPercent, 1)} tone={lossColor} />
-                <Stat label="Effective stop" value={formatPrice(outputs.effectiveStopPrice, inputs.coin)} tone="red" />
-                <Stat label="Suggested stop" value={formatPrice(outputs.suggestedStopPrice, inputs.coin)} tone="yellow" />
-              </div>
-            </section>
-
-            <section className="subpanel-shell">
-              <div className="panel-kicker">Reward geometry</div>
-              <div className="stat-grid">
-                <Stat label={<JargonTerm term="R:R" />} value={formatRR(outputs.rrRatio)} tone={rrColor} />
                 <Stat label="Target payout" value={formatUSD(outputs.profitAtTarget)} tone="green" />
-                <Stat label="Effective target" value={formatPrice(outputs.effectiveTargetPrice, inputs.coin)} tone="green" />
-                <Stat label="Suggested target" value={formatPrice(outputs.suggestedTargetPrice, inputs.coin)} tone="yellow" />
+                <Stat label="Account hit" value={formatPercent(outputs.lossAtStopPercent, 1)} tone={lossColor} />
+                <Stat label="Account gain" value={formatPercent(outputs.profitAtTargetPercent, 1)} tone="green" />
               </div>
               <div className="mt-3">
-                <div className="mb-1 flex justify-between text-sm text-text-secondary">
-                  <span>Risk</span>
-                  <span>Reward</span>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="text-text-secondary">Risk</span>
+                  <span className={`font-mono font-bold ${SIGNAL_TEXT_CLASSES[rrColor]}`}>
+                    <JargonTerm term="R:R" /> {formatRR(outputs.rrRatio)}
+                  </span>
+                  <span className="text-text-secondary">Reward</span>
                 </div>
                 <div className="flex h-3 gap-1 overflow-hidden rounded-full">
                   <div
@@ -100,6 +93,26 @@ export function RiskResults() {
                   />
                 </div>
               </div>
+              {(outputs.usedCustomStop || outputs.usedCustomTarget) && (
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-text-muted">
+                  {outputs.usedCustomStop && (
+                    <span>
+                      Custom stop {formatPrice(outputs.effectiveStopPrice, inputs.coin)}{' '}
+                      <span className="text-text-secondary">
+                        vs auto {formatPrice(outputs.suggestedStopPrice, inputs.coin)}
+                      </span>
+                    </span>
+                  )}
+                  {outputs.usedCustomTarget && (
+                    <span>
+                      Custom target {formatPrice(outputs.effectiveTargetPrice, inputs.coin)}{' '}
+                      <span className="text-text-secondary">
+                        vs auto {formatPrice(outputs.suggestedTargetPrice, inputs.coin)}
+                      </span>
+                    </span>
+                  )}
+                </div>
+              )}
             </section>
 
             <section className="subpanel-shell">
