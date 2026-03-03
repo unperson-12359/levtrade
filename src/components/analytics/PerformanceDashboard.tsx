@@ -17,7 +17,7 @@ const R_BUCKETS = [
 ]
 
 export function PerformanceDashboard() {
-  const trackedSetups = useStore((s) => s.trackedSetups)
+  const trackedSetups = useStore((s) => s.serverTrackedSetups)
   const stats24h = useSetupStats('24h')
 
   const windowStats = useMemo(() => {

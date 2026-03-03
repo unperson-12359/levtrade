@@ -81,13 +81,14 @@ export const useStore = create<AppStore>()(
         trackedSignals: state.trackedSignals,
         trackedOutcomes: state.trackedOutcomes,
         trackerLastRunAt: state.trackerLastRunAt,
-        trackedSetups: state.trackedSetups,
+        localTrackedSetups: state.localTrackedSetups,
         riskInputsUpdatedAt: state.riskInputsUpdatedAt,
         analyticsTab: state.analyticsTab,
         lastSignalComputedAt: state.lastSignalComputedAt,
       }),
       merge: (persistedState, currentState) => {
-        const merged = { ...currentState, ...(persistedState as Partial<AppStore>) }
+        const persisted = persistedState as Partial<AppStore> & { trackedSetups?: unknown[] }
+        const merged = { ...currentState, ...persisted }
         if (merged.riskInputs && merged.riskInputs.leverage > 40) {
           merged.riskInputs = { ...merged.riskInputs, leverage: 40 }
         }
@@ -97,6 +98,12 @@ export const useStore = create<AppStore>()(
           delete merged.expandedSections['analytics']
           delete merged.expandedSections['how-it-works']
         }
+        // Migrate legacy trackedSetups → localTrackedSetups
+        if (persisted.trackedSetups && Array.isArray(persisted.trackedSetups) && persisted.trackedSetups.length > 0) {
+          merged.localTrackedSetups = persisted.trackedSetups as AppStore['localTrackedSetups']
+        }
+        // Server setups are never persisted — always start empty, hydrated from server
+        merged.serverTrackedSetups = []
         return merged as AppStore
       },
     },

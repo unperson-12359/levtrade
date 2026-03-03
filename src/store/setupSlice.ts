@@ -15,7 +15,8 @@ import { buildSetupId } from '../utils/identity'
 import { summarizeCoverage } from '../utils/setupCoverage'
 
 export interface SetupSlice {
-  trackedSetups: TrackedSetup[]
+  serverTrackedSetups: TrackedSetup[]
+  localTrackedSetups: TrackedSetup[]
   trackSetup: (setup: SuggestedSetup, serverOutcomes?: TrackedSetup['outcomes'], serverId?: string) => void
   hydrateServerSetups: (items: TrackedSetup[]) => void
   generateAllSetups: () => void
@@ -29,11 +30,13 @@ export interface SetupSlice {
 }
 
 export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set, get) => ({
-  trackedSetups: [],
+  serverTrackedSetups: [],
+  localTrackedSetups: [],
 
   trackSetup: (setup, serverOutcomes?, serverId?) =>
     set((state) => {
-      const previous = [...state.trackedSetups]
+      const allSetups = [...state.serverTrackedSetups, ...state.localTrackedSetups]
+      const previous = [...allSetups]
         .reverse()
         .find((item) => item.setup.coin === setup.coin && item.setup.direction === setup.direction)
 
@@ -57,7 +60,7 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
       }
 
       return {
-        trackedSetups: [...state.trackedSetups, trackedSetup],
+        localTrackedSetups: [...state.localTrackedSetups, trackedSetup],
       }
     }),
 
@@ -67,7 +70,7 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
         return {}
       }
 
-      const merged = [...state.trackedSetups]
+      const merged = [...state.serverTrackedSetups]
       const indexById = new Map<string, number>()
       const indexBySemanticKey = new Map<string, number>()
 
@@ -96,7 +99,7 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
       }
 
       merged.sort((a, b) => a.setup.generatedAt - b.setup.generatedAt)
-      return { trackedSetups: merged }
+      return { serverTrackedSetups: merged }
     }),
 
   generateAllSetups: () => {
@@ -118,83 +121,90 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
     set((state) => {
       let changed = false
 
-      const trackedSetups = state.trackedSetups.map((tracked) => {
-        let nextTracked = tracked
-        // Always use 1h resolution candles for outcome scoring, independent of display interval
-        const resCandles = state.resolutionCandles[tracked.setup.coin] ?? []
-        const regularCandles = resCandles.length > 0 ? resCandles : (state.candles[tracked.setup.coin] ?? [])
-        const extendedCandles = state.extendedCandles[tracked.setup.coin] ?? []
-        const candleMap = new Map<number, Candle>()
-        for (const candle of [...extendedCandles, ...regularCandles]) {
-          candleMap.set(candle.time, candle)
-        }
-        const coinCandles = [...candleMap.values()].sort((a, b) => a.time - b.time)
+      function resolveArray(arr: TrackedSetup[]): TrackedSetup[] {
+        return arr.map((tracked) => {
+          let nextTracked = tracked
+          const resCandles = state.resolutionCandles[tracked.setup.coin] ?? []
+          const regularCandles = resCandles.length > 0 ? resCandles : (state.candles[tracked.setup.coin] ?? [])
+          const extendedCandles = state.extendedCandles[tracked.setup.coin] ?? []
+          const candleMap = new Map<number, Candle>()
+          for (const candle of [...extendedCandles, ...regularCandles]) {
+            candleMap.set(candle.time, candle)
+          }
+          const coinCandles = [...candleMap.values()].sort((a, b) => a.time - b.time)
 
-        ;(Object.keys(SETUP_WINDOWS) as SetupWindow[]).forEach((window) => {
-          const currentOutcome = nextTracked.outcomes[window]
-          if (currentOutcome.result !== 'pending') {
-            return
+          ;(Object.keys(SETUP_WINDOWS) as SetupWindow[]).forEach((window) => {
+            const currentOutcome = nextTracked.outcomes[window]
+            if (currentOutcome.result !== 'pending') {
+              return
+            }
+
+            const resolved = resolveSetupWindow(
+              nextTracked.setup,
+              window,
+              coinCandles,
+              now,
+              { regularCandles, extendedCandles },
+            )
+
+            if (!resolved) {
+              return
+            }
+
+            changed = true
+            nextTracked = {
+              ...nextTracked,
+              outcomes: {
+                ...nextTracked.outcomes,
+                [window]: resolved,
+              },
+            }
+          })
+
+          const coverageStatus = summarizeCoverage(nextTracked.outcomes, nextTracked.coverageStatus)
+          if (coverageStatus !== nextTracked.coverageStatus) {
+            changed = true
+            nextTracked = {
+              ...nextTracked,
+              coverageStatus,
+            }
           }
 
-          const resolved = resolveSetupWindow(
-            nextTracked.setup,
-            window,
-            coinCandles,
-            now,
-            { regularCandles, extendedCandles },
-          )
-
-          if (!resolved) {
-            return
-          }
-
-          changed = true
-          nextTracked = {
-            ...nextTracked,
-            outcomes: {
-              ...nextTracked.outcomes,
-              [window]: resolved,
-            },
-          }
+          return nextTracked
         })
+      }
 
-        const coverageStatus = summarizeCoverage(nextTracked.outcomes, nextTracked.coverageStatus)
-        if (coverageStatus !== nextTracked.coverageStatus) {
-          changed = true
-          nextTracked = {
-            ...nextTracked,
-            coverageStatus,
-          }
-        }
-
-        return nextTracked
-      })
+      const serverTrackedSetups = resolveArray(state.serverTrackedSetups)
+      const localTrackedSetups = resolveArray(state.localTrackedSetups)
 
       if (!changed) {
         return {}
       }
 
-      return { trackedSetups }
+      return { serverTrackedSetups, localTrackedSetups }
     }),
 
   pruneSetupHistory: (now = Date.now()) =>
     set((state) => {
       const cutoff = now - SETUP_RETENTION_MS
-      const trackedSetups = state.trackedSetups.filter((item) => item.setup.generatedAt >= cutoff)
-      if (trackedSetups.length === state.trackedSetups.length) {
+      const serverTrackedSetups = state.serverTrackedSetups.filter((item) => item.setup.generatedAt >= cutoff)
+      const localTrackedSetups = state.localTrackedSetups.filter((item) => item.setup.generatedAt >= cutoff)
+      if (serverTrackedSetups.length === state.serverTrackedSetups.length && localTrackedSetups.length === state.localTrackedSetups.length) {
         return {}
       }
-      return { trackedSetups }
+      return { serverTrackedSetups, localTrackedSetups }
     }),
 
   sortSetupsByTime: () =>
     set((state) => ({
-      trackedSetups: [...state.trackedSetups].sort((a, b) => a.setup.generatedAt - b.setup.generatedAt),
+      serverTrackedSetups: [...state.serverTrackedSetups].sort((a, b) => a.setup.generatedAt - b.setup.generatedAt),
+      localTrackedSetups: [...state.localTrackedSetups].sort((a, b) => a.setup.generatedAt - b.setup.generatedAt),
     })),
 
   clearSetupHistory: () =>
     set({
-      trackedSetups: [],
+      serverTrackedSetups: [],
+      localTrackedSetups: [],
     }),
 
   exportSetupsCsv: () => {
@@ -232,7 +242,7 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
       'returnPct_72h',
     ].join(',')
 
-    const rows = state.trackedSetups.map((tracked) => {
+    const rows = state.serverTrackedSetups.map((tracked) => {
       const setup = tracked.setup
       const o4 = tracked.outcomes['4h']
       const o24 = tracked.outcomes['24h']
@@ -276,7 +286,7 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
   },
 
   exportSetupsJson: () => {
-    const payload = JSON.stringify(get().trackedSetups, null, 2)
+    const payload = JSON.stringify(get().serverTrackedSetups, null, 2)
     downloadBlob(payload, `levtrade-setups-${Date.now()}.json`, 'application/json')
   },
 
@@ -292,8 +302,8 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
       }
 
       set((state) => {
-        const existingIds = new Set(state.trackedSetups.map((item) => item.id))
-        const merged = [...state.trackedSetups]
+        const existingIds = new Set(state.serverTrackedSetups.map((item) => item.id))
+        const merged = [...state.serverTrackedSetups]
 
         for (const tracked of imported) {
           if (!existingIds.has(tracked.id)) {
@@ -302,7 +312,7 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
         }
 
         merged.sort((a, b) => a.setup.generatedAt - b.setup.generatedAt)
-        return { trackedSetups: merged }
+        return { serverTrackedSetups: merged }
       })
     } catch {
       get().addError('Failed to import setup history JSON.')

@@ -1727,3 +1727,77 @@ Fix the trust-review findings that could make LevTrade's numbers or historical a
 ### Remaining Follow-up
 - Run `npm run build:collector` and then `npm run repair:server-outcomes` against the live Supabase environment to repair previously persisted server outcomes
 - After the repair run, re-check one or two known server setups from production and confirm the corrected `priceAtResolution` / `rAchieved` values match the fixed resolver
+
+---
+
+## 2026-03-03 - Claude — Fix Outcome Window Semantics
+
+### Goal
+Codex reviewed the trust-remediation changes and found 3 issues with the hour-aligned outcome windows. Claude implemented the fixes.
+
+### Files changed
+- `src/utils/candleTime.ts`
+- `src/signals/resolveOutcome.ts`
+- `src/store/trackerSlice.ts`
+- `tests/run-logic-tests.mjs`
+- `api/_signals.mjs`
+
+### What changed
+- `getSetupWindowStart()` now uses `floorToHour(generatedAt)` instead of `ceilToHour()` — includes the candle containing the signal
+- `getSetupWindowBoundary()` now returns `generatedAt + windowMs` — true N hours from signal, not shifted
+- `getResolutionBucketStart()` now returns `floorToHour(generatedAt + windowMs)` — candle containing the boundary
+- Traversal filter changed from `c.time < targetTime` to `c.time <= resolutionBucketTime`
+- Tracker outcomes now use `floorToHour(targetTime)` with exact match, aligning with setup resolution
+- Test updated to expect 5-candle traversal (21:00 through 01:00 inclusive)
+- Ran `npm run repair:server-outcomes` — recomputed 1 of 2 persisted outcomes
+
+### Verification
+- `npx tsc --noEmit`: PASS
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+- Repair script: 1 outcome recomputed
+
+### Codex Review
+Codex confirmed all 3 findings are resolved with no blocking issues.
+
+---
+
+## 2026-03-03 - Claude — Make Analytics Server-Authoritative Across Devices
+
+### Goal
+Phone and desktop showed different analytics (10 setups/86% vs 18 setups/36%) because `trackedSetups` was persisted to each browser's localStorage independently. Fix: split into server-authoritative and local stores so analytics are consistent across devices.
+
+### Files changed
+- `src/store/setupSlice.ts`
+- `src/store/index.ts`
+- `src/hooks/useSetupStats.ts`
+- `src/hooks/useHotPredictions.ts`
+- `src/components/analytics/PerformanceDashboard.tsx`
+- `src/components/setup/SetupHistory.tsx`
+- `src/services/dataManager.ts`
+
+### What changed
+- Split `trackedSetups: TrackedSetup[]` into `serverTrackedSetups` (not persisted, hydrated fresh from server) and `localTrackedSetups` (persisted for current-session convenience)
+- All analytics surfaces (Performance, History, useSetupStats) now read only from `serverTrackedSetups`
+- Live dashboard (useHotPredictions) reads from both arrays deduped
+- `hydrateServerSetups()` writes only to `serverTrackedSetups`
+- `trackSetup()` writes only to `localTrackedSetups`
+- Persistence updated: only `localTrackedSetups` saved to localStorage
+- Migration: old `trackedSetups` in localStorage → `localTrackedSetups`
+- Server array always starts empty and is populated by server fetch on load
+
+### Verification
+- `npx tsc --noEmit`: PASS (zero errors)
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+
+### Codex Review Requested
+Codex: please review this change for correctness. Key areas to verify:
+1. No remaining references to old `state.trackedSetups` in src/
+2. Migration logic in `index.ts` merge function handles old localStorage correctly
+3. `resolveSetupOutcomes()` correctly resolves both arrays
+4. Dedup logic in `useHotPredictions.ts` is correct (server wins over local by id)
+5. Export/import functions correctly use `serverTrackedSetups`
+6. No analytics surface accidentally reads from `localTrackedSetups`

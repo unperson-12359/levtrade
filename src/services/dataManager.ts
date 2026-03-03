@@ -190,7 +190,7 @@ export class DataManager {
   private async fetchServerSetupHistory(): Promise<void> {
     try {
       const state = this.store.getState()
-      const latestTracked = state.trackedSetups[state.trackedSetups.length - 1]
+      const latestTracked = state.serverTrackedSetups[state.serverTrackedSetups.length - 1]
       const since = latestTracked ? new Date(latestTracked.setup.generatedAt).toISOString() : undefined
       const setups = await fetchServerSetups(since)
 
@@ -204,7 +204,7 @@ export class DataManager {
 
   private async backfillCandlesForPendingSetups(): Promise<void> {
     const state = this.store.getState()
-    const pendingSetups = state.trackedSetups.filter((tracked) =>
+    const pendingSetups = [...state.serverTrackedSetups, ...state.localTrackedSetups].filter((tracked) =>
       Object.values(tracked.outcomes).some((outcome) => outcome.result === 'pending'),
     )
 

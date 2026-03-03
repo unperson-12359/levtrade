@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useStore } from '../store'
 import type { TrackedSetup } from '../types/setup'
 
@@ -16,8 +17,14 @@ export interface LiveSetup {
 }
 
 export function useLiveSetups(): LiveSetup[] {
-  const trackedSetups = useStore((s) => s.trackedSetups)
+  const serverSetups = useStore((s) => s.serverTrackedSetups)
+  const localSetups = useStore((s) => s.localTrackedSetups)
   const prices = useStore((s) => s.prices)
+
+  const trackedSetups = useMemo(() => {
+    const serverIds = new Set(serverSetups.map((s) => s.id))
+    return [...serverSetups, ...localSetups.filter((l) => !serverIds.has(l.id))]
+  }, [serverSetups, localSetups])
 
   return trackedSetups
     .flatMap((tracked): LiveSetup[] => {

@@ -14,7 +14,7 @@ export function SetupHistory() {
   const [statsWindow, setStatsWindow] = useState<SetupWindow>('24h')
   const [selectedTrackedSetup, setSelectedTrackedSetup] = useState<TrackedSetup | null>(null)
   const stats = useSetupStats(statsWindow)
-  const trackedSetups = useStore((s) => s.trackedSetups)
+  const trackedSetups = useStore((s) => s.serverTrackedSetups)
   const exportCsv = useStore((s) => s.exportSetupsCsv)
   const [filter, setFilter] = useState<SetupFilter>('ALL')
 
