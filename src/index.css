@@ -358,6 +358,7 @@ button {
 
 .dashboard-risk {
   min-width: 0;
+  grid-row: 1 / 3;
 }
 
 .dashboard-rail {
@@ -2301,6 +2302,10 @@ button {
 
   .dashboard-decision .workflow-summary-grid--hero {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-risk {
+    grid-row: auto;
   }
 
   .steps-row {
