@@ -206,6 +206,35 @@ button {
   color: var(--color-text-secondary);
 }
 
+.asset-pill--green {
+  border-color: var(--color-signal-green-border);
+  background: linear-gradient(180deg, var(--color-signal-green-bg), transparent), var(--color-bg-card);
+}
+.asset-pill--yellow {
+  border-color: var(--color-signal-yellow-border);
+  background: linear-gradient(180deg, var(--color-signal-yellow-bg), transparent), var(--color-bg-card);
+}
+.asset-pill--red {
+  border-color: var(--color-signal-red-border);
+  background: linear-gradient(180deg, var(--color-signal-red-bg), transparent), var(--color-bg-card);
+}
+
+.asset-pill__signal {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.asset-pill--green .asset-pill__signal { color: var(--color-signal-green); }
+.asset-pill--yellow .asset-pill__signal { color: var(--color-signal-yellow); }
+.asset-pill--red .asset-pill__signal { color: var(--color-signal-red); }
+
+.asset-pill--best {
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-signal-green) 30%, transparent);
+}
+.asset-pill--best.asset-pill--active {
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-signal-green) 30%, transparent),
+              inset 0 0 0 1px rgba(59, 130, 246, 0.12);
+}
 
 .dashboard-shell {
   max-width: 1600px;
