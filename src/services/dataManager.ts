@@ -76,6 +76,8 @@ export class DataManager {
       this.store.getState().computeAllSignals()
       this.store.getState().generateAllSetups()
       this.store.getState().trackAllDecisionSnapshots()
+      this.store.getState().resolveTrackedOutcomes()
+      this.store.getState().pruneTrackerHistory()
       void this.fetchServerSetupHistory()
 
       // Fetch external context (non-blocking — failures don't affect core data)
@@ -192,13 +194,19 @@ export class DataManager {
       const state = this.store.getState()
       const latestTracked = state.serverTrackedSetups[state.serverTrackedSetups.length - 1]
       const since = latestTracked ? new Date(latestTracked.setup.generatedAt).toISOString() : undefined
-      const setups = await fetchServerSetups(since)
+      const response = await fetchServerSetups(since)
 
-      if (setups.length > 0) {
-        this.store.getState().hydrateServerSetups(setups)
+      if (response.truncated) {
+        this.store.getState().addError(
+          `Canonical setup history is partial because the server fetch ceiling (${response.maxRowsApplied ?? response.rowCount}) was reached.`,
+        )
+      }
+
+      if (response.setups.length > 0) {
+        this.store.getState().hydrateServerSetups(response.setups)
       }
     } catch {
-      // Non-critical: the dashboard still works with local history if server hydration fails.
+      // Non-critical: the dashboard still works with browser-local fallback history if server hydration fails.
     }
   }
 
@@ -428,10 +436,10 @@ export class DataManager {
         this.store.getState().computeAllSignals()
         this.store.getState().generateAllSetups()
         this.store.getState().trackAllDecisionSnapshots()
-        this.store.getState().resolveTrackedOutcomes()
         this.store.getState().resolveSetupOutcomes()
-        this.store.getState().pruneTrackerHistory()
         this.store.getState().pruneSetupHistory()
+        this.store.getState().resolveTrackedOutcomes()
+        this.store.getState().pruneTrackerHistory()
 
         // Refresh external context at independent cadences
         this.refreshExternalContextIfNeeded()

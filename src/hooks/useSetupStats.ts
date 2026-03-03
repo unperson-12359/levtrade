@@ -1,13 +1,14 @@
 import { useMemo } from 'react'
 import { useStore } from '../store'
-import type { ConfidenceTier, SetupPerformanceStats, SetupWindow, TierStats } from '../types/setup'
+import type { ConfidenceTier, SetupPerformanceStats, SetupWindow, TierStats, TrackedSetup } from '../types/setup'
 
 const CONFIDENCE_TIERS: ConfidenceTier[] = ['high', 'medium', 'low']
 type TrackedSetupRecord = ReturnType<typeof useStore.getState>['serverTrackedSetups'][number]
 type PrimaryOutcome = TrackedSetupRecord['outcomes'][SetupWindow]
 
-export function useSetupStats(window: SetupWindow = '24h'): SetupPerformanceStats {
-  const trackedSetups = useStore((s) => s.serverTrackedSetups)
+export function useSetupStats(window: SetupWindow = '24h', dataset?: TrackedSetup[]): SetupPerformanceStats {
+  const serverTrackedSetups = useStore((s) => s.serverTrackedSetups)
+  const trackedSetups = dataset ?? serverTrackedSetups
 
   return useMemo(() => {
     const byTier = createTierRecord()

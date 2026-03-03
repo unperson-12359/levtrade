@@ -223,13 +223,14 @@ export function HowItWorks() {
           <Section title="Storage model">
             <p>
               LevTrade uses a server-authoritative model. Setup history and signal accuracy are collected on the Oracle-backed
-              server collector and stored in Supabase. Browser-local state holds risk defaults and UI preferences only.
+              server collector and stored in Supabase. Browser-local state holds risk defaults, UI preferences, and a
+              non-canonical fallback cache for local review if a server analytics endpoint is temporarily unavailable.
             </p>
             <ul className="guide-list">
-              <li><strong>Server-collected:</strong> historical setup suggestions, signal accuracy tracking, resolved 4h / 24h / 72h outcomes, and collector heartbeat</li>
-              <li><strong>Browser-local:</strong> risk input defaults, UI state, imported setup history, and fallback tracker cache</li>
+              <li><strong>Server-collected:</strong> historical setup suggestions, canonical signal accuracy tracking, resolved 4h / 24h / 72h outcomes, and collector heartbeat</li>
+              <li><strong>Browser-local:</strong> risk input defaults, UI state, imported setup history, and non-canonical fallback tracker history for this browser</li>
               <li><strong>Where it lives:</strong> server history lives in Supabase; local state stays under the app storage key in this browser</li>
-              <li><strong>Fallback:</strong> if a server history endpoint is unavailable, the dashboard still works for live review, but canonical analytics may be temporarily unavailable</li>
+              <li><strong>Fallback:</strong> if a canonical analytics endpoint is unavailable, the dashboard can temporarily show browser-local fallback history on this device and label it as fallback</li>
               <li><strong>Retention:</strong> 90 days. Older setups are pruned automatically</li>
             </ul>
           </Section>

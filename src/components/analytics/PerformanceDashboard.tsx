@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { useStore } from '../../store'
 import { useSetupStats } from '../../hooks/useSetupStats'
+import { useSetupHistorySource } from '../../hooks/useSetupHistorySource'
 import type { SetupWindow } from '../../types/setup'
 import { TRACKED_COINS } from '../../types/market'
 
@@ -17,8 +17,8 @@ const R_BUCKETS = [
 ]
 
 export function PerformanceDashboard() {
-  const trackedSetups = useStore((s) => s.serverTrackedSetups)
-  const stats24h = useSetupStats('24h')
+  const { trackedSetups, usingFallback } = useSetupHistorySource()
+  const stats24h = useSetupStats('24h', trackedSetups)
 
   const windowStats = useMemo(() => {
     const result: Record<SetupWindow, { wins: number; losses: number; expired: number; pending: number; winRate: number | null; avgR: number | null; total: number }> = {
@@ -122,6 +122,13 @@ export function PerformanceDashboard() {
 
   return (
     <div className="perf-dashboard">
+      {usingFallback && (
+        <div className="panel-copy">
+          Showing browser fallback setup history because canonical server setup history is currently unavailable or empty
+          on this device.
+        </div>
+      )}
+
       {/* Headline Scorecard */}
       <div className="perf-scorecard">
         <ScoreCard label="Setups" value={String(trackedSetups.length)} />

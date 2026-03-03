@@ -15,7 +15,8 @@ interface VercelResponse {
 
 const DEFAULT_DAYS = 90
 const MAX_DAYS = 90
-const MAX_FETCH_LIMIT = 2_000
+const PAGE_SIZE = 1_000
+const MAX_FETCH_ROWS = 100_000
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const GLOBAL_SCOPE = 'global'
 
@@ -30,33 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const since = resolveSince(req.query)
-    const params = new URLSearchParams({
-      scope: `eq.${GLOBAL_SCOPE}`,
-      generated_at: `gte.${since}`,
-      order: 'generated_at.desc',
-      limit: String(MAX_FETCH_LIMIT),
-      select: 'id,coin,direction,setup_json,outcomes_json,generated_at,updated_at',
-    })
-
-    const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/server_setups?${params.toString()}`, {
-      headers: {
-        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Supabase query failed: ${response.status}`)
-    }
-
-    const rows = (await response.json()) as Array<{
-      id: string
-      coin: string
-      direction: string
-      setup_json: Record<string, unknown>
-      outcomes_json: Record<string, unknown> | null
-      generated_at: string
-    }>
+    const rows = await fetchServerSetupsFromSupabase(since)
 
     const setups = rows.map((row) => {
       const outcomes = normalizeOutcomes(row.outcomes_json)
@@ -68,13 +43,77 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     })
 
-    return res.status(200).json({ ok: true, setups, count: setups.length })
+    return res.status(200).json({
+      ok: true,
+      setups,
+      count: setups.length,
+      rowCount: rows.length,
+      fetchedAt: new Date().toISOString(),
+      truncated: rows.length >= MAX_FETCH_ROWS,
+      maxRowsApplied: rows.length >= MAX_FETCH_ROWS ? MAX_FETCH_ROWS : null,
+    })
   } catch (err) {
     return res.status(500).json({
       ok: false,
       error: err instanceof Error ? err.message : 'Unexpected error',
     })
   }
+}
+
+async function fetchServerSetupsFromSupabase(since: string): Promise<Array<{
+  id: string
+  coin: string
+  direction: string
+  setup_json: Record<string, unknown>
+  outcomes_json: Record<string, unknown> | null
+  generated_at: string
+}>> {
+  const rows: Array<{
+    id: string
+    coin: string
+    direction: string
+    setup_json: Record<string, unknown>
+    outcomes_json: Record<string, unknown> | null
+    generated_at: string
+  }> = []
+
+  for (let offset = 0; offset < MAX_FETCH_ROWS; offset += PAGE_SIZE) {
+    const params = new URLSearchParams({
+      scope: `eq.${GLOBAL_SCOPE}`,
+      generated_at: `gte.${since}`,
+      order: 'generated_at.desc',
+      limit: String(PAGE_SIZE),
+      offset: String(offset),
+      select: 'id,coin,direction,setup_json,outcomes_json,generated_at,updated_at',
+    })
+
+    const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/server_setups?${params.toString()}`, {
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Supabase query failed: ${response.status}`)
+    }
+
+    const page = (await response.json()) as Array<{
+      id: string
+      coin: string
+      direction: string
+      setup_json: Record<string, unknown>
+      outcomes_json: Record<string, unknown> | null
+      generated_at: string
+    }>
+
+    rows.push(...page)
+    if (page.length < PAGE_SIZE) {
+      break
+    }
+  }
+
+  return rows
 }
 
 function resolveSince(query: VercelRequest['query']): string {

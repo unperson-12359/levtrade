@@ -15,7 +15,7 @@ interface VercelResponse {
 const DEFAULT_DAYS = 90
 const MAX_DAYS = 90
 const PAGE_SIZE = 1_000
-const MAX_FETCH_ROWS = 50_000
+const MAX_FETCH_ROWS = 100_000
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const GLOBAL_SCOPE = 'global'
 
@@ -43,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ok: true,
       stats,
       recordCount: rows.length,
+      windowDays: resolveDays(req.query),
       computedAt: new Date().toISOString(),
       truncated: rows.length >= MAX_FETCH_ROWS,
     })
@@ -105,9 +106,13 @@ async function fetchTrackedSignals(since: string): Promise<Array<{
 }
 
 function resolveSince(query: VercelRequest['query']): string {
-  const rawDays = firstQueryValue(query.days)
-  const days = Math.min(MAX_DAYS, parseInt(rawDays ?? '', 10) || DEFAULT_DAYS)
+  const days = resolveDays(query)
   return new Date(Date.now() - days * MS_PER_DAY).toISOString()
+}
+
+function resolveDays(query: VercelRequest['query']): number {
+  const rawDays = firstQueryValue(query.days)
+  return Math.min(MAX_DAYS, parseInt(rawDays ?? '', 10) || DEFAULT_DAYS)
 }
 
 function firstQueryValue(value: string | string[] | undefined): string | null {

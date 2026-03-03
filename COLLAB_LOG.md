@@ -2044,3 +2044,73 @@ Remove the Ralph loop control plane entirely and return the repo to normal human
 ### Remaining risks / follow-up
 - Historical log entries describing Ralph remain in `COLLAB_LOG.md` as part of the repo audit trail
 - Product/tracker work already in progress remains untouched and should be handled normally going forward
+
+---
+
+## 2026-03-03 13:44 - Codex - Canonical Analytics Hardening
+
+### Goal
+Remove silent truncation from canonical analytics endpoints and isolate the legacy browser-local tracker path so canonical setup history and server accuracy remain the only analytics truth.
+
+### Files changed
+- `api/server-setups.ts`
+- `api/signal-accuracy.ts`
+- `src/services/api.ts`
+- `src/services/dataManager.ts`
+- `src/hooks/useDataManager.ts`
+- `src/hooks/useServerTrackerStats.ts`
+- `src/components/tracker/AccuracyPanel.tsx`
+- `src/store/index.ts`
+- `src/components/claims/TrustPanel.tsx`
+- `src/components/guide/HowItWorks.tsx`
+- `src/hooks/useTrackerStats.ts` (deleted)
+- `COLLAB_LOG.md`
+
+### What changed
+- Paginated `/api/server-setups` so canonical setup history no longer silently caps at 2,000 rows
+- Expanded `/api/signal-accuracy` pagination ceiling and surfaced `recordCount`, `windowDays`, `computedAt`, and `truncated`
+- Preserved canonical accuracy completeness metadata through the frontend API helper and hook
+- Added an explicit partial-data warning in `AccuracyPanel` when the canonical server response is truncated
+- Stopped browser-local tracker updates from running on initialization and every polling cycle
+- Removed local tracker persistence from localStorage rehydration and reset legacy tracker arrays on merge
+- Updated trust/methodology copy so browser-local state is described as UI/risk/import convenience only
+- Deleted the now-unused `useTrackerStats` hook
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+
+### Remaining risks / follow-up
+- Vite still warns that the main client bundle is over 500 kB; this is performance-only and does not affect analytics correctness
+- Canonical setup history and signal accuracy now surface partial-data metadata, but a future UI pass could present setup-history truncation more visibly if the dataset ever approaches the API ceiling
+
+---
+
+## 2026-03-03 14:08 - Codex - Analytics Fallback Hotfix
+
+### Goal
+Restore usable analytics when canonical server-backed history or accuracy is temporarily unavailable, without pretending fallback browser data is canonical truth.
+
+### Files changed
+- `src/store/index.ts`
+- `src/services/dataManager.ts`
+- `src/hooks/useDataManager.ts`
+- `src/components/claims/TrustPanel.tsx`
+- `src/components/guide/HowItWorks.tsx`
+- `COLLAB_LOG.md`
+
+### What changed
+- Restored browser-local tracker persistence so a device can retain its own non-canonical signal history for fallback review
+- Re-enabled local tracker updates, resolution, and pruning during initialization, polling, and interval refreshes
+- Kept canonical setup history and signal accuracy as the preferred source, but allowed analytics surfaces to fall back to browser-local data when canonical endpoints are unavailable or empty
+- Updated trust and methodology copy so the app now explicitly distinguishes canonical server analytics from browser-local fallback behavior
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+
+### Remaining risks / follow-up
+- Browser-local fallback analytics can still differ across devices by design; they are only a continuity path while canonical server endpoints are unavailable or not yet populated
+- Vite still warns that the main client bundle is over 500 kB; this is performance-only and separate from the analytics data-path fix

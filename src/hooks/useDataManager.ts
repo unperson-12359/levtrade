@@ -15,10 +15,11 @@ export function useDataManager() {
 
     manager.initialize().then(() => {
       useStore.getState().computeAllSignals()
-      useStore.getState().resolveTrackedOutcomes()
+      useStore.getState().trackAllDecisionSnapshots()
       useStore.getState().resolveSetupOutcomes()
-      useStore.getState().pruneTrackerHistory()
+      useStore.getState().resolveTrackedOutcomes()
       useStore.getState().pruneSetupHistory()
+      useStore.getState().pruneTrackerHistory()
     }).catch(() => {
       // Errors already handled inside DataManager
     })
@@ -39,8 +40,10 @@ export function useDataManager() {
 
     manager.fetchAllCandles().then(() => {
       useStore.getState().computeAllSignals()
-      useStore.getState().resolveTrackedOutcomes()
+      useStore.getState().trackAllDecisionSnapshots()
       useStore.getState().resolveSetupOutcomes()
+      useStore.getState().resolveTrackedOutcomes()
+      useStore.getState().pruneTrackerHistory()
     }).catch(() => {
       // Errors handled inside DataManager
     })

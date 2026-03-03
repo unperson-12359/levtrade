@@ -1,4 +1,5 @@
 import { useServerTrackerStats } from '../../hooks/useServerTrackerStats'
+import { useTrackerStats } from '../../hooks/useTrackerStats'
 import { formatPercent, timeAgo } from '../../utils/format'
 
 const toneClasses = {
@@ -8,7 +9,10 @@ const toneClasses = {
 } as const
 
 export function AccuracyPanel() {
-  const { stats, loading, error } = useServerTrackerStats()
+  const { stats, loading, error, truncated, recordCount, windowDays, computedAt } = useServerTrackerStats()
+  const localStats = useTrackerStats()
+  const usingFallback = (!!error || stats.totalSignals === 0) && localStats.totalSignals > 0
+  const activeStats = usingFallback ? localStats : stats
 
   if (loading) {
     return (
@@ -23,7 +27,7 @@ export function AccuracyPanel() {
     )
   }
 
-  if (error) {
+  if (error && !usingFallback) {
     return (
       <section className="panel-shell">
         <div className="panel-header">
@@ -51,40 +55,55 @@ export function AccuracyPanel() {
           <div className="panel-kicker">Accuracy Tracker</div>
           <h3 className="panel-title">How the cockpit has performed over time</h3>
         </div>
-        {stats.bestKind24h && (
+        {activeStats.bestKind24h && (
           <span className="status-pill status-pill--green">
-            24h best: {stats.bestKind24h.label}
+            24h best: {activeStats.bestKind24h.label}
           </span>
         )}
       </div>
 
       <div className="stat-grid">
-        <TrackerMetric label="Tracked Signals" value={String(stats.totalSignals)} tone="yellow" />
-        <TrackerMetric label="Resolved Outcomes" value={String(stats.totalResolved)} tone="yellow" />
+        <TrackerMetric label="Tracked Signals" value={String(activeStats.totalSignals)} tone="yellow" />
+        <TrackerMetric label="Resolved Outcomes" value={String(activeStats.totalResolved)} tone="yellow" />
         <TrackerMetric
           label="24h Hit Rate"
-          value={renderRate(stats.overallByWindow['24h'].hitRate)}
-          tone={rateTone(stats.overallByWindow['24h'].hitRate)}
+          value={renderRate(activeStats.overallByWindow['24h'].hitRate)}
+          tone={rateTone(activeStats.overallByWindow['24h'].hitRate)}
         />
-        <TrackerMetric label="Best Signal" value={stats.bestKind24h?.label ?? 'N/A'} tone="green" />
+        <TrackerMetric label="Best Signal" value={activeStats.bestKind24h?.label ?? 'N/A'} tone="green" />
       </div>
 
-      {stats.latestResolved && (
+      {activeStats.latestResolved && (
         <div className="panel-copy">
-          Latest resolved: {stats.latestResolved.coin} {stats.latestResolved.label} on {stats.latestResolved.window}{' '}
+          Latest resolved: {activeStats.latestResolved.coin} {activeStats.latestResolved.label} on {activeStats.latestResolved.window}{' '}
           was{' '}
-          <span className={stats.latestResolved.correct ? 'text-signal-green' : 'text-signal-red'}>
-            {stats.latestResolved.correct ? 'correct' : 'wrong'}
+          <span className={activeStats.latestResolved.correct ? 'text-signal-green' : 'text-signal-red'}>
+            {activeStats.latestResolved.correct ? 'correct' : 'wrong'}
           </span>
-          {stats.latestResolved.returnPct !== null && ` (${formatPercent(stats.latestResolved.returnPct, 2)})`}{' '}
-          {timeAgo(stats.latestResolved.resolvedAt)}.
+          {activeStats.latestResolved.returnPct !== null && ` (${formatPercent(activeStats.latestResolved.returnPct, 2)})`}{' '}
+          {timeAgo(activeStats.latestResolved.resolvedAt)}.
         </div>
       )}
 
-      <p className="panel-copy">
-        Signal accuracy is tracked by the server collector and consistent across all devices.
-        Results resolve automatically as the collector runs, even when your browser is closed.
-      </p>
+      {usingFallback ? (
+        <p className="panel-copy">
+          Showing browser fallback signal accuracy because canonical server accuracy is currently unavailable or empty on
+          this device. These numbers may differ across devices until the server collector path is available.
+        </p>
+      ) : (
+        <p className="panel-copy">
+          Signal accuracy is tracked by the server collector and consistent across all devices.
+          Results resolve automatically as the collector runs, even when your browser is closed.
+        </p>
+      )}
+
+      {truncated && !usingFallback && (
+        <p className="panel-copy">
+          Server accuracy is partial right now because the {windowDays}-day result set exceeded the current API fetch
+          ceiling. Showing the first {recordCount.toLocaleString()} canonical records fetched
+          {computedAt ? ` as of ${new Date(computedAt).toLocaleString()}` : ''}.
+        </p>
+      )}
 
       <p className="panel-copy">
         This table tracks whether each signal correctly predicted the price direction over 4h, 24h, and 72h windows.
@@ -101,7 +120,7 @@ export function AccuracyPanel() {
             <span>72h</span>
             <span>24h Samples</span>
           </div>
-          {stats.byKind.map((item) => (
+          {activeStats.byKind.map((item) => (
             <div key={item.kind} className="tracker-row">
               <span>{item.label}</span>
               <span className={toneClasses[rateTone(item.windows['4h'].hitRate)]}>{renderRate(item.windows['4h'].hitRate)}</span>

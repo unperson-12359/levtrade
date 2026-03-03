@@ -19,18 +19,38 @@ const EMPTY_STATS: TrackerStats = {
   latestResolved: null,
 }
 
-export function useServerTrackerStats(): { stats: TrackerStats; loading: boolean; error: string | null } {
+export function useServerTrackerStats(): {
+  stats: TrackerStats
+  loading: boolean
+  error: string | null
+  truncated: boolean
+  recordCount: number
+  windowDays: number
+  computedAt: string | null
+} {
   const [stats, setStats] = useState<TrackerStats>(EMPTY_STATS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [truncated, setTruncated] = useState(false)
+  const [recordCount, setRecordCount] = useState(0)
+  const [windowDays, setWindowDays] = useState(90)
+  const [computedAt, setComputedAt] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     const result = await fetchSignalAccuracy()
     if (result.stats) {
       setStats(result.stats)
       setError(result.error)
+      setTruncated(result.truncated)
+      setRecordCount(result.recordCount)
+      setWindowDays(result.windowDays)
+      setComputedAt(result.computedAt)
     } else {
       setError(result.error ?? 'Signal accuracy is unavailable right now.')
+      setTruncated(false)
+      setRecordCount(0)
+      setWindowDays(result.windowDays)
+      setComputedAt(result.computedAt)
     }
     setLoading(false)
   }, [])
@@ -41,5 +61,5 @@ export function useServerTrackerStats(): { stats: TrackerStats; loading: boolean
     return () => clearInterval(timer)
   }, [refresh])
 
-  return { stats, loading, error }
+  return { stats, loading, error, truncated, recordCount, windowDays, computedAt }
 }

@@ -138,7 +138,15 @@ export async function fetchBinanceOpenInterest(coin: TrackedCoin): Promise<numbe
   return isFinite(markPrice) ? oi * markPrice : null
 }
 
-export async function fetchServerSetups(since?: string): Promise<TrackedSetup[]> {
+export interface ServerSetupsResponse {
+  setups: TrackedSetup[]
+  rowCount: number
+  truncated: boolean
+  fetchedAt: string | null
+  maxRowsApplied: number | null
+}
+
+export async function fetchServerSetups(since?: string): Promise<ServerSetupsResponse> {
   try {
     const params = new URLSearchParams()
     if (since) {
@@ -146,12 +154,49 @@ export async function fetchServerSetups(since?: string): Promise<TrackedSetup[]>
     }
 
     const res = await fetch(`/api/server-setups${params.size > 0 ? `?${params.toString()}` : ''}`)
-    if (!res.ok) return []
+    if (!res.ok) {
+      return {
+        setups: [],
+        rowCount: 0,
+        truncated: false,
+        fetchedAt: null,
+        maxRowsApplied: null,
+      }
+    }
 
-    const payload = (await res.json()) as { ok?: boolean; setups?: TrackedSetup[] }
-    return payload.ok && Array.isArray(payload.setups) ? payload.setups : []
+    const payload = (await res.json()) as {
+      ok?: boolean
+      setups?: TrackedSetup[]
+      rowCount?: number
+      truncated?: boolean
+      fetchedAt?: string
+      maxRowsApplied?: number | null
+    }
+    if (payload.ok && Array.isArray(payload.setups)) {
+      return {
+        setups: payload.setups,
+        rowCount: payload.rowCount ?? payload.setups.length,
+        truncated: payload.truncated ?? false,
+        fetchedAt: payload.fetchedAt ?? null,
+        maxRowsApplied: payload.maxRowsApplied ?? null,
+      }
+    }
+
+    return {
+      setups: [],
+      rowCount: 0,
+      truncated: false,
+      fetchedAt: null,
+      maxRowsApplied: null,
+    }
   } catch {
-    return []
+    return {
+      setups: [],
+      rowCount: 0,
+      truncated: false,
+      fetchedAt: null,
+      maxRowsApplied: null,
+    }
   }
 }
 
@@ -170,6 +215,10 @@ export async function fetchCollectorHeartbeat(): Promise<(CollectorHeartbeat & {
 export interface SignalAccuracyResponse {
   stats: TrackerStats | null
   error: string | null
+  truncated: boolean
+  recordCount: number
+  windowDays: number
+  computedAt: string | null
 }
 
 export async function fetchSignalAccuracy(days?: number): Promise<SignalAccuracyResponse> {
@@ -182,23 +231,47 @@ export async function fetchSignalAccuracy(days?: number): Promise<SignalAccuracy
       return {
         stats: null,
         error: `Signal accuracy request failed with status ${res.status}.`,
+        truncated: false,
+        recordCount: 0,
+        windowDays: days ?? 90,
+        computedAt: null,
       }
     }
-    const payload = (await res.json()) as { ok?: boolean; stats?: TrackerStats; error?: string }
+    const payload = (await res.json()) as {
+      ok?: boolean
+      stats?: TrackerStats
+      error?: string
+      truncated?: boolean
+      recordCount?: number
+      windowDays?: number
+      computedAt?: string
+    }
     if (payload.ok && payload.stats) {
       return {
         stats: payload.stats,
         error: null,
+        truncated: payload.truncated ?? false,
+        recordCount: payload.recordCount ?? 0,
+        windowDays: payload.windowDays ?? (days ?? 90),
+        computedAt: payload.computedAt ?? null,
       }
     }
     return {
       stats: null,
       error: payload.error ?? 'Signal accuracy is unavailable right now.',
+      truncated: payload.truncated ?? false,
+      recordCount: payload.recordCount ?? 0,
+      windowDays: payload.windowDays ?? (days ?? 90),
+      computedAt: payload.computedAt ?? null,
     }
   } catch {
     return {
       stats: null,
       error: 'Signal accuracy is unavailable right now.',
+      truncated: false,
+      recordCount: 0,
+      windowDays: days ?? 90,
+      computedAt: null,
     }
   }
 }

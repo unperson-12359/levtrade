@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSetupStats } from '../../hooks/useSetupStats'
+import { useSetupHistorySource } from '../../hooks/useSetupHistorySource'
 import { useStore } from '../../store'
 import { TRACKED_COINS, type TrackedCoin } from '../../types'
 import type { SetupOutcome, SetupWindow, TierStats, TrackedSetup } from '../../types/setup'
@@ -13,8 +14,8 @@ type SetupFilter = 'ALL' | TrackedCoin
 export function SetupHistory() {
   const [statsWindow, setStatsWindow] = useState<SetupWindow>('24h')
   const [selectedTrackedSetup, setSelectedTrackedSetup] = useState<TrackedSetup | null>(null)
-  const stats = useSetupStats(statsWindow)
-  const trackedSetups = useStore((s) => s.serverTrackedSetups)
+  const { trackedSetups, usingFallback } = useSetupHistorySource()
+  const stats = useSetupStats(statsWindow, trackedSetups)
   const exportCsv = useStore((s) => s.exportSetupsCsv)
   const [filter, setFilter] = useState<SetupFilter>('ALL')
 
@@ -58,6 +59,13 @@ export function SetupHistory() {
         Tracked automatically. Outcomes are scored from 1h candles over the selected window. Click any recent row or
         use the Review action to inspect the original suggestion and outcomes.
       </p>
+
+      {usingFallback && (
+        <p className="panel-copy">
+          Showing browser fallback setup history because canonical server setup history is currently unavailable or empty
+          on this device.
+        </p>
+      )}
 
       <div className="stat-grid setup-history__summary">
         <Stat label="Tracked setups" value={String(stats.totalSetups)} tone="yellow" />
