@@ -13,7 +13,7 @@ export function AssetPill({ coin, isBest = false }: AssetPillProps) {
   const selectedCoin = useStore((s) => s.selectedCoin)
   const selectCoin = useStore((s) => s.selectCoin)
   const { price, isLoading } = useMarketData(coin)
-  const decision = useEntryDecision(coin)
+  const decision = useEntryDecision(coin, { skipRisk: true })
 
   const isSelected = selectedCoin === coin
   const tone = decision.color

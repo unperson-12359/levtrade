@@ -13,7 +13,11 @@ export interface EntryDecisionState {
   riskStatus: RiskStatus
 }
 
-export function useEntryDecision(coin: TrackedCoin): EntryDecisionState {
+interface EntryDecisionOptions {
+  skipRisk?: boolean
+}
+
+export function useEntryDecision(coin: TrackedCoin, options?: EntryDecisionOptions): EntryDecisionState {
   const signals = useStore((s) => s.signals[coin])
   const { inputs, riskStatus } = usePositionRisk()
 
@@ -28,7 +32,9 @@ export function useEntryDecision(coin: TrackedCoin): EntryDecisionState {
       }
     }
 
-    const activeRiskStatus = inputs.coin === coin ? riskStatus : 'unknown'
+    const activeRiskStatus = options?.skipRisk
+      ? 'unknown'
+      : inputs.coin === coin ? riskStatus : 'unknown'
     const decision = computeDecisionState({
       composite: signals.composite,
       entryGeometry: signals.entryGeometry,
@@ -45,7 +51,7 @@ export function useEntryDecision(coin: TrackedCoin): EntryDecisionState {
       color: decisionColor(decision.action),
       riskStatus: activeRiskStatus,
     }
-  }, [coin, inputs.coin, riskStatus, signals])
+  }, [coin, inputs.coin, riskStatus, signals, options?.skipRisk])
 }
 
 function decisionColor(action: DecisionAction): SignalColor {
