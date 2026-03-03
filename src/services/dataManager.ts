@@ -33,6 +33,8 @@ export class DataManager {
   private unsubscribers: (() => void)[] = []
   private initialized = false
   private contextRefreshing = false
+  private setupSyncInFlight = false
+  private pendingSetupUploadIds = new Set<string>()
 
   constructor(store: StoreApi<AppStore>) {
     this.store = store
@@ -216,7 +218,10 @@ export class DataManager {
   }
 
   private async syncLocalSetupsToServer(): Promise<void> {
+    if (this.setupSyncInFlight) return
+
     try {
+      this.setupSyncInFlight = true
       const state = this.store.getState()
       const { localTrackedSetups, serverTrackedSetups } = state
 
@@ -226,11 +231,16 @@ export class DataManager {
       const serverIds = new Set(serverTrackedSetups.map((s) => s.id))
       const serverKeys = new Set(serverTrackedSetups.map((s) => buildSetupId(s.setup)))
       const localOnly = localTrackedSetups.filter(
-        (l) => !serverIds.has(l.id) && !serverKeys.has(buildSetupId(l.setup)),
+        (l) =>
+          l.syncEligible === true &&
+          !this.pendingSetupUploadIds.has(l.id) &&
+          !serverIds.has(l.id) &&
+          !serverKeys.has(buildSetupId(l.setup)),
       )
 
       if (localOnly.length === 0) return
 
+      localOnly.forEach((tracked) => this.pendingSetupUploadIds.add(tracked.id))
       const result = await uploadLocalSetups(localOnly)
       if (result.synced > 0) {
         // Re-fetch server setups to hydrate the newly synced data
@@ -241,6 +251,9 @@ export class DataManager {
       }
     } catch {
       // Non-critical: sync failure doesn't break the app
+    } finally {
+      this.pendingSetupUploadIds.clear()
+      this.setupSyncInFlight = false
     }
   }
 

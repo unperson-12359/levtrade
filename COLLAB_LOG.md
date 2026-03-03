@@ -2114,3 +2114,40 @@ Restore usable analytics when canonical server-backed history or accuracy is tem
 ### Remaining risks / follow-up
 - Browser-local fallback analytics can still differ across devices by design; they are only a continuity path while canonical server endpoints are unavailable or not yet populated
 - Vite still warns that the main client bundle is over 500 kB; this is performance-only and separate from the analytics data-path fix
+
+---
+
+## 2026-03-03 16:05 - Codex - Setup Upload Hardening
+
+### Goal
+Secure the browser-to-server setup sync path so cross-device setup convergence does not leave canonical history publicly writable or allow imported/local synthetic records to auto-promote into the server dataset.
+
+### Files changed
+- `api/upload-setups.ts`
+- `src/services/api.ts`
+- `src/services/dataManager.ts`
+- `src/store/setupSlice.ts`
+- `src/types/setup.ts`
+- `src/vite-env.d.ts`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added shared-secret authorization to `/api/upload-setups` via `x-levtrade-upload-secret` and `SETUP_UPLOAD_SECRET`
+- Tightened upload validation to require a structurally valid `SuggestedSetup` payload with sane enums, finite numbers, and plausible timestamps
+- Stopped trusting client-provided outcomes on upload; server insert always seeds fresh pending outcomes
+- Added server-side semantic dedupe before insert using `buildSetupId`, so same setup under a different local ID is dropped before reaching Supabase
+- Added `syncEligible?: boolean` to `TrackedSetup`
+- Marked only newly generated live local setups as `syncEligible: true`; imported, hydrated, backfill, and legacy records default to non-promotable
+- Added in-memory upload guards in `DataManager` to prevent overlapping setup sync attempts during app initialization
+- Added a regression check that asserts `buildSetupId` remains present and stable in the `_signals` API bundle
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+
+### Remaining risks / follow-up
+- Production still needs `SETUP_UPLOAD_SECRET` and `VITE_SETUP_UPLOAD_SECRET` configured before the secured upload path can function
+- Legacy local setups created before `syncEligible` existed will remain local-only unless explicitly migrated later
+- Vite still warns that the main client bundle is over 500 kB; this is performance-only and unrelated to upload safety

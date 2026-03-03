@@ -57,6 +57,7 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
           '24h': emptyOutcome('24h'),
           '72h': emptyOutcome('72h'),
         },
+        syncEligible: setup.source !== 'server' && setup.source !== 'backfill',
       }
 
       return {
@@ -80,7 +81,10 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
       })
 
       for (const item of items) {
-        const normalized = normalizeTrackedSetupRecord(item)
+        const normalized = {
+          ...normalizeTrackedSetupRecord(item),
+          syncEligible: false,
+        }
         const semanticKey = buildSetupId(normalized.setup)
         const existingIndex = indexById.get(normalized.id) ?? indexBySemanticKey.get(semanticKey)
 
@@ -309,7 +313,10 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
 
         for (const tracked of imported) {
           if (!existingIds.has(tracked.id)) {
-            merged.push(tracked)
+            merged.push({
+              ...tracked,
+              syncEligible: false,
+            })
           }
         }
 
@@ -366,6 +373,7 @@ function normalizeTrackedSetupRecord(tracked: TrackedSetup): TrackedSetup {
       '24h': normalizeOutcome(tracked.outcomes['24h'], '24h'),
       '72h': normalizeOutcome(tracked.outcomes['72h'], '72h'),
     },
+    syncEligible: tracked.syncEligible ?? false,
   }
 }
 
@@ -402,6 +410,10 @@ function mergeTrackedSetupRecords(existing: TrackedSetup, incoming: TrackedSetup
     setup: nextSetup,
     outcomes,
     coverageStatus: summarizeCoverage(outcomes, preferIncomingSetup ? normalizedIncoming.coverageStatus : normalizedExisting.coverageStatus),
+    syncEligible:
+      preferIncomingSetup
+        ? normalizedIncoming.syncEligible
+        : normalizedExisting.syncEligible,
   }
 }
 

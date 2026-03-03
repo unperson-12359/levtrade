@@ -202,23 +202,51 @@ export async function fetchServerSetups(since?: string): Promise<ServerSetupsRes
 
 export async function uploadLocalSetups(
   setups: TrackedSetup[],
-): Promise<{ synced: number; skipped: number }> {
+): Promise<{ synced: number; skipped: number; rejected: number; disabled: boolean; reason?: string }> {
+  const uploadSecret = import.meta.env.VITE_SETUP_UPLOAD_SECRET
+  if (!uploadSecret) {
+    return { synced: 0, skipped: setups.length, rejected: 0, disabled: true, reason: 'disabled' }
+  }
+
   try {
     const res = await fetch('/api/upload-setups', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-levtrade-upload-secret': uploadSecret,
+      },
       body: JSON.stringify({ setups }),
     })
     if (!res.ok) {
-      return { synced: 0, skipped: setups.length }
+      const reason = res.status === 401 || res.status === 403 ? 'unauthorized' : 'failed'
+      return { synced: 0, skipped: setups.length, rejected: 0, disabled: false, reason }
     }
-    const payload = (await res.json()) as { ok?: boolean; synced?: number; skipped?: number }
+    const payload = (await res.json()) as {
+      ok?: boolean
+      synced?: number
+      skipped?: number
+      rejected?: number
+      disabled?: boolean
+      reason?: string
+    }
     if (payload.ok) {
-      return { synced: payload.synced ?? 0, skipped: payload.skipped ?? 0 }
+      return {
+        synced: payload.synced ?? 0,
+        skipped: payload.skipped ?? 0,
+        rejected: payload.rejected ?? 0,
+        disabled: payload.disabled ?? false,
+        reason: payload.reason,
+      }
     }
-    return { synced: 0, skipped: setups.length }
+    return {
+      synced: 0,
+      skipped: setups.length,
+      rejected: payload.rejected ?? 0,
+      disabled: payload.disabled ?? false,
+      reason: payload.reason ?? 'failed',
+    }
   } catch {
-    return { synced: 0, skipped: setups.length }
+    return { synced: 0, skipped: setups.length, rejected: 0, disabled: false, reason: 'failed' }
   }
 }
 

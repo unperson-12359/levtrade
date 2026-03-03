@@ -41,6 +41,7 @@ export interface TrackedSetup {
   setup: SuggestedSetup
   coverageStatus?: SetupCoverageStatus
   outcomes: Record<SetupWindow, SetupOutcome>
+  syncEligible?: boolean
 }
 
 export interface SetupOutcome {

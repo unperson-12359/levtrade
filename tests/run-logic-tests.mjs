@@ -10,6 +10,7 @@ const { resolveSetupWindow, computeOIDelta } = signals
 
 runResolveOutcomeTest()
 runOiDeltaTest()
+runBuildSetupIdExportTest()
 runBundleDriftCheck()
 
 console.log('Logic regression checks passed')
@@ -80,6 +81,19 @@ function runOiDeltaTest() {
   const rawResult = computeOIDelta(rawHistory, closes)
   const hourlyResult = computeOIDelta(hourlyHistory, closes)
   assert.deepEqual(rawResult, hourlyResult)
+}
+
+function runBuildSetupIdExportTest() {
+  const key = signals.buildSetupId({
+    coin: 'BTC',
+    direction: 'long',
+    generatedAt: 1234567890,
+    entryPrice: 100.123456,
+    stopPrice: 95.5,
+    targetPrice: 110.987654,
+  })
+
+  assert.equal(key, 'setup:BTC:long:1234567890:100.1235:95.5:110.9877')
 }
 
 function candle(time, open, high, low, close) {
