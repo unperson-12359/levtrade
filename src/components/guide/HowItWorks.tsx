@@ -230,7 +230,8 @@ export function HowItWorks() {
               <li><strong>Server-collected:</strong> historical setup suggestions, canonical signal accuracy tracking, resolved 4h / 24h / 72h outcomes, and collector heartbeat</li>
               <li><strong>Browser-local:</strong> risk input defaults, UI state, imported setup history, and non-canonical fallback tracker history for this browser</li>
               <li><strong>Where it lives:</strong> server history lives in Supabase; local state stays under the app storage key in this browser</li>
-              <li><strong>Fallback:</strong> if a canonical analytics endpoint is unavailable, the dashboard can temporarily show browser-local fallback history on this device and label it as fallback</li>
+              <li><strong>Canonical rule:</strong> when server setup history is available, history and performance use only the server dataset so counts match across devices</li>
+              <li><strong>Fallback:</strong> only if canonical server history is unavailable does the dashboard temporarily show browser-local fallback history on this device and label it as fallback</li>
               <li><strong>Retention:</strong> 90 days. Older setups are pruned automatically</li>
             </ul>
           </Section>

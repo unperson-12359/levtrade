@@ -2151,3 +2151,31 @@ Secure the browser-to-server setup sync path so cross-device setup convergence d
 - Production still needs `SETUP_UPLOAD_SECRET` and `VITE_SETUP_UPLOAD_SECRET` configured before the secured upload path can function
 - Legacy local setups created before `syncEligible` existed will remain local-only unless explicitly migrated later
 - Vite still warns that the main client bundle is over 500 kB; this is performance-only and unrelated to upload safety
+
+---
+
+## 2026-03-03 16:42 - Codex - Server-Only Canonical Setup History
+
+### Goal
+Eliminate the remaining 1-setup cross-device mismatch by making setup-history analytics use only the server dataset whenever canonical server setup history is available.
+
+### Files changed
+- `src/hooks/useSetupHistorySource.ts`
+- `src/components/claims/TrustPanel.tsx`
+- `src/components/guide/HowItWorks.tsx`
+- `COLLAB_LOG.md`
+
+### What changed
+- Removed the merged server+local setup-history mode from `useSetupHistorySource`
+- Made setup history return the server dataset only whenever `serverTrackedSetups` is non-empty
+- Kept browser-local setup history as an explicit fallback only when canonical server setup history is unavailable
+- Updated trust and methodology copy to state clearly that history and performance use the server dataset only once server setup history is available
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+
+### Remaining risks / follow-up
+- Legacy local-only setups will still remain on a device, but they no longer affect canonical setup-history counts once server history is available
+- Signal accuracy still has its own canonical/fallback path and should be reviewed separately if cross-device parity remains off there

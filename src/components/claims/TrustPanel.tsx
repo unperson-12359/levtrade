@@ -72,9 +72,10 @@ export function TrustPanel() {
 
       <p className="panel-copy">
         Canonical historical setups, signal accuracy, and resolved outcomes are collected by the server and should match
-        across devices. If a canonical analytics endpoint is unavailable, the dashboard can temporarily fall back to
-        browser-local history on this device. Risk defaults, UI preferences, and imported setup records persist locally
-        in this browser.
+        across devices. When server setup history is available, history and performance use the server dataset only so
+        counts stay aligned on desktop and mobile. If a canonical analytics endpoint is unavailable, the dashboard can
+        temporarily fall back to browser-local history on this device. Risk defaults, UI preferences, and imported
+        setup records persist locally in this browser.
       </p>
 
       <div className="stat-grid trust-panel__stats">
@@ -83,7 +84,7 @@ export function TrustPanel() {
         <Stat label="Collector status" value={collectorStatus.label} tone={collectorStatus.tone} />
         <Stat label="Last server run" value={collectorStatus.lastRun} tone={collectorStatus.tone} />
         <Stat label="Persistence" value="Supabase + browser cache" tone="green" />
-        <Stat label="State model" value="Server analytics, local UI/risk fallback" tone="green" />
+        <Stat label="State model" value="Server canonical, local fallback only when needed" tone="green" />
         <Stat label="Retention" value="90 days" tone="green" />
         <Stat label="Saved scope" value="Server analytics + local imports + browser settings" tone="green" />
         <Stat label="Resolution basis" value="4h / 24h / 72h from 1h candles" tone="green" />
