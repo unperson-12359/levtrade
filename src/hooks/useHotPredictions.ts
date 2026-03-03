@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useStore } from '../store'
 import type { TrackedSetup } from '../types/setup'
+import { buildSetupId } from '../utils/identity'
 
 export type HeatTier = 'warm' | 'hot' | 'on-fire'
 export type SetupStatus = 'profit' | 'underwater'
@@ -23,7 +24,10 @@ export function useLiveSetups(): LiveSetup[] {
 
   const trackedSetups = useMemo(() => {
     const serverIds = new Set(serverSetups.map((s) => s.id))
-    return [...serverSetups, ...localSetups.filter((l) => !serverIds.has(l.id))]
+    const serverSemanticKeys = new Set(serverSetups.map((s) => buildSetupId(s.setup)))
+    return [...serverSetups, ...localSetups.filter((l) =>
+      !serverIds.has(l.id) && !serverSemanticKeys.has(buildSetupId(l.setup)),
+    )]
   }, [serverSetups, localSetups])
 
   return trackedSetups

@@ -48,6 +48,11 @@ export function AccuracyPanel() {
       )}
 
       <p className="panel-copy">
+        Signal accuracy is tracked locally per device and may differ across browsers.
+        Setup performance (Performance &amp; History tabs) is server-authoritative and consistent across devices.
+      </p>
+
+      <p className="panel-copy">
         This table tracks whether each signal correctly predicted the price direction over 4h, 24h, and 72h windows.
         A hit rate above 55% is meaningful; above 60% is strong. Neutral signals like Regime are excluded from hit-rate
         calculations, and results only resolve once the matching future candle actually exists.

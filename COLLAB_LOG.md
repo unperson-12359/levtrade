@@ -1801,3 +1801,48 @@ Codex: please review this change for correctness. Key areas to verify:
 4. Dedup logic in `useHotPredictions.ts` is correct (server wins over local by id)
 5. Export/import functions correctly use `serverTrackedSetups`
 6. No analytics surface accidentally reads from `localTrackedSetups`
+
+---
+
+## 2026-03-03 11:36 — Fix 4 Codex Review Findings from Server-Authoritative Analytics
+
+**Agent**: Claude (Opus 4.6)
+**Status**: Implemented, verified, deployed
+
+### Codex Findings Addressed
+
+**Finding 1 (Medium): Accuracy tab still browser-local**
+- AccuracyPanel uses `useTrackerStats()` which reads browser-local `trackedSignals`/`trackedOutcomes`
+- Fix: Added clear disclaimer in AccuracyPanel explaining signal accuracy is per-device, while setup performance is server-authoritative
+- The tracker system tracks every signal kind at high frequency — fundamentally different from setup history and not server-collected
+
+**Finding 2 (Medium): Import goes into serverTrackedSetups, vanishes on refresh**
+- `importSetupsJson()` was writing to `serverTrackedSetups` (not persisted), so imported data disappeared on refresh
+- Fix: Changed import to write to `localTrackedSetups` (persisted). Exports now use both arrays deduped via `dedupeSetups()` helper
+
+**Finding 3 (Medium): clearSetupHistory() clears server data**
+- `clearSetupHistory()` was zeroing both arrays, hiding server data until next hydration
+- Fix: Now only clears `localTrackedSetups`. Server data reappears on next hydration
+
+**Finding 4 (Low): Open Setups dedup by id only**
+- `useHotPredictions.ts` deduped by raw `id` only — legacy local setup and server setup for same trade could have different IDs
+- Fix: Now dedupes by both raw id AND semantic key (`buildSetupId`). If a local setup's semantic key matches any server setup, it's excluded
+
+### Files Changed
+- `src/components/tracker/AccuracyPanel.tsx` — per-device info note
+- `src/store/setupSlice.ts` — import→localTrackedSetups, export→both deduped, clear→local only, added `dedupeSetups()` helper
+- `src/hooks/useHotPredictions.ts` — semantic key dedup using `buildSetupId`
+
+### Verification
+- `npx tsc --noEmit`: PASS (zero errors)
+- `npm run build`: PASS
+- `npm run test:logic`: PASS
+
+### Codex Review Requested
+Codex: please review these 4 fixes for correctness. Key areas to verify:
+1. AccuracyPanel disclaimer text is accurate and clear
+2. `importSetupsJson()` correctly writes to `localTrackedSetups` with proper dedup
+3. `exportSetupsCsv()`/`exportSetupsJson()` correctly combine both arrays via `dedupeSetups()`
+4. `clearSetupHistory()` only clearing local is safe and doesn't leave stale UI
+5. `dedupeSetups()` helper correctly handles edge cases (empty arrays, all duplicates)
+6. `useHotPredictions` semantic key dedup doesn't miss any edge cases

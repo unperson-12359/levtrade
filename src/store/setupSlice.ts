@@ -203,7 +203,6 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
 
   clearSetupHistory: () =>
     set({
-      serverTrackedSetups: [],
       localTrackedSetups: [],
     }),
 
@@ -242,7 +241,8 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
       'returnPct_72h',
     ].join(',')
 
-    const rows = state.serverTrackedSetups.map((tracked) => {
+    const allSetups = dedupeSetups(state.serverTrackedSetups, state.localTrackedSetups)
+    const rows = allSetups.map((tracked) => {
       const setup = tracked.setup
       const o4 = tracked.outcomes['4h']
       const o24 = tracked.outcomes['24h']
@@ -286,7 +286,9 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
   },
 
   exportSetupsJson: () => {
-    const payload = JSON.stringify(get().serverTrackedSetups, null, 2)
+    const state = get()
+    const allSetups = dedupeSetups(state.serverTrackedSetups, state.localTrackedSetups)
+    const payload = JSON.stringify(allSetups, null, 2)
     downloadBlob(payload, `levtrade-setups-${Date.now()}.json`, 'application/json')
   },
 
@@ -302,8 +304,8 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
       }
 
       set((state) => {
-        const existingIds = new Set(state.serverTrackedSetups.map((item) => item.id))
-        const merged = [...state.serverTrackedSetups]
+        const existingIds = new Set(state.localTrackedSetups.map((item) => item.id))
+        const merged = [...state.localTrackedSetups]
 
         for (const tracked of imported) {
           if (!existingIds.has(tracked.id)) {
@@ -312,13 +314,20 @@ export const createSetupSlice: StateCreator<AppStore, [], [], SetupSlice> = (set
         }
 
         merged.sort((a, b) => a.setup.generatedAt - b.setup.generatedAt)
-        return { serverTrackedSetups: merged }
+        return { localTrackedSetups: merged }
       })
     } catch {
       get().addError('Failed to import setup history JSON.')
     }
   },
 })
+
+function dedupeSetups(server: TrackedSetup[], local: TrackedSetup[]): TrackedSetup[] {
+  const serverIds = new Set(server.map((s) => s.id))
+  const serverKeys = new Set(server.map((s) => buildSetupId(s.setup)))
+  const uniqueLocal = local.filter((l) => !serverIds.has(l.id) && !serverKeys.has(buildSetupId(l.setup)))
+  return [...server, ...uniqueLocal].sort((a, b) => a.setup.generatedAt - b.setup.generatedAt)
+}
 
 function downloadBlob(contents: string, filename: string, mimeType: string) {
   const blob = new Blob([contents], { type: mimeType })
