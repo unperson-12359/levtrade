@@ -1,8 +1,12 @@
 // Type declarations for pre-bundled _signals.mjs (generated from src/signals/api-entry.ts)
 // Only declares symbols actually used by API functions — not the full barrel.
 
-import type { SetupOutcome, SetupWindow, SetupCoverageStatus } from '../src/types/setup'
+import type { SetupOutcome, SetupWindow, SetupCoverageStatus, SuggestedSetup } from '../src/types/setup'
 import type { TrackedSignalRecord, TrackedSignalOutcome, TrackerStats } from '../src/types/tracker'
+
+export function buildSetupId(
+  setup: Pick<SuggestedSetup, 'coin' | 'direction' | 'generatedAt' | 'entryPrice' | 'stopPrice' | 'targetPrice'>,
+): string
 
 export function emptyOutcome(window: SetupWindow): SetupOutcome
 export function summarizeCoverage(

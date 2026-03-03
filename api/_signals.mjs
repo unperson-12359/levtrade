@@ -1230,6 +1230,24 @@ function computeMaePct(setup, highestHigh, lowestLow) {
 }
 
 // src/utils/identity.ts
+var PRICE_KEY_DECIMALS = 4;
+function normalizePriceKey(value) {
+  if (!isFinite(value)) {
+    return "na";
+  }
+  return Number(value.toFixed(PRICE_KEY_DECIMALS)).toString();
+}
+function buildSetupId(setup) {
+  return [
+    "setup",
+    setup.coin,
+    setup.direction,
+    String(setup.generatedAt),
+    normalizePriceKey(setup.entryPrice),
+    normalizePriceKey(setup.stopPrice),
+    normalizePriceKey(setup.targetPrice)
+  ].join(":");
+}
 function buildTrackedSignalId(input) {
   return [
     "signal",
@@ -1471,6 +1489,7 @@ export {
   SIGNAL_KIND_LABELS,
   TRACKED_COINS,
   TRACKER_WINDOWS,
+  buildSetupId,
   buildTrackedRecords,
   computeATR,
   computeComposite,

@@ -13,6 +13,7 @@ export { computeComposite } from './composite'
 export { computeSuggestedSetup } from './setup'
 export { resolveSetupWindow, emptyOutcome, SETUP_WINDOWS } from './resolveOutcome'
 export { summarizeCoverage } from '../utils/setupCoverage'
+export { buildSetupId } from '../utils/identity'
 export type { SetupOutcome, SetupWindow, SetupCoverageStatus } from '../types/setup'
 
 // Shared tracker logic for collector

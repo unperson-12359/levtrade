@@ -200,6 +200,28 @@ export async function fetchServerSetups(since?: string): Promise<ServerSetupsRes
   }
 }
 
+export async function uploadLocalSetups(
+  setups: TrackedSetup[],
+): Promise<{ synced: number; skipped: number }> {
+  try {
+    const res = await fetch('/api/upload-setups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ setups }),
+    })
+    if (!res.ok) {
+      return { synced: 0, skipped: setups.length }
+    }
+    const payload = (await res.json()) as { ok?: boolean; synced?: number; skipped?: number }
+    if (payload.ok) {
+      return { synced: payload.synced ?? 0, skipped: payload.skipped ?? 0 }
+    }
+    return { synced: 0, skipped: setups.length }
+  } catch {
+    return { synced: 0, skipped: setups.length }
+  }
+}
+
 export async function fetchCollectorHeartbeat(): Promise<(CollectorHeartbeat & { status: string }) | null> {
   try {
     const res = await fetch('/api/collector-heartbeat')

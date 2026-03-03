@@ -9,6 +9,7 @@ import {
   fetchBinanceFundingRate,
   fetchBinanceOpenInterest,
   fetchServerSetups,
+  uploadLocalSetups,
 } from './api'
 import { HyperliquidWS } from './websocket'
 import { computeSignalsAtTime, generateBackfillTimestamps } from '../signals/backfill'
@@ -18,6 +19,7 @@ import type { StoreApi } from 'zustand'
 import type { AppStore } from '../store'
 
 import { POLL_INTERVAL_MS, SETUP_RESOLUTION_INTERVAL, SETUP_RESOLUTION_LOOKBACK_MS } from '../config/constants'
+import { buildSetupId } from '../utils/identity'
 import type { TrackedCoin } from '../types/market'
 
 const FEAR_GREED_REFRESH_MS = 15 * 60 * 1000
@@ -205,8 +207,40 @@ export class DataManager {
       if (response.setups.length > 0) {
         this.store.getState().hydrateServerSetups(response.setups)
       }
+
+      // Auto-sync: push local-only setups to the server so all devices converge
+      void this.syncLocalSetupsToServer()
     } catch {
       // Non-critical: the dashboard still works with browser-local fallback history if server hydration fails.
+    }
+  }
+
+  private async syncLocalSetupsToServer(): Promise<void> {
+    try {
+      const state = this.store.getState()
+      const { localTrackedSetups, serverTrackedSetups } = state
+
+      if (localTrackedSetups.length === 0) return
+
+      // Find local setups not already on the server (same dedup as useSetupHistorySource)
+      const serverIds = new Set(serverTrackedSetups.map((s) => s.id))
+      const serverKeys = new Set(serverTrackedSetups.map((s) => buildSetupId(s.setup)))
+      const localOnly = localTrackedSetups.filter(
+        (l) => !serverIds.has(l.id) && !serverKeys.has(buildSetupId(l.setup)),
+      )
+
+      if (localOnly.length === 0) return
+
+      const result = await uploadLocalSetups(localOnly)
+      if (result.synced > 0) {
+        // Re-fetch server setups to hydrate the newly synced data
+        const fresh = await fetchServerSetups()
+        if (fresh.setups.length > 0) {
+          this.store.getState().hydrateServerSetups(fresh.setups)
+        }
+      }
+    } catch {
+      // Non-critical: sync failure doesn't break the app
     }
   }
 
