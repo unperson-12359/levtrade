@@ -159,7 +159,7 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
                       <div className="signal-drawer__section-title">
                         {isHistoricalSetup ? 'Snapshot' : 'Current context'}
                       </div>
-                      <div className="signal-drawer__kv-grid">
+                      <div className="signal-drawer__kv-grid signal-drawer__kv-grid--dense">
                         <MetaItem label="Direction" value={activeSetup.direction.toUpperCase()} />
                         <MetaItem label="Trade grade" value={formatTradeGrade(activeSetup.tradeGrade)} />
                         <MetaItem label="Confidence tier" value={formatConfidenceTier(activeSetup.confidenceTier)} />
@@ -173,7 +173,7 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
 
                     <section className="signal-drawer__section">
                       <div className="signal-drawer__section-title">Trade levels</div>
-                      <div className="signal-drawer__kv-grid">
+                      <div className="signal-drawer__kv-grid signal-drawer__kv-grid--tri">
                         <MetaItem label="Entry" value={formatPrice(activeSetup.entryPrice, coin)} />
                         <MetaItem label="Stop" value={formatPrice(activeSetup.stopPrice, coin)} />
                         <MetaItem label="Target" value={formatPrice(activeSetup.targetPrice, coin)} />
