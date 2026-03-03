@@ -15,14 +15,10 @@ export interface ContextSlice {
   fearGreed: FearGreedSnapshot
   cryptoMacro: CryptoMacroSnapshot
   binanceContext: BinanceContextSnapshot
-  contextStatus: 'idle' | 'loading' | 'ready' | 'error'
-  contextError: string | null
 
   setFearGreed: (snapshot: FearGreedSnapshot) => void
   setCryptoMacro: (snapshot: CryptoMacroSnapshot) => void
   setBinanceContext: (snapshot: BinanceContextSnapshot) => void
-  setContextStatus: (status: ContextSlice['contextStatus']) => void
-  setContextError: (error: string | null) => void
 }
 
 export const createContextSlice: StateCreator<AppStore, [], [], ContextSlice> = (set) => ({
@@ -49,12 +45,8 @@ export const createContextSlice: StateCreator<AppStore, [], [], ContextSlice> = 
     timestamp: null,
     source: 'binance',
   },
-  contextStatus: 'idle',
-  contextError: null,
 
   setFearGreed: (snapshot) => set({ fearGreed: snapshot }),
   setCryptoMacro: (snapshot) => set({ cryptoMacro: snapshot }),
   setBinanceContext: (snapshot) => set({ binanceContext: snapshot }),
-  setContextStatus: (status) => set({ contextStatus: status }),
-  setContextError: (error) => set({ contextError: error }),
 })

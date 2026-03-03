@@ -2,27 +2,61 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { createMarketDataSlice, type MarketDataSlice } from './marketDataSlice'
 import { createSetupSlice, type SetupSlice } from './setupSlice'
-import { createSyncSlice, type SyncSlice } from './syncSlice'
 import { createSignalsSlice, type SignalsSlice } from './signalsSlice'
 import { createTrackerSlice, type TrackerSlice } from './trackerSlice'
 import { createUISlice, type UISlice } from './uiSlice'
 import { createContextSlice, type ContextSlice } from './contextSlice'
 
-export type AppStore = MarketDataSlice & SignalsSlice & SetupSlice & SyncSlice & TrackerSlice & UISlice & ContextSlice
+export type AppStore = MarketDataSlice & SignalsSlice & SetupSlice & TrackerSlice & UISlice & ContextSlice
 
-// Debounce localStorage writes so rapid set() calls during polling
-// only serialize once (2s after the last mutation).
-const debouncedStorage = {
+// Throttle-with-trailing localStorage writes.
+// Trailing debounce (2s) coalesces rapid set() bursts.
+// Max-wait ceiling (10s) prevents WebSocket tick starvation.
+// beforeunload flush guarantees persist on tab close.
+const DEBOUNCE_MS = 2_000
+const MAX_WAIT_MS = 10_000
+
+const throttledStorage = {
   getItem: (name: string) => localStorage.getItem(name),
   setItem: (name: string, value: string) => {
-    if (debouncedStorage._timer !== null) clearTimeout(debouncedStorage._timer)
-    debouncedStorage._timer = setTimeout(() => {
-      localStorage.setItem(name, value)
-      debouncedStorage._timer = null
-    }, 2000)
+    throttledStorage._pendingName = name
+    throttledStorage._pendingValue = value
+
+    // Reset trailing debounce
+    if (throttledStorage._timer !== null) clearTimeout(throttledStorage._timer)
+    throttledStorage._timer = setTimeout(flushStorage, DEBOUNCE_MS)
+
+    // Set max-wait ceiling (only if not already running)
+    if (throttledStorage._maxWaitTimer === null) {
+      throttledStorage._maxWaitTimer = setTimeout(flushStorage, MAX_WAIT_MS)
+    }
   },
   removeItem: (name: string) => localStorage.removeItem(name),
   _timer: null as ReturnType<typeof setTimeout> | null,
+  _maxWaitTimer: null as ReturnType<typeof setTimeout> | null,
+  _pendingName: null as string | null,
+  _pendingValue: null as string | null,
+}
+
+function flushStorage() {
+  if (throttledStorage._pendingName !== null && throttledStorage._pendingValue !== null) {
+    localStorage.setItem(throttledStorage._pendingName, throttledStorage._pendingValue)
+    throttledStorage._pendingName = null
+    throttledStorage._pendingValue = null
+  }
+  if (throttledStorage._timer !== null) {
+    clearTimeout(throttledStorage._timer)
+    throttledStorage._timer = null
+  }
+  if (throttledStorage._maxWaitTimer !== null) {
+    clearTimeout(throttledStorage._maxWaitTimer)
+    throttledStorage._maxWaitTimer = null
+  }
+}
+
+// Flush pending writes on tab close to prevent data loss
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushStorage)
 }
 
 export const useStore = create<AppStore>()(
@@ -31,14 +65,13 @@ export const useStore = create<AppStore>()(
       ...createMarketDataSlice(...a),
       ...createSignalsSlice(...a),
       ...createSetupSlice(...a),
-      ...createSyncSlice(...a),
       ...createTrackerSlice(...a),
       ...createUISlice(...a),
       ...createContextSlice(...a),
     }),
     {
       name: 'levtrade-storage',
-      storage: createJSONStorage(() => debouncedStorage),
+      storage: createJSONStorage(() => throttledStorage),
       partialize: (state) => ({
         expandedSections: state.expandedSections,
         selectedCoin: state.selectedCoin,
@@ -49,15 +82,12 @@ export const useStore = create<AppStore>()(
         trackedOutcomes: state.trackedOutcomes,
         trackerLastRunAt: state.trackerLastRunAt,
         trackedSetups: state.trackedSetups,
-        lastCloudSyncAt: state.lastCloudSyncAt,
         riskInputsUpdatedAt: state.riskInputsUpdatedAt,
         analyticsTab: state.analyticsTab,
         lastSignalComputedAt: state.lastSignalComputedAt,
       }),
       merge: (persistedState, currentState) => {
         const merged = { ...currentState, ...(persistedState as Partial<AppStore>) }
-        merged.syncStatus = 'idle'
-        merged.syncError = null
         if (merged.riskInputs && merged.riskInputs.leverage > 40) {
           merged.riskInputs = { ...merged.riskInputs, leverage: 40 }
         }

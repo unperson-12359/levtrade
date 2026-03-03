@@ -13,6 +13,7 @@ export interface UISlice {
   selectedInterval: CandleInterval
   riskInputs: RiskInputs
   riskInputsLocked: boolean
+  riskInputsUpdatedAt: number | null
   analyticsTab: AnalyticsTab
 
   toggleSection: (sectionId: string) => void
@@ -30,6 +31,7 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
   selectedInterval: '1h',
   riskInputs: { ...DEFAULT_RISK_INPUTS },
   riskInputsLocked: false,
+  riskInputsUpdatedAt: null,
   analyticsTab: 'performance',
 
   toggleSection: (sectionId) =>

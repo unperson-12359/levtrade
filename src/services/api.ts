@@ -102,6 +102,10 @@ export async function fetchCoinGeckoGlobal(): Promise<{
   }
 }
 
+// Binance Futures endpoints are called directly from the browser.
+// If Binance blocks CORS, these will silently return null and the UI degrades to "--".
+// This is acceptable — the panel is advisory context, not a critical data path.
+
 /** Fetch Binance perpetual funding rate for a tracked coin. Returns null if unsupported. */
 export async function fetchBinanceFundingRate(coin: TrackedCoin): Promise<number | null> {
   const symbol = BINANCE_SYMBOL_MAP[coin]
@@ -123,12 +127,10 @@ export async function fetchBinanceOpenInterest(coin: TrackedCoin): Promise<numbe
   const oi = parseFloat(json.openInterest ?? '')
   if (!isFinite(oi)) return null
 
-  // Convert from coin units to USD using mark price
+  // Convert from coin units to USD using mark price — return null if conversion fails
   const priceRes = await fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${symbol}`)
-  if (!priceRes.ok) return oi // return raw if price unavailable
+  if (!priceRes.ok) return null
   const priceJson = (await priceRes.json()) as { markPrice?: string }
   const markPrice = parseFloat(priceJson.markPrice ?? '')
-  return isFinite(markPrice) ? oi * markPrice : oi
+  return isFinite(markPrice) ? oi * markPrice : null
 }
-
-export { BINANCE_SYMBOL_MAP }

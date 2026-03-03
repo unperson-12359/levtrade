@@ -29,6 +29,7 @@ export class DataManager {
   private pollTimer: ReturnType<typeof setInterval> | null = null
   private unsubscribers: (() => void)[] = []
   private initialized = false
+  private contextRefreshing = false
 
   constructor(store: StoreApi<AppStore>) {
     this.store = store
@@ -431,7 +432,7 @@ export class DataManager {
       this.store.getState().setFearGreed({
         value: data.value,
         classification: data.classification,
-        timestamp: data.timestamp,
+        timestamp: Date.now(),
         source: 'alternative-me',
       })
     } catch {
@@ -518,25 +519,11 @@ export class DataManager {
   }
 
   async fetchAllExternalContext(): Promise<void> {
-    this.store.getState().setContextStatus('loading')
-    try {
-      await Promise.all([
-        this.fetchFearGreedContext(),
-        this.fetchCryptoMacroContext(),
-        this.fetchBinanceContext(),
-      ])
-      this.store.getState().setContextStatus('ready')
-      this.store.getState().setContextError(null)
-    } catch {
-      // If all fail, set error state
-      const state = this.store.getState()
-      if (state.fearGreed.value === null && state.cryptoMacro.btcDominance === null) {
-        this.store.getState().setContextStatus('error')
-        this.store.getState().setContextError('Failed to fetch external context data')
-      } else {
-        this.store.getState().setContextStatus('ready')
-      }
-    }
+    await Promise.all([
+      this.fetchFearGreedContext(),
+      this.fetchCryptoMacroContext(),
+      this.fetchBinanceContext(),
+    ])
   }
 
   private shouldRefreshContext(lastTimestamp: number | null, intervalMs: number): boolean {
@@ -545,22 +532,27 @@ export class DataManager {
   }
 
   private async refreshExternalContextIfNeeded(): Promise<void> {
-    const state = this.store.getState()
+    if (this.contextRefreshing) return
+    this.contextRefreshing = true
+    try {
+      const state = this.store.getState()
+      const tasks: Promise<void>[] = []
 
-    const tasks: Promise<void>[] = []
+      if (this.shouldRefreshContext(state.fearGreed.timestamp, FEAR_GREED_REFRESH_MS)) {
+        tasks.push(this.fetchFearGreedContext())
+      }
+      if (this.shouldRefreshContext(state.cryptoMacro.timestamp, CRYPTO_MACRO_REFRESH_MS)) {
+        tasks.push(this.fetchCryptoMacroContext())
+      }
+      if (this.shouldRefreshContext(state.binanceContext.timestamp, BINANCE_CONTEXT_REFRESH_MS)) {
+        tasks.push(this.fetchBinanceContext())
+      }
 
-    if (this.shouldRefreshContext(state.fearGreed.timestamp, FEAR_GREED_REFRESH_MS)) {
-      tasks.push(this.fetchFearGreedContext())
-    }
-    if (this.shouldRefreshContext(state.cryptoMacro.timestamp, CRYPTO_MACRO_REFRESH_MS)) {
-      tasks.push(this.fetchCryptoMacroContext())
-    }
-    if (this.shouldRefreshContext(state.binanceContext.timestamp, BINANCE_CONTEXT_REFRESH_MS)) {
-      tasks.push(this.fetchBinanceContext())
-    }
-
-    if (tasks.length > 0) {
-      await Promise.all(tasks)
+      if (tasks.length > 0) {
+        await Promise.all(tasks)
+      }
+    } finally {
+      this.contextRefreshing = false
     }
   }
 
