@@ -2561,12 +2561,12 @@ button {
   }
 }
 
-/* Hot Predictions pulse glow */
-@keyframes prediction-pulse {
+/* Live Setups pulse glow */
+@keyframes live-setup-pulse {
   0%, 100% { box-shadow: 0 0 8px 0 rgba(34, 197, 94, 0.15); }
   50% { box-shadow: 0 0 16px 4px rgba(34, 197, 94, 0.3); }
 }
 
-.prediction-card--on-fire {
-  animation: prediction-pulse 2s ease-in-out infinite;
+.live-setup-card--on-fire {
+  animation: live-setup-pulse 2s ease-in-out infinite;
 }
