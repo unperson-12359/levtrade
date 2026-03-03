@@ -1,4 +1,3 @@
-// @ts-expect-error -- pre-bundled ESM module, no .d.ts available
 import { emptyOutcome, summarizeCoverage } from './_signals.mjs'
 import type { SetupOutcome, SetupWindow } from '../src/types/setup'
 

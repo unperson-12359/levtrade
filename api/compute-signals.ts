@@ -1,4 +1,4 @@
-import { runCollector } from '../src/server/collector/runCollector'
+import { runCollector } from './_collector.mjs'
 
 interface VercelRequest {
   method?: string

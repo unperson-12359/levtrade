@@ -1,4 +1,3 @@
-// @ts-expect-error -- pre-bundled ESM module, no .d.ts available
 import { computeTrackerStats } from './_signals.mjs'
 import type { TrackedSignalRecord, TrackedSignalOutcome, TrackerWindow } from '../src/types/tracker'
 

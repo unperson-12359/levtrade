@@ -1,0 +1,1889 @@
+// src/types/market.ts
+var TRACKED_COINS = ["BTC", "ETH", "SOL", "HYPE"];
+function parseCandle(raw) {
+  return {
+    time: raw.t,
+    open: parseFloat(raw.o),
+    high: parseFloat(raw.h),
+    low: parseFloat(raw.l),
+    close: parseFloat(raw.c),
+    volume: parseFloat(raw.v),
+    trades: raw.n
+  };
+}
+
+// src/signals/hurst.ts
+var MIN_PERIODS = 100;
+function computeHurst(closes, period = MIN_PERIODS) {
+  const available = closes.length;
+  const confidence = Math.min(1, available / period);
+  if (available < 3) {
+    return {
+      value: 0.5,
+      regime: "choppy",
+      color: "yellow",
+      confidence: 0,
+      explanation: "Not enough data yet to determine market type."
+    };
+  }
+  const window = closes.slice(-Math.min(available, period + 1));
+  const returns = [];
+  for (let i = 1; i < window.length; i++) {
+    const prev = window[i - 1];
+    const curr = window[i];
+    if (prev > 0 && curr > 0) {
+      returns.push(Math.log(curr / prev));
+    }
+  }
+  if (returns.length < 2) {
+    return {
+      value: 0.5,
+      regime: "choppy",
+      color: "yellow",
+      confidence: 0,
+      explanation: "Not enough data yet to determine market type."
+    };
+  }
+  const mean = returns.reduce((s, r) => s + r, 0) / returns.length;
+  const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length;
+  if (variance === 0) {
+    return {
+      value: 0.5,
+      regime: "choppy",
+      color: "yellow",
+      confidence,
+      explanation: "Price has not moved \u2014 no trend or mean-reversion detected."
+    };
+  }
+  let autocovariance = 0;
+  for (let i = 1; i < returns.length; i++) {
+    autocovariance += (returns[i] - mean) * (returns[i - 1] - mean);
+  }
+  autocovariance /= returns.length;
+  const acf1 = autocovariance / variance;
+  const H = Math.max(0, Math.min(1, 0.5 + acf1));
+  const regime = classifyRegime(H);
+  const color = regimeColor(regime);
+  const explanation = buildExplanation(H, regime, confidence);
+  return { value: H, regime, color, confidence, explanation };
+}
+function classifyRegime(H) {
+  if (H > 0.55) return "trending";
+  if (H < 0.45) return "mean-reverting";
+  return "choppy";
+}
+function regimeColor(regime) {
+  switch (regime) {
+    case "mean-reverting":
+      return "green";
+    case "trending":
+      return "yellow";
+    case "choppy":
+      return "red";
+  }
+}
+function buildExplanation(H, regime, confidence) {
+  if (confidence < 0.5) {
+    return "Still gathering data \u2014 market type will become clearer over the next few hours.";
+  }
+  switch (regime) {
+    case "trending":
+      return H > 0.65 ? "The market is trending strongly in one direction \u2014 mean-reversion signals are unreliable here. Consider sitting this one out or trading with the trend." : "The market is showing mild trending behavior \u2014 signals may be less reliable than usual.";
+    case "mean-reverting":
+      return H < 0.4 ? "The market is strongly bouncing between levels \u2014 this is ideal for our signals. Prices that stretch far from average tend to snap back." : "The market is bouncing between levels \u2014 good conditions for our signals.";
+    case "choppy":
+      return "The market is moving without a clear pattern \u2014 neither trending nor bouncing predictably. Signals are unreliable, consider waiting for clarity.";
+  }
+}
+
+// src/signals/zscore.ts
+function computeZScore(closes, period = 20) {
+  if (closes.length < period) {
+    return {
+      value: 0,
+      normalizedSignal: 0,
+      label: "Insufficient Data",
+      color: "yellow",
+      explanation: `Need at least ${period} candles to calculate price position. Currently have ${closes.length}.`
+    };
+  }
+  const window = closes.slice(-period);
+  const current = closes[closes.length - 1];
+  const mean = window.reduce((s, v) => s + v, 0) / period;
+  const variance = window.reduce((s, v) => s + (v - mean) ** 2, 0) / period;
+  const stddev = Math.sqrt(variance);
+  if (stddev === 0) {
+    return {
+      value: 0,
+      normalizedSignal: 0,
+      label: "No Movement",
+      color: "yellow",
+      explanation: "Price has been flat \u2014 no position signal."
+    };
+  }
+  const z = (current - mean) / stddev;
+  const normalizedSignal = Math.max(-1, Math.min(1, -z / 3));
+  const { label, color } = classifyZScore(z);
+  const explanation = buildExplanation2(z, current, mean);
+  return { value: z, normalizedSignal, label, color, explanation };
+}
+function classifyZScore(z) {
+  const abs = Math.abs(z);
+  if (abs > 2.5) {
+    return {
+      label: z > 0 ? "Extremely Overbought" : "Extremely Oversold",
+      color: "green"
+      // extreme = opportunity for mean-reversion
+    };
+  }
+  if (abs > 2) {
+    return {
+      label: z > 0 ? "Strongly Overbought" : "Strongly Oversold",
+      color: "green"
+    };
+  }
+  if (abs > 1) {
+    return {
+      label: z > 0 ? "Overbought" : "Oversold",
+      color: "yellow"
+    };
+  }
+  return {
+    label: "Normal Range",
+    color: "red"
+    // no opportunity
+  };
+}
+function buildExplanation2(z, current, mean) {
+  const abs = Math.abs(z);
+  const direction = z > 0 ? "above" : "below";
+  const reverseAction = z > 0 ? "drop back down" : "bounce back up";
+  const priceStr = current.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const meanStr = mean.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  if (abs > 2) {
+    return `Price ($${priceStr}) is ${abs.toFixed(1)} std devs ${direction} the 20-period average ($${meanStr}) \u2014 unusually ${z > 0 ? "expensive" : "cheap"}, often means it will ${reverseAction}. Strong contrarian signal.`;
+  }
+  if (abs > 1) {
+    return `Price ($${priceStr}) is ${abs.toFixed(1)} std devs ${direction} the average ($${meanStr}) \u2014 starting to look ${z > 0 ? "expensive" : "cheap"}, but not extreme yet.`;
+  }
+  return `Price ($${priceStr}) is near its 20-period average ($${meanStr}) \u2014 nothing unusual. No signal from price position.`;
+}
+
+// src/signals/funding.ts
+function computeFundingZScore(history, windowSize = 30) {
+  const minRequired = 8;
+  if (history.length < minRequired) {
+    return {
+      currentRate: history.length > 0 ? history[history.length - 1].rate : 0,
+      zScore: 0,
+      normalizedSignal: 0,
+      label: "Insufficient Data",
+      color: "yellow",
+      explanation: `Need at least ${minRequired} funding rate snapshots. Currently have ${history.length}.`
+    };
+  }
+  const window = history.slice(-windowSize);
+  const currentRate = history[history.length - 1].rate;
+  const rates = window.map((s) => s.rate);
+  const mean = rates.reduce((s, v) => s + v, 0) / rates.length;
+  const variance = rates.reduce((s, v) => s + (v - mean) ** 2, 0) / rates.length;
+  const stddev = Math.sqrt(variance);
+  if (stddev === 0) {
+    return {
+      currentRate,
+      zScore: 0,
+      normalizedSignal: 0,
+      label: "Flat Funding",
+      color: "yellow",
+      explanation: "Funding rates have been steady \u2014 no extreme crowd positioning detected."
+    };
+  }
+  const zScore = (currentRate - mean) / stddev;
+  const normalizedSignal = Math.max(-1, Math.min(1, -zScore / 3));
+  const { label, color } = classifyFunding(zScore, currentRate);
+  const explanation = buildExplanation3(zScore, currentRate);
+  return { currentRate, zScore, normalizedSignal, label, color, explanation };
+}
+function classifyFunding(z, _rate) {
+  const abs = Math.abs(z);
+  if (abs > 2) {
+    return {
+      label: z > 0 ? "Extreme Longs" : "Extreme Shorts",
+      color: "green"
+      // extreme = contrarian opportunity
+    };
+  }
+  if (abs > 1) {
+    return {
+      label: z > 0 ? "Crowded Long" : "Crowded Short",
+      color: "yellow"
+    };
+  }
+  return {
+    label: "Balanced",
+    color: "red"
+    // no edge
+  };
+}
+function buildExplanation3(z, rate) {
+  const abs = Math.abs(z);
+  const rateStr = (rate * 100).toFixed(4);
+  const zStr = z.toFixed(2);
+  if (abs > 2) {
+    if (z > 0) {
+      return `The crowd is extremely long (funding: ${rateStr}%, z-score: ${zStr}). When everyone bets the same way, the market often moves against them. Strong contrarian SHORT signal.`;
+    }
+    return `The crowd is extremely short (funding: ${rateStr}%, z-score: ${zStr}). Extreme bearish positioning often leads to a squeeze upward. Strong contrarian LONG signal.`;
+  }
+  if (abs > 1) {
+    if (z > 0) {
+      return `More traders are long than usual (funding: ${rateStr}%, z-score: ${zStr}). Mild contrarian signal \u2014 the crowd could be wrong.`;
+    }
+    return `More traders are short than usual (funding: ${rateStr}%, z-score: ${zStr}). Mild contrarian signal \u2014 shorts may get squeezed.`;
+  }
+  return `Crowd positioning is balanced (funding: ${rateStr}%, z-score: ${zStr}). No strong contrarian signal \u2014 the crowd isn't extreme.`;
+}
+
+// src/utils/candleTime.ts
+var MS_PER_HOUR = 60 * 60 * 1e3;
+function floorToHour(timestamp) {
+  return Math.floor(timestamp / MS_PER_HOUR) * MS_PER_HOUR;
+}
+function getSetupWindowStart(generatedAt) {
+  return floorToHour(generatedAt);
+}
+function getSetupWindowBoundary(generatedAt, windowMs) {
+  return generatedAt + windowMs;
+}
+function getResolutionBucketStart(generatedAt, windowMs) {
+  return floorToHour(generatedAt + windowMs);
+}
+
+// src/utils/oiSeries.ts
+function bucketOiSnapshotsHourly(history) {
+  if (history.length === 0) {
+    return [];
+  }
+  const buckets = /* @__PURE__ */ new Map();
+  for (const snapshot of history) {
+    const bucketTime = floorToHour(snapshot.time);
+    buckets.set(bucketTime, { time: bucketTime, oi: snapshot.oi });
+  }
+  return [...buckets.values()].sort((left, right) => left.time - right.time);
+}
+
+// src/signals/oiDelta.ts
+function computeOIDelta(oiHistory, closes, windowSize = 5) {
+  const hourlyOiHistory = bucketOiSnapshotsHourly(oiHistory);
+  const minRequired = Math.max(2, windowSize + 1);
+  if (hourlyOiHistory.length < minRequired || closes.length < minRequired) {
+    return {
+      oiChangePct: 0,
+      priceChangePct: 0,
+      confirmation: false,
+      normalizedSignal: 0,
+      label: "Insufficient Data",
+      color: "yellow",
+      explanation: `Need at least ${minRequired} hourly data points to measure money flow. Currently have ${hourlyOiHistory.length}.`
+    };
+  }
+  const recentOI = hourlyOiHistory.slice(-windowSize);
+  const olderOI = hourlyOiHistory.slice(-(windowSize * 2), -windowSize);
+  const avgRecentOI = recentOI.reduce((s, v) => s + v.oi, 0) / recentOI.length;
+  const avgOlderOI = olderOI.length > 0 ? olderOI.reduce((s, v) => s + v.oi, 0) / olderOI.length : hourlyOiHistory[hourlyOiHistory.length - minRequired].oi;
+  const recentCloses = closes.slice(-windowSize);
+  const olderClose = closes[closes.length - minRequired];
+  const avgRecentPrice = recentCloses.reduce((s, v) => s + v, 0) / recentCloses.length;
+  const oiChangePct = avgOlderOI > 0 ? (avgRecentOI - avgOlderOI) / avgOlderOI : 0;
+  const priceChangePct = olderClose > 0 ? (avgRecentPrice - olderClose) / olderClose : 0;
+  const oiUp = oiChangePct > 5e-3;
+  const oiDown = oiChangePct < -5e-3;
+  const priceUp = priceChangePct > 2e-3;
+  const priceDown = priceChangePct < -2e-3;
+  let confirmation;
+  let normalizedSignal;
+  let label;
+  let color;
+  let explanation;
+  if (oiUp && priceUp) {
+    confirmation = true;
+    normalizedSignal = 0.5 + Math.min(0.5, Math.abs(oiChangePct) * 10);
+    label = "Confirmed Bullish";
+    color = "green";
+    explanation = "New money is flowing IN while price goes UP \u2014 the move is backed by real conviction. This is a strong bullish sign.";
+  } else if (oiUp && priceDown) {
+    confirmation = true;
+    normalizedSignal = -(0.5 + Math.min(0.5, Math.abs(oiChangePct) * 10));
+    label = "Confirmed Bearish";
+    color = "green";
+    explanation = "New money is flowing IN while price goes DOWN \u2014 fresh sellers are entering. This is a strong bearish sign.";
+  } else if (oiDown && priceUp) {
+    confirmation = false;
+    normalizedSignal = 0.2;
+    label = "Weak Rally";
+    color = "yellow";
+    explanation = "Price is going up but money is LEAVING the market \u2014 shorts are closing, not new buyers entering. The rally looks weak and may reverse.";
+  } else if (oiDown && priceDown) {
+    confirmation = false;
+    normalizedSignal = -0.2;
+    label = "Weak Decline";
+    color = "yellow";
+    explanation = "Price is going down but money is LEAVING \u2014 longs are closing, not new sellers entering. The decline looks weak and may bounce.";
+  } else {
+    confirmation = false;
+    normalizedSignal = 0;
+    label = "No Clear Flow";
+    color = "red";
+    explanation = "Neither price nor open interest is moving significantly \u2014 no clear money flow signal.";
+  }
+  return {
+    oiChangePct,
+    priceChangePct,
+    confirmation,
+    normalizedSignal: Math.max(-1, Math.min(1, normalizedSignal)),
+    label,
+    color,
+    explanation
+  };
+}
+
+// src/signals/volatility.ts
+function computeATR(candles, period = 14) {
+  if (candles.length < 2) return 0;
+  const trs = [];
+  for (let i = 1; i < candles.length; i++) {
+    const curr = candles[i];
+    const prev = candles[i - 1];
+    const tr = Math.max(
+      curr.high - curr.low,
+      Math.abs(curr.high - prev.close),
+      Math.abs(curr.low - prev.close)
+    );
+    trs.push(tr);
+  }
+  if (trs.length === 0) return 0;
+  if (trs.length < period) {
+    return trs.reduce((sum, value) => sum + value, 0) / trs.length;
+  }
+  let atr = trs.slice(0, period).reduce((sum, value) => sum + value, 0) / period;
+  for (let i = period; i < trs.length; i++) {
+    atr = (atr * (period - 1) + trs[i]) / period;
+  }
+  return atr;
+}
+function computeRealizedVol(closes, period = 20, periodsPerYear = 8760) {
+  if (closes.length < period + 1) {
+    return {
+      realizedVol: 0,
+      atr: 0,
+      level: "normal",
+      color: "yellow",
+      explanation: `Need at least ${period + 1} candles to measure volatility. Currently have ${closes.length}.`
+    };
+  }
+  const window = closes.slice(-(period + 1));
+  const returns = [];
+  for (let i = 1; i < window.length; i++) {
+    const prev = window[i - 1];
+    const curr = window[i];
+    if (prev > 0 && curr > 0) {
+      returns.push(Math.log(curr / prev));
+    }
+  }
+  if (returns.length < 2) {
+    return {
+      realizedVol: 0,
+      atr: 0,
+      level: "normal",
+      color: "yellow",
+      explanation: "Not enough price movement to measure volatility."
+    };
+  }
+  const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
+  const variance = returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / returns.length;
+  const hourlyVol = Math.sqrt(variance);
+  const annualizedVol = hourlyVol * Math.sqrt(periodsPerYear) * 100;
+  const { level, color } = classifyVol(annualizedVol);
+  const explanation = buildExplanation4(annualizedVol, level);
+  return { realizedVol: annualizedVol, atr: 0, level, color, explanation };
+}
+function classifyVol(vol) {
+  if (vol > 140) return { level: "extreme", color: "red" };
+  if (vol > 90) return { level: "high", color: "yellow" };
+  if (vol > 50) return { level: "normal", color: "green" };
+  return { level: "low", color: "green" };
+}
+function buildExplanation4(vol, level) {
+  const volStr = vol.toFixed(1);
+  switch (level) {
+    case "extreme":
+      return `Volatility is EXTREME (${volStr}% annualized) - price is swinging wildly. Use much lower leverage and very wide stops, or sit this out entirely.`;
+    case "high":
+      return `Volatility is HIGH (${volStr}% annualized) - price is swinging a lot. Use lower leverage and wider stops than usual.`;
+    case "normal":
+      return `Volatility is NORMAL for crypto (${volStr}% annualized) - active but not extreme. Standard position sizing and stops are appropriate.`;
+    case "low":
+      return `Volatility is LOW (${volStr}% annualized) - price is calm and stable. Tighter stops are safer, and slightly higher leverage is more reasonable.`;
+  }
+}
+
+// src/signals/entryGeometry.ts
+function computeEntryGeometry(closes, atr, period = 20) {
+  if (closes.length < period) {
+    return {
+      distanceFromMeanPct: 0,
+      stretchZEquivalent: 0,
+      atrDislocation: 0,
+      bandPosition: 0.5,
+      meanPrice: 0,
+      reversionPotential: 0,
+      chaseRisk: 0.25,
+      entryQuality: "no-edge",
+      directionBias: "neutral",
+      color: "yellow",
+      explanation: `Need at least ${period} closes to score entry geometry. Currently have ${closes.length}.`
+    };
+  }
+  const window = closes.slice(-period);
+  const current = window[window.length - 1];
+  const mean = window.reduce((sum, value) => sum + value, 0) / window.length;
+  const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / window.length;
+  const stddev = Math.sqrt(variance);
+  if (stddev === 0 || mean <= 0) {
+    return {
+      distanceFromMeanPct: 0,
+      stretchZEquivalent: 0,
+      atrDislocation: 0,
+      bandPosition: 0.5,
+      meanPrice: mean,
+      reversionPotential: 0,
+      chaseRisk: 0.2,
+      entryQuality: "no-edge",
+      directionBias: "neutral",
+      color: "yellow",
+      explanation: "Price is too flat to score a meaningful entry edge."
+    };
+  }
+  const z = (current - mean) / stddev;
+  const distanceFromMeanPct = (current - mean) / mean * 100;
+  const atrDislocation = atr > 0 ? Math.abs(current - mean) / atr : 0;
+  const bandPosition = clamp((z + 2.5) / 5, 0, 1);
+  const directionBias = z < -0.35 ? "long" : z > 0.35 ? "short" : "neutral";
+  const absZ = Math.abs(z);
+  const reversionPotential = clamp((absZ - 0.6) / 1.8, 0, 1);
+  const chaseRisk = clamp((2.8 - absZ) / 2.8, 0, 1);
+  const entryQuality = classifyEntryQuality(absZ, atrDislocation);
+  const color = entryColor(entryQuality);
+  const explanation = buildExplanation5(current, mean, z, atrDislocation, entryQuality);
+  return {
+    distanceFromMeanPct,
+    stretchZEquivalent: z,
+    atrDislocation,
+    bandPosition,
+    meanPrice: mean,
+    reversionPotential,
+    chaseRisk,
+    entryQuality,
+    directionBias,
+    color,
+    explanation
+  };
+}
+function classifyEntryQuality(absZ, atrDislocation) {
+  if (absZ < 0.75) return "no-edge";
+  if (absZ < 1.25) return "early";
+  if (atrDislocation < 0.8 && absZ < 2.4) return "early";
+  if (absZ <= 2.4 && atrDislocation <= 2.4) return "ideal";
+  if (absZ <= 3.2 && atrDislocation <= 3.4) return "extended";
+  return "chasing";
+}
+function entryColor(entryQuality) {
+  switch (entryQuality) {
+    case "ideal":
+      return "green";
+    case "extended":
+    case "early":
+      return "yellow";
+    case "chasing":
+    case "no-edge":
+      return "red";
+  }
+}
+function buildExplanation5(current, mean, z, atrDislocation, entryQuality) {
+  const side = z > 0 ? "above" : "below";
+  const direction = z > 0 ? "short" : "long";
+  switch (entryQuality) {
+    case "ideal":
+      return `Price is ${Math.abs(z).toFixed(2)} standard deviations ${side} fair value with ${atrDislocation.toFixed(2)} ATRs of stretch. This is the sweet spot for a ${direction} fade.`;
+    case "extended":
+      return `Price is deeply stretched (${Math.abs(z).toFixed(2)}\u03C3, ${atrDislocation.toFixed(2)} ATRs). The setup is still actionable, but slippage and violent snap-backs are more likely.`;
+    case "early":
+      return `Price is leaning away from fair value but has not stretched enough yet (${Math.abs(z).toFixed(2)}\u03C3, ${atrDislocation.toFixed(2)} ATRs). Let it travel further before leaning in.`;
+    case "chasing":
+      return `Price is too far from equilibrium (${Math.abs(z).toFixed(2)}\u03C3). The move is likely already overextended, so chasing here carries poor geometry.`;
+    case "no-edge":
+      return `Price (${current.toFixed(2)}) is still hugging its mean (${mean.toFixed(2)}). The rubber band has not stretched enough to create a clean mean-reversion edge.`;
+  }
+}
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+// src/signals/composite.ts
+function computeComposite(hurst, zScore, funding, oiDelta) {
+  const directionalSignals = [
+    zScore.normalizedSignal,
+    funding.normalizedSignal,
+    oiDelta.normalizedSignal
+  ];
+  const rawComposite = directionalSignals.reduce((s, v) => s + v, 0) / directionalSignals.length;
+  let regimeMultiplier;
+  if (hurst.value < 0.45) {
+    regimeMultiplier = 1 + (0.45 - hurst.value) * 3;
+  } else if (hurst.value > 0.55) {
+    regimeMultiplier = 0.7 - (hurst.value - 0.55) * 2;
+  } else {
+    regimeMultiplier = 0.7 + (0.55 - hurst.value) * 3;
+  }
+  regimeMultiplier = Math.max(0.1, Math.min(1.3, regimeMultiplier));
+  const composite = Math.max(-1, Math.min(1, rawComposite * regimeMultiplier));
+  const direction = classifyDirection(composite);
+  const positiveCount = directionalSignals.filter((s) => s > 0.1).length;
+  const negativeCount = directionalSignals.filter((s) => s < -0.1).length;
+  const agreementCount = Math.max(positiveCount, negativeCount);
+  const hurstAgreesWithDirection = hurst.regime === "mean-reverting";
+  const hurstCounted = hurst.regime !== "choppy";
+  const displayAgreement = agreementCount + (hurstAgreesWithDirection ? 1 : 0);
+  const displayTotal = directionalSignals.length + (hurstCounted ? 1 : 0);
+  const signalBreakdown = [
+    {
+      name: "Price Position",
+      direction: zScore.normalizedSignal > 0.1 ? "long" : zScore.normalizedSignal < -0.1 ? "short" : "neutral",
+      agrees: direction !== "neutral" && (direction === "long" && zScore.normalizedSignal > 0.1 || direction === "short" && zScore.normalizedSignal < -0.1)
+    },
+    {
+      name: "Crowd Positioning",
+      direction: funding.normalizedSignal > 0.1 ? "long" : funding.normalizedSignal < -0.1 ? "short" : "neutral",
+      agrees: direction !== "neutral" && (direction === "long" && funding.normalizedSignal > 0.1 || direction === "short" && funding.normalizedSignal < -0.1)
+    },
+    {
+      name: "Money Flow",
+      direction: oiDelta.normalizedSignal > 0.1 ? "long" : oiDelta.normalizedSignal < -0.1 ? "short" : "neutral",
+      agrees: direction !== "neutral" && (direction === "long" && oiDelta.normalizedSignal > 0.1 || direction === "short" && oiDelta.normalizedSignal < -0.1)
+    }
+  ];
+  const strength = classifyStrength(composite);
+  const color = compositeColor(composite);
+  const label = buildLabel(direction, strength);
+  const explanation = buildExplanation6(direction, strength, signalBreakdown, hurst);
+  return {
+    value: composite,
+    direction,
+    strength,
+    agreementCount: displayAgreement,
+    agreementTotal: displayTotal,
+    color,
+    label,
+    explanation,
+    signalBreakdown
+  };
+}
+function classifyDirection(v) {
+  if (v > 0.1) return "long";
+  if (v < -0.1) return "short";
+  return "neutral";
+}
+function classifyStrength(v) {
+  const abs = Math.abs(v);
+  if (abs > 0.5) return "strong";
+  if (abs > 0.2) return "moderate";
+  return "weak";
+}
+function compositeColor(v) {
+  const abs = Math.abs(v);
+  if (abs > 0.3) return "green";
+  if (abs > 0.1) return "yellow";
+  return "red";
+}
+function buildLabel(direction, strength) {
+  if (direction === "neutral") return "STAY OUT";
+  const strengthWord = strength === "strong" ? "STRONG" : strength === "moderate" ? "MODERATE" : "WEAK";
+  return `${strengthWord} ${direction.toUpperCase()}`;
+}
+function buildExplanation6(direction, strength, breakdown, hurst) {
+  if (direction === "neutral") {
+    return "Signals are mixed with no clear direction. The safest move is to wait for stronger alignment before entering a trade.";
+  }
+  const dirWord = direction === "long" ? "LONG" : "SHORT";
+  const strengthWord = strength === "strong" ? "high" : strength === "moderate" ? "moderate" : "low";
+  const agreeing = breakdown.filter((s) => s.agrees).map((s) => s.name);
+  const disagreeing = breakdown.filter((s) => !s.agrees).map((s) => s.name);
+  let signalDetail = "";
+  if (agreeing.length > 0) signalDetail += `${agreeing.join(" and ")} support this.`;
+  if (disagreeing.length > 0) signalDetail += ` ${disagreeing.join(" and ")} ${disagreeing.length === 1 ? "disagrees" : "disagree"}.`;
+  let regimeNote = "";
+  if (hurst.regime === "mean-reverting") {
+    regimeNote = " Market regime is favorable for this signal.";
+  } else if (hurst.regime === "trending") {
+    regimeNote = " However, the market is trending, which makes mean-reversion signals less reliable.";
+  } else {
+    regimeNote = " Market conditions are unclear, so take this with caution.";
+  }
+  return `${dirWord} with ${strengthWord} conviction. ${signalDetail}${regimeNote}`;
+}
+
+// src/config/constants.ts
+var DEFAULT_ACCOUNT_SIZE = 1e4;
+var SETUP_RETENTION_MS = 90 * 24 * 60 * 60 * 1e3;
+var TRACKER_RETENTION_MS = 90 * 24 * 60 * 60 * 1e3;
+var SETUP_DEDUPE_WINDOW_MS = 4 * 60 * 60 * 1e3;
+var TRACKER_DEDUPE_WINDOW_MS = 4 * 60 * 60 * 1e3;
+var SETUP_RESOLUTION_LOOKBACK_MS = 120 * 60 * 60 * 1e3;
+var SETUP_REVIEW_CONTEXT_MS = 24 * 60 * 60 * 1e3;
+var SETUP_REVIEW_CANDLE_STALENESS_MS = 2 * 60 * 60 * 1e3;
+
+// src/signals/decision.ts
+function computeDecisionState(input) {
+  const {
+    composite,
+    entryGeometry,
+    hurst,
+    isStale,
+    isWarmingUp,
+    riskStatus = "unknown"
+  } = input;
+  const reasons = [];
+  if (isStale) {
+    return {
+      action: "avoid",
+      label: "AVOID",
+      reasons: ["stale feed", "refresh needed"]
+    };
+  }
+  if (isWarmingUp) {
+    return {
+      action: "wait",
+      label: "WAIT",
+      reasons: ["warming up", "signals incomplete"]
+    };
+  }
+  const regimeBlocks = hurst.regime === "trending" && hurst.value > 0.6;
+  const neutralComposite = composite.direction === "neutral" || composite.strength === "weak";
+  const entryWeak = entryGeometry.entryQuality === "no-edge" || entryGeometry.directionBias === "neutral";
+  if (regimeBlocks) reasons.push("trend veto");
+  if (neutralComposite) reasons.push("mixed signals");
+  if (entryWeak) reasons.push("no stretch");
+  if (riskStatus === "danger") reasons.push("risk too large");
+  if (riskStatus === "borderline") reasons.push("risk tight");
+  const geometrySupportsDirection = composite.direction === "long" && entryGeometry.directionBias === "long" || composite.direction === "short" && entryGeometry.directionBias === "short";
+  const geometryStrong = entryGeometry.entryQuality === "ideal" || entryGeometry.entryQuality === "extended";
+  const directionalComposite = composite.direction === "long" || composite.direction === "short";
+  if (directionalComposite && !neutralComposite && geometryStrong && geometrySupportsDirection && !regimeBlocks && riskStatus !== "danger") {
+    const reasonsOut = [
+      `${Math.abs(entryGeometry.stretchZEquivalent).toFixed(1)}\u03C3 stretched`,
+      composite.agreementCount >= 3 ? "signals aligned" : "partial agreement",
+      hurst.regime === "mean-reverting" ? "mean-reverting regime" : "regime acceptable"
+    ];
+    if (riskStatus === "safe") reasonsOut.push("risk clear");
+    if (riskStatus === "borderline") reasonsOut.push("risk tight");
+    return {
+      action: composite.direction === "long" ? "long" : "short",
+      label: composite.direction === "long" ? "ENTER LONG" : "ENTER SHORT",
+      reasons: reasonsOut
+    };
+  }
+  if (riskStatus === "danger" || regimeBlocks) {
+    return {
+      action: "avoid",
+      label: "AVOID",
+      reasons: dedupe(reasons)
+    };
+  }
+  return {
+    action: "wait",
+    label: "WAIT",
+    reasons: dedupe(reasons.length > 0 ? reasons : ["setup developing"])
+  };
+}
+function dedupe(values) {
+  return Array.from(new Set(values)).slice(0, 4);
+}
+
+// src/signals/risk.ts
+function computeRisk(inputs, atr) {
+  const { direction, entryPrice, accountSize, positionSize, leverage, stopPrice, targetPrice } = inputs;
+  const hasPositionSizeInput = positionSize > 0;
+  if (entryPrice <= 0 || accountSize <= 0 || leverage <= 0) {
+    return emptyOutputs();
+  }
+  if (stopPrice !== null && stopPrice === entryPrice) {
+    return invalidInputOutputs("Stop cannot equal entry price.");
+  }
+  const maintenanceMarginRate = 5e-3;
+  let liquidationPrice = 0;
+  let hasLiquidation = false;
+  let effectiveImmune = false;
+  let liquidationDistance = 0;
+  let liquidationFallback = null;
+  let liquidationFallbackExplanation = null;
+  const notionalValue = hasPositionSizeInput ? positionSize * leverage : 0;
+  if (hasPositionSizeInput) {
+    const effectivePos = notionalValue;
+    const marginUsed = positionSize;
+    const availableMargin = accountSize - marginUsed;
+    const maintenanceMargin = effectivePos * maintenanceMarginRate;
+    const marginBuffer = availableMargin - maintenanceMargin;
+    if (marginBuffer <= 0) {
+      liquidationPrice = entryPrice;
+    } else if (marginBuffer >= effectivePos) {
+      liquidationPrice = direction === "long" ? 0 : Infinity;
+    } else {
+      liquidationPrice = direction === "long" ? entryPrice * (1 - marginBuffer / effectivePos) : entryPrice * (1 + marginBuffer / effectivePos);
+    }
+    if (direction === "long") {
+      liquidationPrice = Math.max(0, liquidationPrice);
+    }
+    hasLiquidation = Number.isFinite(liquidationPrice) && liquidationPrice > 0;
+    effectiveImmune = !hasLiquidation;
+    liquidationDistance = liquidationPrice === Infinity || liquidationPrice <= 0 ? 100 : Math.abs(liquidationPrice - entryPrice) / entryPrice * 100;
+    liquidationFallback = effectiveImmune ? findMinimumLiquidationScenario(inputs) : null;
+    liquidationFallbackExplanation = liquidationFallback?.explanation ?? null;
+  } else {
+    liquidationFallbackExplanation = "Enter a position size to calculate liquidation.";
+  }
+  const atrStop = atr > 0 ? atr * 1.5 : entryPrice * 0.02;
+  const suggestedStopPrice = direction === "long" ? entryPrice - atrStop : entryPrice + atrStop;
+  const stopValidationMessage = validateStop(direction, entryPrice, stopPrice);
+  const usedCustomStop = stopPrice !== null && stopValidationMessage === null;
+  const effectiveStopPrice = usedCustomStop ? stopPrice : suggestedStopPrice;
+  const stopDistance = Math.abs(entryPrice - effectiveStopPrice);
+  const effectivePositionSize = positionSize > 0 ? notionalValue : accountSize * leverage;
+  const lossAtStop = effectivePositionSize * (stopDistance / entryPrice);
+  const lossAtStopPercent = accountSize > 0 ? lossAtStop / accountSize * 100 : 0;
+  const suggestedTargetPrice = direction === "long" ? entryPrice + stopDistance * 2 : entryPrice - stopDistance * 2;
+  const targetValidationMessage = validateTarget(direction, entryPrice, targetPrice);
+  const usedCustomTarget = targetPrice !== null && targetValidationMessage === null;
+  const effectiveTargetPrice = usedCustomTarget ? targetPrice : suggestedTargetPrice;
+  const targetDistance = Math.abs(effectiveTargetPrice - entryPrice);
+  const profitAtTarget = effectivePositionSize * (targetDistance / entryPrice);
+  const profitAtTargetPercent = accountSize > 0 ? profitAtTarget / accountSize * 100 : 0;
+  const rrRatio = stopDistance > 0 ? targetDistance / stopDistance : 0;
+  const riskPerUnit = stopDistance / entryPrice;
+  const suggestedNotional = riskPerUnit > 0 ? accountSize * 0.01 / riskPerUnit : 0;
+  const suggestedLeverage = accountSize > 0 ? suggestedNotional / accountSize : 1;
+  const suggestedPositionSize = suggestedLeverage > 0 ? suggestedNotional / suggestedLeverage : 0;
+  const { tradeGrade, tradeGradeLabel, tradeGradeExplanation } = gradeTradeSetup({
+    liquidationDistance,
+    lossAtStopPercent,
+    rrRatio,
+    leverage,
+    stopDistance,
+    atr,
+    entryPrice,
+    notionalValue: effectivePositionSize
+  });
+  return {
+    liquidationPrice,
+    liquidationDistance,
+    hasLiquidation,
+    effectiveImmune,
+    minLeverageForLiquidation: liquidationFallback?.leverage ?? null,
+    liquidationPriceAtMinLeverage: liquidationFallback?.price ?? null,
+    liquidationDistanceAtMinLeverage: liquidationFallback?.distancePct ?? null,
+    liquidationFallbackExplanation,
+    hasInputError: false,
+    inputErrorMessage: null,
+    suggestedStopPrice,
+    effectiveStopPrice,
+    usedCustomStop,
+    stopValidationMessage,
+    lossAtStop,
+    lossAtStopPercent,
+    suggestedTargetPrice,
+    effectiveTargetPrice,
+    usedCustomTarget,
+    targetValidationMessage,
+    profitAtTarget,
+    profitAtTargetPercent,
+    rrRatio,
+    notionalValue,
+    suggestedPositionSize,
+    suggestedLeverage,
+    tradeGrade,
+    tradeGradeLabel,
+    tradeGradeExplanation
+  };
+}
+function gradeTradeSetup(input) {
+  const issues = [];
+  let score = 0;
+  if (input.liquidationDistance >= 100) score += 2;
+  else if (input.liquidationDistance > 20) score += 2;
+  else if (input.liquidationDistance > 10) score += 1;
+  else {
+    issues.push(`Liquidation is only ${input.liquidationDistance.toFixed(1)}% away \u2014 very tight`);
+  }
+  if (input.lossAtStopPercent < 1) score += 2;
+  else if (input.lossAtStopPercent < 2) score += 1;
+  else if (input.lossAtStopPercent < 5) {
+    issues.push(`Risking ${input.lossAtStopPercent.toFixed(1)}% of your account \u2014 consider reducing size`);
+  } else {
+    issues.push(`Risking ${input.lossAtStopPercent.toFixed(1)}% of your account \u2014 that's too much`);
+  }
+  if (input.rrRatio >= 3) score += 2;
+  else if (input.rrRatio >= 2) score += 1;
+  else if (input.rrRatio >= 1) {
+    issues.push(`R:R of ${input.rrRatio.toFixed(1)}:1 is borderline \u2014 look for 2:1 minimum`);
+  } else {
+    issues.push(`R:R of ${input.rrRatio.toFixed(1)}:1 \u2014 the reward doesn't justify the risk`);
+  }
+  if (input.leverage <= 5) score += 1;
+  else if (input.leverage <= 10) {
+  } else if (input.leverage <= 20) {
+    issues.push(`Leverage of ${input.leverage}x is aggressive`);
+  } else {
+    issues.push(`Leverage of ${input.leverage}x is very high \u2014 small moves can liquidate you`);
+  }
+  if (input.atr > 0) {
+    const stopInATR = input.stopDistance / input.atr;
+    if (stopInATR < 1) {
+      issues.push("Stop is within normal price noise \u2014 it will likely get hit randomly");
+    }
+  }
+  let tradeGrade;
+  let tradeGradeLabel;
+  if (score >= 5 && issues.length === 0) {
+    tradeGrade = "green";
+    tradeGradeLabel = "GOOD SETUP";
+  } else if (score >= 3 && issues.length <= 1) {
+    tradeGrade = "yellow";
+    tradeGradeLabel = "BORDERLINE";
+  } else {
+    tradeGrade = "red";
+    tradeGradeLabel = "TOO RISKY";
+  }
+  const stopPct = input.entryPrice > 0 ? (input.stopDistance / input.entryPrice * 100).toFixed(1) : "?";
+  const tradeGradeExplanation = issues.length > 0 ? `${tradeGradeLabel} \u2014 ${issues.join(". ")}.` : `${tradeGradeLabel} \u2014 ${input.rrRatio.toFixed(1)}:1 R:R, stop ${stopPct}% from entry, ${input.leverage}x leverage, risking ${input.lossAtStopPercent.toFixed(1)}% of capital.`;
+  return { tradeGrade, tradeGradeLabel, tradeGradeExplanation };
+}
+function emptyOutputs() {
+  return {
+    liquidationPrice: 0,
+    liquidationDistance: 0,
+    hasLiquidation: false,
+    effectiveImmune: true,
+    minLeverageForLiquidation: null,
+    liquidationPriceAtMinLeverage: null,
+    liquidationDistanceAtMinLeverage: null,
+    liquidationFallbackExplanation: null,
+    hasInputError: false,
+    inputErrorMessage: null,
+    suggestedStopPrice: 0,
+    effectiveStopPrice: 0,
+    usedCustomStop: false,
+    stopValidationMessage: null,
+    lossAtStop: 0,
+    lossAtStopPercent: 0,
+    suggestedTargetPrice: 0,
+    effectiveTargetPrice: 0,
+    usedCustomTarget: false,
+    targetValidationMessage: null,
+    profitAtTarget: 0,
+    profitAtTargetPercent: 0,
+    rrRatio: 0,
+    notionalValue: 0,
+    suggestedPositionSize: 0,
+    suggestedLeverage: 0,
+    tradeGrade: "yellow",
+    tradeGradeLabel: "ENTER PARAMETERS",
+    tradeGradeExplanation: "Fill in the form to see your risk analysis."
+  };
+}
+function invalidInputOutputs(message) {
+  return {
+    liquidationPrice: 0,
+    liquidationDistance: 0,
+    hasLiquidation: false,
+    effectiveImmune: true,
+    minLeverageForLiquidation: null,
+    liquidationPriceAtMinLeverage: null,
+    liquidationDistanceAtMinLeverage: null,
+    liquidationFallbackExplanation: null,
+    hasInputError: true,
+    inputErrorMessage: message,
+    suggestedStopPrice: 0,
+    effectiveStopPrice: 0,
+    usedCustomStop: false,
+    stopValidationMessage: null,
+    lossAtStop: 0,
+    lossAtStopPercent: 0,
+    suggestedTargetPrice: 0,
+    effectiveTargetPrice: 0,
+    usedCustomTarget: false,
+    targetValidationMessage: null,
+    profitAtTarget: 0,
+    profitAtTargetPercent: 0,
+    rrRatio: 0,
+    notionalValue: 0,
+    suggestedPositionSize: 0,
+    suggestedLeverage: 0,
+    tradeGrade: "red",
+    tradeGradeLabel: "INVALID INPUT",
+    tradeGradeExplanation: "Stop cannot equal entry price. Move the stop away from entry to calculate risk."
+  };
+}
+function findMinimumLiquidationScenario(inputs) {
+  for (let testLeverage = 1; testLeverage <= 100; testLeverage += 0.5) {
+    const liquidationPrice = computeLiquidationPrice({
+      ...inputs,
+      leverage: testLeverage
+    });
+    const hasLiquidation = Number.isFinite(liquidationPrice) && liquidationPrice > 0;
+    if (hasLiquidation) {
+      const distancePct = Math.abs(liquidationPrice - inputs.entryPrice) / inputs.entryPrice * 100;
+      return {
+        leverage: testLeverage,
+        price: liquidationPrice,
+        distancePct,
+        explanation: `Liquidation first appears around ${testLeverage.toFixed(1)}x, where the liquidation level would be ${liquidationPrice.toFixed(2)}.`
+      };
+    }
+  }
+  return null;
+}
+function computeLiquidationPrice(inputs) {
+  const { direction, entryPrice, accountSize, positionSize, leverage } = inputs;
+  const maintenanceMarginRate = 5e-3;
+  const effectivePos = positionSize > 0 ? positionSize * leverage : accountSize * leverage;
+  const marginUsed = positionSize > 0 ? positionSize : accountSize;
+  const availableMargin = accountSize - marginUsed;
+  const maintenanceMargin = effectivePos * maintenanceMarginRate;
+  const marginBuffer = availableMargin - maintenanceMargin;
+  let liquidationPrice;
+  if (marginBuffer <= 0) {
+    liquidationPrice = entryPrice;
+  } else if (marginBuffer >= effectivePos) {
+    liquidationPrice = direction === "long" ? 0 : Infinity;
+  } else {
+    liquidationPrice = direction === "long" ? entryPrice * (1 - marginBuffer / effectivePos) : entryPrice * (1 + marginBuffer / effectivePos);
+  }
+  return direction === "long" ? Math.max(0, liquidationPrice) : liquidationPrice;
+}
+function validateStop(direction, entryPrice, stopPrice) {
+  if (stopPrice === null) return null;
+  if (direction === "long" && stopPrice >= entryPrice) {
+    return "Long stops must stay below entry, so auto stop is being used instead.";
+  }
+  if (direction === "short" && stopPrice <= entryPrice) {
+    return "Short stops must stay above entry, so auto stop is being used instead.";
+  }
+  return null;
+}
+function validateTarget(direction, entryPrice, targetPrice) {
+  if (targetPrice === null) return null;
+  if (direction === "long" && targetPrice <= entryPrice) {
+    return "Long targets must stay above entry, so auto target is being used instead.";
+  }
+  if (direction === "short" && targetPrice >= entryPrice) {
+    return "Short targets must stay below entry, so auto target is being used instead.";
+  }
+  return null;
+}
+
+// src/signals/setup.ts
+function computeSuggestedSetup(coin, signals, currentPrice, options) {
+  if (!isFinite(currentPrice) || currentPrice <= 0 || signals.isStale || signals.isWarmingUp || !isFinite(signals.volatility.atr) || signals.volatility.atr <= 0 || !isFinite(signals.entryGeometry.meanPrice)) {
+    return null;
+  }
+  const decision = computeDecisionState({
+    composite: signals.composite,
+    entryGeometry: signals.entryGeometry,
+    hurst: signals.hurst,
+    isStale: signals.isStale,
+    isWarmingUp: signals.isWarmingUp,
+    riskStatus: "unknown"
+  });
+  if (decision.action !== "long" && decision.action !== "short") {
+    return null;
+  }
+  const direction = decision.action;
+  const atr = signals.volatility.atr;
+  const riskOutputs = computeRisk(
+    {
+      coin,
+      direction,
+      entryPrice: currentPrice,
+      accountSize: DEFAULT_ACCOUNT_SIZE,
+      positionSize: 0,
+      leverage: 1,
+      stopPrice: null,
+      targetPrice: null
+    },
+    atr
+  );
+  const alignmentRatio = signals.composite.agreementTotal > 0 ? signals.composite.agreementCount / signals.composite.agreementTotal : 0;
+  const compositeStrength = Math.min(1, Math.abs(signals.composite.value));
+  const reversionPotential = signals.entryGeometry.reversionPotential;
+  const hurstConfidence = signals.hurst.confidence;
+  const confidence = clamp2(
+    alignmentRatio * compositeStrength * reversionPotential * hurstConfidence * 2,
+    0,
+    1
+  );
+  const confidenceTier = confidence > 0.6 ? "high" : confidence > 0.3 ? "medium" : "low";
+  const timeframe = signals.entryGeometry.entryQuality === "ideal" && signals.hurst.regime === "mean-reverting" ? "4-24h" : signals.entryGeometry.entryQuality === "extended" ? "4-12h" : signals.entryGeometry.entryQuality === "early" ? "24-72h" : "4-24h";
+  const stretch = Math.abs(signals.entryGeometry.stretchZEquivalent).toFixed(1);
+  const mean = signals.entryGeometry.meanPrice;
+  const agreementStr = `${signals.composite.agreementCount}/${signals.composite.agreementTotal}`;
+  const summary = `${coin} is ${stretch}\u03C3 ${direction === "long" ? "below" : "above"} its 20-period mean ($${mean.toFixed(0)}) in a ${signals.hurst.regime} market. ${agreementStr} signals agree. ${direction.toUpperCase()} entry at $${currentPrice.toFixed(0)} with stop $${riskOutputs.suggestedStopPrice.toFixed(0)}, target $${riskOutputs.suggestedTargetPrice.toFixed(0)} (${riskOutputs.rrRatio.toFixed(1)}:1 R:R).`;
+  return {
+    coin,
+    direction,
+    entryPrice: currentPrice,
+    stopPrice: riskOutputs.suggestedStopPrice,
+    targetPrice: riskOutputs.suggestedTargetPrice,
+    meanReversionTarget: mean,
+    rrRatio: riskOutputs.rrRatio,
+    suggestedPositionSize: riskOutputs.suggestedPositionSize,
+    suggestedLeverage: riskOutputs.suggestedLeverage,
+    tradeGrade: riskOutputs.tradeGrade,
+    confidence,
+    confidenceTier,
+    entryQuality: signals.entryGeometry.entryQuality,
+    agreementCount: signals.composite.agreementCount,
+    agreementTotal: signals.composite.agreementTotal,
+    regime: signals.hurst.regime,
+    reversionPotential,
+    stretchSigma: Math.abs(signals.entryGeometry.stretchZEquivalent),
+    atr,
+    compositeValue: signals.composite.value,
+    timeframe,
+    summary,
+    generatedAt: options?.generatedAt ?? Date.now(),
+    source: options?.source
+  };
+}
+function clamp2(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+// src/signals/resolveOutcome.ts
+var SETUP_WINDOWS = {
+  "4h": 4 * 60 * 60 * 1e3,
+  "24h": 24 * 60 * 60 * 1e3,
+  "72h": 72 * 60 * 60 * 1e3
+};
+var GRACE_PERIOD_MS = 24 * 60 * 60 * 1e3;
+var CLOSE_ENOUGH_MS = 2 * 60 * 60 * 1e3;
+function emptyOutcome(window) {
+  return {
+    window,
+    resolvedAt: null,
+    result: "pending",
+    resolutionReason: "pending",
+    coverageStatus: "full",
+    candleCountUsed: 0,
+    returnPct: null,
+    rAchieved: null,
+    mfe: null,
+    mfePct: null,
+    mae: null,
+    maePct: null,
+    targetHit: false,
+    stopHit: false,
+    priceAtResolution: null
+  };
+}
+function resolveSetupWindow(setup, window, candles, now, options) {
+  const windowMs = SETUP_WINDOWS[window];
+  const setupWindowStart = getSetupWindowStart(setup.generatedAt);
+  const targetTime = getSetupWindowBoundary(setup.generatedAt, windowMs);
+  const resolutionBucketTime = getResolutionBucketStart(setup.generatedAt, windowMs);
+  if (now < targetTime) {
+    return null;
+  }
+  const traversal = candles.filter((c) => c.time >= setupWindowStart && c.time <= resolutionBucketTime);
+  let resolutionCandle = candles.find((c) => c.time === resolutionBucketTime) ?? null;
+  const regularCandles = options?.regularCandles;
+  const extendedCandles = options?.extendedCandles;
+  const oldestRegularTime = regularCandles && regularCandles.length > 0 ? regularCandles[0].time : Infinity;
+  const usedBackfill = extendedCandles ? extendedCandles.length > 0 && setupWindowStart < oldestRegularTime : false;
+  let partialResolution = false;
+  if (!resolutionCandle) {
+    const latestClosedCandle = [...candles].reverse().find((c) => c.time >= setupWindowStart && c.time < targetTime) ?? null;
+    if (latestClosedCandle && resolutionBucketTime - latestClosedCandle.time <= CLOSE_ENOUGH_MS) {
+      resolutionCandle = latestClosedCandle;
+      partialResolution = true;
+    } else if (now >= targetTime + GRACE_PERIOD_MS) {
+      return {
+        ...emptyOutcome(window),
+        resolvedAt: now,
+        result: "unresolvable",
+        resolutionReason: "unresolvable",
+        coverageStatus: "insufficient",
+        candleCountUsed: traversal.length
+      };
+    } else {
+      return null;
+    }
+  }
+  if (resolutionCandle.time !== resolutionBucketTime) {
+    partialResolution = true;
+  }
+  const candlesToInspect = traversal.length > 0 ? traversal : [resolutionCandle];
+  let highestHigh = -Infinity;
+  let lowestLow = Infinity;
+  let result = "expired";
+  let resolutionReason = "expired";
+  let priceAtResolution = resolutionCandle.close;
+  let targetHit = false;
+  let stopHit = false;
+  let inspectedCandles = 0;
+  for (const candle of candlesToInspect) {
+    inspectedCandles += 1;
+    highestHigh = Math.max(highestHigh, candle.high);
+    lowestLow = Math.min(lowestLow, candle.low);
+    const hitTarget = didHitTarget(setup, candle);
+    const hitStop = didHitStop(setup, candle);
+    if (hitTarget && hitStop) {
+      const toStop = Math.abs(candle.open - setup.stopPrice);
+      const toTarget = Math.abs(candle.open - setup.targetPrice);
+      if (toStop <= toTarget) {
+        result = "loss";
+        resolutionReason = "stop";
+        priceAtResolution = setup.stopPrice;
+        stopHit = true;
+      } else {
+        result = "win";
+        resolutionReason = "target";
+        priceAtResolution = setup.targetPrice;
+        targetHit = true;
+      }
+      break;
+    }
+    if (hitTarget) {
+      result = "win";
+      resolutionReason = "target";
+      priceAtResolution = setup.targetPrice;
+      targetHit = true;
+      break;
+    }
+    if (hitStop) {
+      result = "loss";
+      resolutionReason = "stop";
+      priceAtResolution = setup.stopPrice;
+      stopHit = true;
+      break;
+    }
+  }
+  if (highestHigh === -Infinity || lowestLow === Infinity) {
+    highestHigh = resolutionCandle.high;
+    lowestLow = resolutionCandle.low;
+  }
+  const stopDistance = Math.abs(setup.entryPrice - setup.stopPrice);
+  const returnPct = setup.direction === "long" ? (priceAtResolution - setup.entryPrice) / setup.entryPrice * 100 : (setup.entryPrice - priceAtResolution) / setup.entryPrice * 100;
+  const rAchieved = stopDistance > 0 ? setup.direction === "long" ? (priceAtResolution - setup.entryPrice) / stopDistance : (setup.entryPrice - priceAtResolution) / stopDistance : null;
+  const coverageStatus = partialResolution || usedBackfill || traversal.length === 0 ? "partial" : "full";
+  return {
+    window,
+    resolvedAt: now,
+    result,
+    resolutionReason,
+    coverageStatus,
+    candleCountUsed: candlesToInspect.length,
+    returnPct,
+    rAchieved,
+    mfe: computeMfe(setup, highestHigh, lowestLow),
+    mfePct: computeMfePct(setup, highestHigh, lowestLow),
+    mae: computeMae(setup, highestHigh, lowestLow),
+    maePct: computeMaePct(setup, highestHigh, lowestLow),
+    targetHit,
+    stopHit,
+    priceAtResolution
+  };
+}
+function didHitTarget(setup, candle) {
+  return setup.direction === "long" ? candle.high >= setup.targetPrice : candle.low <= setup.targetPrice;
+}
+function didHitStop(setup, candle) {
+  return setup.direction === "long" ? candle.low <= setup.stopPrice : candle.high >= setup.stopPrice;
+}
+function computeMfe(setup, highestHigh, lowestLow) {
+  return setup.direction === "long" ? highestHigh - setup.entryPrice : setup.entryPrice - lowestLow;
+}
+function computeMfePct(setup, highestHigh, lowestLow) {
+  return computeMfe(setup, highestHigh, lowestLow) / setup.entryPrice * 100;
+}
+function computeMae(setup, highestHigh, lowestLow) {
+  return setup.direction === "long" ? setup.entryPrice - lowestLow : highestHigh - setup.entryPrice;
+}
+function computeMaePct(setup, highestHigh, lowestLow) {
+  return computeMae(setup, highestHigh, lowestLow) / setup.entryPrice * 100;
+}
+
+// src/utils/identity.ts
+var PRICE_KEY_DECIMALS = 4;
+function normalizePriceKey(value) {
+  if (!isFinite(value)) {
+    return "na";
+  }
+  return Number(value.toFixed(PRICE_KEY_DECIMALS)).toString();
+}
+function buildSetupId(setup) {
+  return [
+    "setup",
+    setup.coin,
+    setup.direction,
+    String(setup.generatedAt),
+    normalizePriceKey(setup.entryPrice),
+    normalizePriceKey(setup.stopPrice),
+    normalizePriceKey(setup.targetPrice)
+  ].join(":");
+}
+function buildTrackedSignalId(input) {
+  return [
+    "signal",
+    input.coin,
+    input.kind,
+    String(input.timestamp),
+    normalizeDirectionKey(input.direction),
+    sanitizeKey(input.label),
+    strengthBucket(input.strength)
+  ].join(":");
+}
+function strengthBucket(value) {
+  if (value >= 0.66) return "high";
+  if (value >= 0.33) return "medium";
+  return "low";
+}
+function sanitizeKey(value) {
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return normalized || "na";
+}
+function normalizeDirectionKey(direction) {
+  if (direction === "long" || direction === "short" || direction === "neutral") {
+    return direction;
+  }
+  return "na";
+}
+
+// src/signals/trackerLogic.ts
+var TRACKER_WINDOWS = {
+  "4h": 4 * 60 * 60 * 1e3,
+  "24h": 24 * 60 * 60 * 1e3,
+  "72h": 72 * 60 * 60 * 1e3
+};
+function buildTrackedRecords(coin, signals, referencePrice) {
+  const timestamp = signals.updatedAt;
+  return [
+    buildRecord({
+      source: "signal-engine",
+      coin,
+      timestamp,
+      kind: "composite",
+      direction: signals.composite.direction,
+      strength: Math.abs(signals.composite.value),
+      label: signals.composite.label,
+      referencePrice,
+      metadata: {
+        agreementCount: signals.composite.agreementCount,
+        agreementTotal: signals.composite.agreementTotal
+      }
+    }),
+    buildRecord({
+      source: "signal-engine",
+      coin,
+      timestamp,
+      kind: "zScore",
+      direction: directionalFromNumber(signals.zScore.normalizedSignal),
+      strength: Math.abs(signals.zScore.normalizedSignal),
+      label: signals.zScore.label,
+      referencePrice,
+      metadata: {
+        value: signals.zScore.value
+      }
+    }),
+    buildRecord({
+      source: "signal-engine",
+      coin,
+      timestamp,
+      kind: "funding",
+      direction: directionalFromNumber(signals.funding.normalizedSignal),
+      strength: Math.abs(signals.funding.normalizedSignal),
+      label: signals.funding.label,
+      referencePrice,
+      metadata: {
+        rate: signals.funding.currentRate,
+        zScore: signals.funding.zScore
+      }
+    }),
+    buildRecord({
+      source: "signal-engine",
+      coin,
+      timestamp,
+      kind: "oiDelta",
+      direction: directionalFromNumber(signals.oiDelta.normalizedSignal),
+      strength: Math.abs(signals.oiDelta.normalizedSignal),
+      label: signals.oiDelta.label,
+      referencePrice,
+      metadata: {
+        oiChangePct: signals.oiDelta.oiChangePct,
+        priceChangePct: signals.oiDelta.priceChangePct,
+        confirmation: signals.oiDelta.confirmation
+      }
+    }),
+    buildRecord({
+      source: "signal-engine",
+      coin,
+      timestamp,
+      kind: "hurst",
+      direction: "neutral",
+      strength: signals.hurst.confidence,
+      label: signals.hurst.regime,
+      referencePrice,
+      metadata: {
+        value: signals.hurst.value,
+        confidence: signals.hurst.confidence
+      }
+    }),
+    buildRecord({
+      source: "signal-engine",
+      coin,
+      timestamp,
+      kind: "entryGeometry",
+      direction: signals.entryGeometry.directionBias,
+      strength: Math.abs(signals.entryGeometry.stretchZEquivalent) / 3,
+      label: signals.entryGeometry.entryQuality,
+      referencePrice,
+      metadata: {
+        stretch: signals.entryGeometry.stretchZEquivalent,
+        atrDislocation: signals.entryGeometry.atrDislocation
+      }
+    })
+  ];
+}
+function buildRecord(input) {
+  return {
+    ...input,
+    id: buildTrackedSignalId(input)
+  };
+}
+function shouldTrackRecord(record, existing) {
+  const previous = [...existing].reverse().find((item) => item.coin === record.coin && item.kind === record.kind);
+  if (!previous) {
+    return true;
+  }
+  if (record.timestamp - previous.timestamp >= TRACKER_DEDUPE_WINDOW_MS) {
+    return true;
+  }
+  return previous.direction !== record.direction || previous.label !== record.label || strengthBucket(previous.strength) !== strengthBucket(record.strength);
+}
+function scoreDirection(direction, returnPct) {
+  if (direction === "neutral") {
+    return null;
+  }
+  if (direction === "long") {
+    return returnPct > 0;
+  }
+  return returnPct < 0;
+}
+function directionalFromNumber(value) {
+  if (value > 0.1) return "long";
+  if (value < -0.1) return "short";
+  return "neutral";
+}
+function emptySignalOutcome(window) {
+  return {
+    recordId: "",
+    // will be set by caller
+    window,
+    resolvedAt: null,
+    futurePrice: null,
+    returnPct: null,
+    correct: null
+  };
+}
+
+// src/server/collector/runCollector.ts
+var env = globalThis.process?.env ?? {};
+var HYPERLIQUID_API = "https://api.hyperliquid.xyz/info";
+var COINALYZE_API = "https://api.coinalyze.net/v1";
+var COLLECTOR_NAME = "primary";
+var GLOBAL_SCOPE = "global";
+var MS_PER_HOUR2 = 36e5;
+var CANDLE_COUNT = 120;
+var FUNDING_WINDOW = 30;
+var OI_LOOKBACK_HOURS = 24;
+var SETUP_DEDUPE_WINDOW_MS2 = 4 * MS_PER_HOUR2;
+var SIGNAL_DEDUPE_WINDOW_MS = 4 * MS_PER_HOUR2;
+var ENTRY_SIMILARITY_THRESHOLD = 0.02;
+var SIGNAL_DEDUPE_FETCH_LIMIT = 400;
+var SIGNAL_RESOLUTION_PAGE_SIZE = 500;
+var SIGNAL_RESOLUTION_MAX_ROWS = 5e3;
+var COINALYZE_SYMBOLS = {
+  BTC: "BTCUSD_PERP.H",
+  ETH: "ETHUSD_PERP.H",
+  SOL: "SOLUSD_PERP.H",
+  HYPE: "HYPEUSD_PERP.H"
+};
+async function runCollector(now = Date.now()) {
+  const envError = validateCollectorEnv();
+  if (envError) {
+    await updateCollectorHeartbeat(now, envError).catch(() => {
+    });
+    throw new Error(envError);
+  }
+  await updateCollectorHeartbeat(now, null).catch(() => {
+  });
+  try {
+    const [mids, [meta, assetCtxs]] = await Promise.all([
+      hlPost({ type: "allMids" }),
+      hlPost({
+        type: "metaAndAssetCtxs"
+      })
+    ]);
+    const results = [];
+    for (const coin of TRACKED_COINS) {
+      try {
+        const result = await processCoin(coin, mids, meta.universe, assetCtxs, now, GLOBAL_SCOPE);
+        results.push(result);
+      } catch (err) {
+        results.push({
+          coin,
+          ok: false,
+          error: err instanceof Error ? err.message : `Failed to process ${coin}`,
+          setupGenerated: false,
+          outcomesResolved: 0,
+          signalsTracked: 0,
+          signalsResolved: 0
+        });
+      }
+      await sleep(300);
+    }
+    await updateCollectorHeartbeat(now, null, now).catch(() => {
+    });
+    return { processedAt: now, results };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unexpected collector error";
+    await updateCollectorHeartbeat(now, message).catch(() => {
+    });
+    throw err;
+  }
+}
+async function processCoin(coin, mids, universe, assetCtxs, now, scope) {
+  const currentPrice = parseFloat(mids[coin] ?? "");
+  if (!isFinite(currentPrice) || currentPrice <= 0) {
+    return { coin, ok: false, error: "No mid price", setupGenerated: false, outcomesResolved: 0, signalsTracked: 0, signalsResolved: 0 };
+  }
+  const coinIdx = universe.findIndex((u) => u.name === coin);
+  if (coinIdx >= 0 && assetCtxs[coinIdx]) {
+    const currentOI = parseFloat(assetCtxs[coinIdx].openInterest);
+    if (isFinite(currentOI) && currentOI > 0) {
+      await persistOISnapshot(coin, currentOI, now).catch(() => {
+      });
+    }
+  }
+  const startTime = now - CANDLE_COUNT * MS_PER_HOUR2;
+  const rawCandles = await hlPost({
+    type: "candleSnapshot",
+    req: { coin, interval: "1h", startTime, endTime: now }
+  });
+  const candles = rawCandles.map(parseCandle);
+  if (candles.length < 20) {
+    return { coin, ok: false, error: `Only ${candles.length} candles`, setupGenerated: false, outcomesResolved: 0, signalsTracked: 0, signalsResolved: 0 };
+  }
+  const fundingStart = now - FUNDING_WINDOW * MS_PER_HOUR2;
+  const fundingEntries = await hlPost({
+    type: "fundingHistory",
+    coin,
+    startTime: fundingStart
+  });
+  const fundingHistory = fundingEntries.map((entry) => ({ time: entry.time, rate: parseFloat(entry.fundingRate) })).filter((snapshot) => isFinite(snapshot.rate));
+  const oiHistory = await fetchOIFromCoinalyze(coin, now).catch(() => null) ?? await fetchOIFromSupabase(coin);
+  const closes = candles.map((c) => c.close);
+  const hurst = computeHurst(closes, 100);
+  const zScore = computeZScore(closes, 20);
+  const funding = computeFundingZScore(fundingHistory);
+  const oiDelta = computeOIDelta(oiHistory, closes);
+  const volResult = computeRealizedVol(closes);
+  const atr = computeATR(candles);
+  const volatility = { ...volResult, atr };
+  const entryGeometry = computeEntryGeometry(closes, atr, 20);
+  const composite = computeComposite(hurst, zScore, funding, oiDelta);
+  const latestCandle = candles[candles.length - 1];
+  const candleAge = latestCandle ? now - latestCandle.time : Infinity;
+  const isWarmingUp = candles.length < 100;
+  const isStale = candleAge > 2 * MS_PER_HOUR2;
+  const signals = {
+    coin,
+    hurst,
+    zScore,
+    funding,
+    oiDelta,
+    volatility,
+    entryGeometry,
+    composite,
+    updatedAt: now,
+    isStale,
+    isWarmingUp,
+    warmupProgress: Math.min(1, candles.length / 100)
+  };
+  const setup = computeSuggestedSetup(coin, signals, currentPrice, {
+    generatedAt: now,
+    source: "server"
+  });
+  let setupGenerated = false;
+  let setupId;
+  if (setup) {
+    const isDuplicate = await checkDuplicate(scope, coin, setup.direction, setup.entryPrice, now);
+    if (!isDuplicate) {
+      setupId = buildSetupId(setup);
+      await persistServerSetup(setupId, scope, coin, setup);
+      setupGenerated = true;
+    }
+  }
+  const outcomesResolved = await resolveServerOutcomes(scope, coin, candles, now);
+  const signalResult = await trackSignalsForCoin(scope, coin, signals, currentPrice, candles, now);
+  return { coin, ok: true, setupGenerated, setupId, outcomesResolved, signalsTracked: signalResult.tracked, signalsResolved: signalResult.resolved };
+}
+function validateCollectorEnv() {
+  if (!env.SUPABASE_URL) return "SUPABASE_URL not configured";
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) return "SUPABASE_SERVICE_ROLE_KEY not configured";
+  return null;
+}
+async function hlPost(body) {
+  const res = await fetch(HYPERLIQUID_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    throw new Error(`Hyperliquid API error: ${res.status}`);
+  }
+  return res.json();
+}
+async function fetchOIFromCoinalyze(coin, now) {
+  const apiKey = env.COINALYZE_API_KEY;
+  if (!apiKey) return null;
+  const symbol = COINALYZE_SYMBOLS[coin];
+  const from = Math.floor((now - OI_LOOKBACK_HOURS * MS_PER_HOUR2) / 1e3);
+  const to = Math.floor(now / 1e3);
+  const res = await fetch(
+    `${COINALYZE_API}/open-interest-history?symbols=${symbol}&interval=hour_1&from=${from}&to=${to}`,
+    { headers: { api_key: apiKey } }
+  );
+  if (!res.ok) {
+    throw new Error(`Coinalyze API error: ${res.status}`);
+  }
+  const data = await res.json();
+  if (!Array.isArray(data) || data.length === 0 || !Array.isArray(data[0]?.history) || data[0].history.length === 0) {
+    return null;
+  }
+  return data[0].history.map((point) => ({
+    time: point.t * 1e3,
+    oi: point.c
+  }));
+}
+function supabaseHeaders() {
+  return {
+    apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+    "Content-Type": "application/json"
+  };
+}
+function restBaseUrl() {
+  return `${env.SUPABASE_URL}/rest/v1`;
+}
+async function persistOISnapshot(coin, oi, capturedAt) {
+  await fetch(`${restBaseUrl()}/oi_snapshots`, {
+    method: "POST",
+    headers: { ...supabaseHeaders(), Prefer: "return=minimal" },
+    body: JSON.stringify([{ coin, oi, captured_at: new Date(capturedAt).toISOString() }])
+  });
+}
+async function fetchOIFromSupabase(coin) {
+  try {
+    const res = await fetch(
+      `${restBaseUrl()}/oi_snapshots?coin=eq.${coin}&order=captured_at.desc&limit=24`,
+      { headers: supabaseHeaders() }
+    );
+    if (!res.ok) return [];
+    const rows = await res.json();
+    return rows.reverse().map((row) => ({
+      time: new Date(row.captured_at).getTime(),
+      oi: row.oi
+    }));
+  } catch {
+    return [];
+  }
+}
+async function checkDuplicate(scope, coin, direction, entryPrice, now) {
+  try {
+    const cutoff = new Date(now - SETUP_DEDUPE_WINDOW_MS2).toISOString();
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      coin: `eq.${coin}`,
+      direction: `eq.${direction}`,
+      generated_at: `gte.${cutoff}`,
+      order: "generated_at.desc",
+      limit: "1",
+      select: "setup_json"
+    });
+    const res = await fetch(`${restBaseUrl()}/server_setups?${params.toString()}`, {
+      headers: supabaseHeaders()
+    });
+    if (!res.ok) return false;
+    const rows = await res.json();
+    if (rows.length === 0) return false;
+    const lastEntry = rows[0].setup_json.entryPrice;
+    const drift = Math.abs(lastEntry - entryPrice) / entryPrice;
+    return drift <= ENTRY_SIMILARITY_THRESHOLD;
+  } catch {
+    return false;
+  }
+}
+async function persistServerSetup(id, scope, coin, setup) {
+  const outcomes = {
+    "4h": emptyOutcome("4h"),
+    "24h": emptyOutcome("24h"),
+    "72h": emptyOutcome("72h")
+  };
+  const res = await fetch(`${restBaseUrl()}/server_setups`, {
+    method: "POST",
+    headers: { ...supabaseHeaders(), Prefer: "return=minimal" },
+    body: JSON.stringify([{
+      id,
+      scope,
+      coin,
+      direction: setup.direction,
+      setup_json: setup,
+      outcomes_json: outcomes,
+      generated_at: new Date(setup.generatedAt).toISOString(),
+      updated_at: new Date(setup.generatedAt).toISOString()
+    }])
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to persist server setup: ${res.status}`);
+  }
+}
+async function resolveServerOutcomes(scope, coin, candles, now) {
+  let resolved = 0;
+  try {
+    const cutoff = new Date(now - 7 * 24 * MS_PER_HOUR2).toISOString();
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      coin: `eq.${coin}`,
+      generated_at: `gte.${cutoff}`,
+      order: "generated_at.desc",
+      limit: "100",
+      select: "id,setup_json,outcomes_json"
+    });
+    const res = await fetch(`${restBaseUrl()}/server_setups?${params.toString()}`, {
+      headers: supabaseHeaders()
+    });
+    if (!res.ok) return 0;
+    const rows = await res.json();
+    const windows = ["4h", "24h", "72h"];
+    for (const row of rows) {
+      const currentOutcomes = row.outcomes_json ?? {
+        "4h": emptyOutcome("4h"),
+        "24h": emptyOutcome("24h"),
+        "72h": emptyOutcome("72h")
+      };
+      let changed = false;
+      const nextOutcomes = { ...currentOutcomes };
+      for (const window of windows) {
+        if (currentOutcomes[window].result !== "pending") continue;
+        const outcome = resolveSetupWindow(row.setup_json, window, candles, now);
+        if (outcome) {
+          nextOutcomes[window] = outcome;
+          changed = true;
+        }
+      }
+      if (changed) {
+        await updateSetupOutcomes(row.id, nextOutcomes, now);
+        resolved += 1;
+      }
+    }
+  } catch {
+  }
+  return resolved;
+}
+async function updateSetupOutcomes(setupId, outcomes, now) {
+  await fetch(`${restBaseUrl()}/server_setups?id=eq.${setupId}`, {
+    method: "PATCH",
+    headers: { ...supabaseHeaders(), Prefer: "return=minimal" },
+    body: JSON.stringify({
+      outcomes_json: outcomes,
+      updated_at: new Date(now).toISOString()
+    })
+  });
+}
+async function updateCollectorHeartbeat(now, lastError, lastSuccessAt) {
+  const payload = {
+    collector_name: COLLECTOR_NAME,
+    last_run_at: new Date(now).toISOString(),
+    last_error: lastError,
+    updated_at: new Date(now).toISOString()
+  };
+  if (lastSuccessAt !== void 0) {
+    payload.last_success_at = new Date(lastSuccessAt).toISOString();
+  }
+  await fetch(`${restBaseUrl()}/collector_heartbeat?on_conflict=collector_name`, {
+    method: "POST",
+    headers: {
+      ...supabaseHeaders(),
+      Prefer: "resolution=merge-duplicates,return=minimal"
+    },
+    body: JSON.stringify([payload])
+  });
+}
+async function trackSignalsForCoin(scope, coin, signals, referencePrice, candles, now) {
+  try {
+    if (!isFinite(referencePrice) || referencePrice <= 0 || signals.isWarmingUp || signals.isStale) {
+      return { tracked: 0, resolved: 0 };
+    }
+    const records = buildTrackedRecords(coin, signals, referencePrice);
+    const recentRecords = await fetchRecentTrackedSignals(scope, coin, now);
+    const newRecords = records.filter((record) => shouldTrackRecord(record, recentRecords));
+    let tracked = 0;
+    for (const record of newRecords) {
+      await persistTrackedSignal(record.id, scope, coin, record, now);
+      tracked++;
+    }
+    const resolved = await resolveSignalOutcomes(scope, coin, candles, now);
+    return { tracked, resolved };
+  } catch {
+    return { tracked: 0, resolved: 0 };
+  }
+}
+async function fetchRecentTrackedSignals(scope, coin, now) {
+  try {
+    const cutoff = new Date(now - SIGNAL_DEDUPE_WINDOW_MS).toISOString();
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      coin: `eq.${coin}`,
+      recorded_at: `gte.${cutoff}`,
+      order: "recorded_at.desc",
+      limit: String(SIGNAL_DEDUPE_FETCH_LIMIT),
+      select: "signal_json"
+    });
+    const res = await fetch(`${restBaseUrl()}/tracked_signals?${params.toString()}`, {
+      headers: supabaseHeaders()
+    });
+    if (!res.ok) return [];
+    const rows = await res.json();
+    return rows.map((r) => r.signal_json);
+  } catch {
+    return [];
+  }
+}
+async function persistTrackedSignal(id, scope, coin, record, now) {
+  const windows = ["4h", "24h", "72h"];
+  const outcomes = {};
+  for (const w of windows) {
+    outcomes[w] = { ...emptySignalOutcome(w), recordId: record.id };
+  }
+  await fetch(`${restBaseUrl()}/tracked_signals?on_conflict=id`, {
+    method: "POST",
+    headers: {
+      ...supabaseHeaders(),
+      Prefer: "resolution=ignore-duplicates,return=minimal"
+    },
+    body: JSON.stringify([{
+      id,
+      scope,
+      coin,
+      kind: record.kind,
+      direction: record.direction,
+      signal_json: record,
+      outcomes_json: outcomes,
+      recorded_at: new Date(record.timestamp).toISOString(),
+      updated_at: new Date(now).toISOString()
+    }])
+  });
+}
+async function resolveSignalOutcomes(scope, coin, candles, now) {
+  let resolved = 0;
+  try {
+    const cutoff = new Date(now - 7 * 24 * MS_PER_HOUR2).toISOString();
+    const rows = await fetchTrackedSignalsForResolution(scope, coin, cutoff);
+    const windows = ["4h", "24h", "72h"];
+    for (const row of rows) {
+      const record = row.signal_json;
+      let changed = false;
+      const nextOutcomes = { ...row.outcomes_json };
+      for (const window of windows) {
+        const outcome = nextOutcomes[window];
+        if (outcome.resolvedAt !== null) continue;
+        const targetTime = record.timestamp + TRACKER_WINDOWS[window];
+        if (now < targetTime) continue;
+        const futurePrice = findSignalFuturePrice(candles, targetTime);
+        if (futurePrice === null) continue;
+        const returnPct = (futurePrice - record.referencePrice) / record.referencePrice * 100;
+        const correct = scoreDirection(record.direction, returnPct);
+        nextOutcomes[window] = {
+          ...outcome,
+          resolvedAt: now,
+          futurePrice,
+          returnPct,
+          correct
+        };
+        changed = true;
+      }
+      if (changed) {
+        await fetch(`${restBaseUrl()}/tracked_signals?id=eq.${row.id}`, {
+          method: "PATCH",
+          headers: { ...supabaseHeaders(), Prefer: "return=minimal" },
+          body: JSON.stringify({
+            outcomes_json: nextOutcomes,
+            updated_at: new Date(now).toISOString()
+          })
+        });
+        resolved++;
+      }
+    }
+  } catch {
+  }
+  return resolved;
+}
+async function fetchTrackedSignalsForResolution(scope, coin, cutoff) {
+  const rows = [];
+  for (let offset = 0; offset < SIGNAL_RESOLUTION_MAX_ROWS; offset += SIGNAL_RESOLUTION_PAGE_SIZE) {
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      coin: `eq.${coin}`,
+      recorded_at: `gte.${cutoff}`,
+      order: "recorded_at.desc",
+      limit: String(SIGNAL_RESOLUTION_PAGE_SIZE),
+      offset: String(offset),
+      select: "id,signal_json,outcomes_json"
+    });
+    const res = await fetch(`${restBaseUrl()}/tracked_signals?${params.toString()}`, {
+      headers: supabaseHeaders()
+    });
+    if (!res.ok) {
+      return rows;
+    }
+    const page = await res.json();
+    rows.push(...page);
+    if (page.length < SIGNAL_RESOLUTION_PAGE_SIZE) {
+      break;
+    }
+  }
+  return rows;
+}
+function findSignalFuturePrice(candles, targetTime) {
+  const bucketTime = floorToHour(targetTime);
+  const match = candles.find((c) => c.time === bucketTime);
+  if (match && isFinite(match.close) && match.close > 0) {
+    return match.close;
+  }
+  return null;
+}
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+export {
+  runCollector
+};
