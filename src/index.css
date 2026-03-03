@@ -581,6 +581,33 @@ button {
   max-width: 100%;
 }
 
+.price-chart__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.chart-reset-button {
+  border: 1px solid color-mix(in srgb, var(--color-border-subtle) 80%, transparent);
+  background: color-mix(in srgb, var(--color-bg-input) 88%, transparent);
+  color: var(--color-text-secondary);
+  border-radius: 0.6rem;
+  padding: 0.38rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.1;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.chart-reset-button:hover {
+  border-color: color-mix(in srgb, var(--color-signal-blue) 45%, var(--color-border-subtle));
+  color: var(--color-text-primary);
+}
+
 .chart-overlay {
   position: absolute;
   left: 1rem;
@@ -2073,7 +2100,7 @@ button {
 }
 
 .signal-drawer .price-chart {
-  height: min(42vh, 420px);
+  height: min(58vh, 720px);
 }
 
 .signal-drawer .verification-chart {
@@ -2337,7 +2364,7 @@ button {
   }
 
   .price-chart {
-    height: 280px;
+    height: 320px;
   }
 
   .asset-pill {
@@ -2363,6 +2390,10 @@ button {
   .signal-drawer__frame {
     width: calc(100vw - 1.25rem);
     height: calc(100vh - 1.25rem);
+  }
+
+  .signal-drawer .price-chart {
+    height: min(52vh, 620px);
   }
 
   .signal-drawer__content {
@@ -2407,6 +2438,10 @@ button {
     padding: 0.8rem 0.85rem 0.85rem;
   }
 
+  .signal-drawer .price-chart {
+    height: min(48vh, 420px);
+  }
+
   .signal-drawer__section {
     padding: 0.75rem 0.8rem;
   }
@@ -2428,7 +2463,7 @@ button {
   }
 
   .price-chart {
-    height: 240px;
+    height: 260px;
   }
 
   .chart-overlay {
@@ -2503,8 +2538,12 @@ button {
     max-width: 100%;
   }
 
+  .signal-drawer .price-chart {
+    height: min(44vh, 320px);
+  }
+
   .price-chart {
-    height: 200px;
+    height: 240px;
   }
 
   .decision-hero__title {

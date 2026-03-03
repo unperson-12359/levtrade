@@ -29,6 +29,7 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
   const provenance = getSignalProvenance(interval)
   const drawerRef = useRef<HTMLElement>(null)
   const activeSetup = trackedSetup?.setup ?? setup ?? null
+  const chartCoin = activeSetup?.coin ?? coin
   const isSetup = signalKind === 'setup'
   const isHistoricalSetup = isSetup && Boolean(trackedSetup)
   const showRail = signalKind !== 'setup' || Boolean(activeSetup)
@@ -125,7 +126,7 @@ export function SignalDrawer({ coin, signalKind, setup, trackedSetup, onClose }:
                     </section>
                   ) : (
                     <PriceChart
-                      coin={coin}
+                      coin={chartCoin}
                       embedded
                       showHeader={false}
                       verificationSetup={activeSetup ?? undefined}

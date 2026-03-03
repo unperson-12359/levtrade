@@ -157,9 +157,14 @@ export function useChartModel(
       const availableTo = candleData[candleData.length - 1]!.time as UTCTimestamp
 
       if (isHistoricalReview) {
-        focusRange = {
-          from: availableFrom,
-          to: availableTo,
+        const focusTime = Math.floor(verificationSetup.generatedAt / 1000) as UTCTimestamp
+        const historicalFrom = Math.max(availableFrom, focusTime - 24 * 60 * 60) as UTCTimestamp
+
+        if (historicalFrom < availableTo) {
+          focusRange = {
+            from: historicalFrom,
+            to: availableTo,
+          }
         }
       } else {
         const focusTime = Math.floor(verificationSetup.generatedAt / 1000) as UTCTimestamp

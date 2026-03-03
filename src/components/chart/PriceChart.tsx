@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import {
   CandlestickSeries,
   ColorType,
@@ -46,17 +46,36 @@ export function PriceChart({
   const lowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const priceLinesRef = useRef<IPriceLine[] | null>(null)
   const focusRangeRef = useRef<IRange<Time> | null>(null)
+  const lastPriceLinesSignatureRef = useRef<string | null>(null)
+  const hasInitializedViewportRef = useRef(false)
+  const userInteractedRef = useRef(false)
+  const viewportKeyRef = useRef<string | null>(null)
   const model = useChartModel(coin, verificationSetup, { candlesOverride: chartCandles, reviewMode })
   const { signals } = useSignals(coin)
   const showLiveOverlays = reviewMode === 'live' && !chartCandles
+  const viewportKey = getViewportKey(coin, reviewMode, verificationSetup)
+
+  const resetView = useCallback(() => {
+    const chart = chartRef.current
+    if (!chart) return
+
+    if (focusRangeRef.current) {
+      chart.timeScale().setVisibleRange(focusRangeRef.current)
+    } else {
+      chart.timeScale().fitContent()
+    }
+
+    userInteractedRef.current = false
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current) return
 
     const styles = getComputedStyle(document.documentElement)
+    const container = containerRef.current
     const chart = createChart(containerRef.current, {
-      width: containerRef.current.clientWidth,
-      height: 460,
+      width: container.clientWidth,
+      height: container.clientHeight || 380,
       layout: {
         background: { type: ColorType.Solid, color: styles.getPropertyValue('--color-bg-card').trim() },
         textColor: styles.getPropertyValue('--color-text-secondary').trim(),
@@ -115,21 +134,33 @@ export function PriceChart({
     meanSeriesRef.current = meanSeries
     upperSeriesRef.current = upperSeries
     lowerSeriesRef.current = lowerSeries
+    hasInitializedViewportRef.current = false
+    userInteractedRef.current = false
+    viewportKeyRef.current = null
+
+    const markUserInteraction = () => {
+      userInteractedRef.current = true
+    }
+
+    container.addEventListener('mousedown', markUserInteraction)
+    container.addEventListener('wheel', markUserInteraction, { passive: true })
+    container.addEventListener('touchstart', markUserInteraction, { passive: true })
 
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0]
       if (!entry) return
-      chart.applyOptions({ width: entry.contentRect.width })
-      if (focusRangeRef.current) {
+      chart.applyOptions({ width: entry.contentRect.width, height: entry.contentRect.height })
+      if (hasInitializedViewportRef.current && !userInteractedRef.current && focusRangeRef.current) {
         chart.timeScale().setVisibleRange(focusRangeRef.current)
-      } else {
-        chart.timeScale().fitContent()
       }
     })
-    resizeObserver.observe(containerRef.current)
+    resizeObserver.observe(container)
 
     return () => {
       resizeObserver.disconnect()
+      container.removeEventListener('mousedown', markUserInteraction)
+      container.removeEventListener('wheel', markUserInteraction)
+      container.removeEventListener('touchstart', markUserInteraction)
       chart.remove()
       chartRef.current = null
       candleSeriesRef.current = null
@@ -138,6 +169,7 @@ export function PriceChart({
       upperSeriesRef.current = null
       lowerSeriesRef.current = null
       priceLinesRef.current = null
+      lastPriceLinesSignatureRef.current = null
     }
   }, [coin])
 
@@ -152,30 +184,34 @@ export function PriceChart({
     upperSeriesRef.current.setData(model.upperBandLine)
     lowerSeriesRef.current.setData(model.lowerBandLine)
 
-    const existingPriceLines = priceLinesRef.current ?? []
+    const nextPriceLinesSignature = getPriceLinesSignature(model.priceLines)
+    if (lastPriceLinesSignatureRef.current !== nextPriceLinesSignature) {
+      const existingPriceLines = priceLinesRef.current ?? []
 
-    for (const line of existingPriceLines) {
-      candleSeriesRef.current.removePriceLine(line)
+      for (const line of existingPriceLines) {
+        candleSeriesRef.current.removePriceLine(line)
+      }
+
+      priceLinesRef.current = model.priceLines.map((line) =>
+        candleSeriesRef.current!.createPriceLine({
+          price: line.price,
+          color: line.color,
+          lineWidth: 1,
+          lineStyle: line.lineStyle ?? LineStyle.Solid,
+          axisLabelVisible: true,
+          title: line.title,
+        }),
+      )
+      lastPriceLinesSignatureRef.current = nextPriceLinesSignature
     }
-
-    priceLinesRef.current = model.priceLines.map((line) =>
-      candleSeriesRef.current!.createPriceLine({
-        price: line.price,
-        color: line.color,
-        lineWidth: 1,
-        lineStyle: line.lineStyle ?? LineStyle.Solid,
-        axisLabelVisible: true,
-        title: line.title,
-      }),
-    )
 
     focusRangeRef.current = model.focusRange
-    if (model.focusRange) {
-      chartRef.current?.timeScale().setVisibleRange(model.focusRange)
-    } else {
-      chartRef.current?.timeScale().fitContent()
+    if (!hasInitializedViewportRef.current || viewportKeyRef.current !== viewportKey) {
+      resetView()
+      hasInitializedViewportRef.current = true
+      viewportKeyRef.current = viewportKey
     }
-  }, [model])
+  }, [model, resetView, viewportKey])
 
   return (
     <section className={embedded ? 'chart-shell' : 'panel-shell panel-shell--chart'}>
@@ -185,6 +221,17 @@ export function PriceChart({
             <div className="panel-kicker">Price Geometry</div>
             <h2 className="panel-title">{coin} Entry Map</h2>
           </div>
+          <button type="button" className="chart-reset-button" onClick={resetView}>
+            Reset view
+          </button>
+        </div>
+      )}
+
+      {!showHeader && (
+        <div className="price-chart__toolbar">
+          <button type="button" className="chart-reset-button" onClick={resetView}>
+            Reset view
+          </button>
         </div>
       )}
 
@@ -205,4 +252,29 @@ export function PriceChart({
       </div>
     </section>
   )
+}
+
+function getViewportKey(
+  coin: TrackedCoin,
+  reviewMode: 'live' | 'historical',
+  verificationSetup?: SuggestedSetup | null,
+): string {
+  if (reviewMode === 'historical') {
+    return `${coin}:historical:${verificationSetup?.generatedAt ?? 'none'}`
+  }
+
+  return `${coin}:live:${verificationSetup?.generatedAt ?? 'none'}`
+}
+
+function getPriceLinesSignature(
+  priceLines: Array<{
+    title: string
+    price: number
+    color: string
+    lineStyle?: LineStyle
+  }>,
+): string {
+  return priceLines
+    .map((line) => `${line.title}:${line.price.toFixed(6)}:${line.color}:${line.lineStyle ?? LineStyle.Solid}`)
+    .join('|')
 }

@@ -2289,3 +2289,38 @@ Make the dashboard pipeline strictly flow from Step 1 -> Step 2 -> Step 3 by rem
 ### Remaining risks / follow-up
 - The main Vite client chunk remains above the warning threshold; this is performance-only and unrelated to pipeline correctness
 - No manual browser QA has been run yet for validated vs provisional composition states on desktop/mobile
+
+---
+
+## 2026-03-03 20:32 - Codex - Chart Viewport Stability and Autopsy Framing
+
+### Goal
+Fix awkward chart behavior by preserving user zoom/pan, using real container height, reducing overlay flicker, and making historical autopsies open relative to the selected setup instead of the full cached range.
+
+### Files changed
+- `src/components/chart/PriceChart.tsx`
+- `src/components/shared/VerificationChart.tsx`
+- `src/components/shared/SignalDrawer.tsx`
+- `src/hooks/useChartModel.ts`
+- `src/index.css`
+- `COLLAB_LOG.md`
+
+### What changed
+- Replaced hardcoded chart creation height with the actual container height and updated both width and height on resize
+- Stopped the main price chart from auto-fitting or reapplying focus on every model update, preserving user zoom and pan until the coin/review context changes or the user clicks `Reset view`
+- Added a `Reset view` control to both the main chart header and embedded chart toolbar
+- Diffed price-line overlays before rebuilding them so unchanged stop/target/liquidation lines no longer flicker on every polling update
+- Stopped verification charts from calling `fitContent()` on every data refresh and resize after initial framing
+- Changed historical review framing to open from `generatedAt - 24h` through the latest available candle instead of the full cached candle range
+- Ensured setup review charts use the reviewed setup coin when rendering historical chart data
+- Increased full-screen signal-drawer chart heights and slightly raised responsive chart heights on smaller breakpoints
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+
+### Remaining risks / follow-up
+- Manual browser QA is still needed to confirm zoom/pan persistence feels good on desktop and mobile
+- `VerificationChart` still uses a simple initial-fit model with no explicit reset button; that may be worth adding later if users want manual recovery there too
+- The main Vite client chunk remains above the warning threshold; this is performance-only and unrelated to chart behavior

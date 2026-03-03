@@ -25,17 +25,21 @@ export function VerificationChart({ coin, kind, height = 220 }: VerificationChar
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Line'> | null>(null)
+  const hasInitializedViewportRef = useRef(false)
+  const userInteractedRef = useRef(false)
   const { series, currentValue, label, unit, lastRefreshedAt, freshness } = useSignalSeries(coin, kind)
   const interval = useStore((s) => s.selectedInterval)
   const provenance = getSignalProvenance(interval)[kind]
+  const seriesKey = `${coin}:${kind}`
 
   useEffect(() => {
     if (!containerRef.current) return
 
     const styles = getComputedStyle(document.documentElement)
+    const container = containerRef.current
     const chart = createChart(containerRef.current, {
-      width: containerRef.current.clientWidth,
-      height,
+      width: container.clientWidth,
+      height: container.clientHeight || height,
       layout: {
         background: { type: ColorType.Solid, color: styles.getPropertyValue('--color-bg-input').trim() },
         textColor: styles.getPropertyValue('--color-text-secondary').trim(),
@@ -77,17 +81,32 @@ export function VerificationChart({ coin, kind, height = 220 }: VerificationChar
 
     chartRef.current = chart
     seriesRef.current = lineSeries
+    hasInitializedViewportRef.current = false
+    userInteractedRef.current = false
+
+    const markUserInteraction = () => {
+      userInteractedRef.current = true
+    }
+
+    container.addEventListener('mousedown', markUserInteraction)
+    container.addEventListener('wheel', markUserInteraction, { passive: true })
+    container.addEventListener('touchstart', markUserInteraction, { passive: true })
 
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0]
       if (!entry) return
-      chart.applyOptions({ width: entry.contentRect.width })
-      chart.timeScale().fitContent()
+      chart.applyOptions({ width: entry.contentRect.width, height: entry.contentRect.height })
+      if (hasInitializedViewportRef.current && !userInteractedRef.current) {
+        chart.timeScale().fitContent()
+      }
     })
-    resizeObserver.observe(containerRef.current)
+    resizeObserver.observe(container)
 
     return () => {
       resizeObserver.disconnect()
+      container.removeEventListener('mousedown', markUserInteraction)
+      container.removeEventListener('wheel', markUserInteraction)
+      container.removeEventListener('touchstart', markUserInteraction)
       chart.remove()
       chartRef.current = null
       seriesRef.current = null
@@ -97,8 +116,12 @@ export function VerificationChart({ coin, kind, height = 220 }: VerificationChar
   useEffect(() => {
     if (!seriesRef.current) return
     seriesRef.current.setData(series)
-    chartRef.current?.timeScale().fitContent()
-  }, [series])
+    if (!hasInitializedViewportRef.current) {
+      chartRef.current?.timeScale().fitContent()
+      hasInitializedViewportRef.current = true
+      userInteractedRef.current = false
+    }
+  }, [series, seriesKey])
 
   return (
     <div className="verification-chart">
