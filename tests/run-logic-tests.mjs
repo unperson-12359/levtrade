@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const { resolveSetupWindow, computeOIDelta } = await import('../api/_signals.mjs')
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const signals = await import('../api/_signals.mjs')
+const collector = await import('../api/_collector.mjs')
+const { resolveSetupWindow, computeOIDelta } = signals
 
 runResolveOutcomeTest()
 runOiDeltaTest()
+runBundleDriftCheck()
 
 console.log('Logic regression checks passed')
 
@@ -81,4 +88,19 @@ function candle(time, open, high, low, close) {
 
 function snapshot(time, oi) {
   return { time, oi }
+}
+
+function runBundleDriftCheck() {
+  checkBundle('_signals', signals, join(__dirname, '../api/_signals.d.mts'))
+  checkBundle('_collector', collector, join(__dirname, '../api/_collector.d.mts'))
+}
+
+function checkBundle(name, mod, declPath) {
+  const decl = readFileSync(declPath, 'utf8')
+  const declared = [...decl.matchAll(/export\s+function\s+(\w+)/g)].map((m) => m[1])
+
+  const missing = declared.filter((fn) => typeof mod[fn] !== 'function')
+  if (missing.length > 0) {
+    throw new Error(`Bundle drift: ${name}.d.mts declares functions missing from ${name}.mjs: ${missing.join(', ')}`)
+  }
 }
