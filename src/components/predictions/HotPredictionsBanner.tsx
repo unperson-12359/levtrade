@@ -56,11 +56,11 @@ export function LiveSetupsBanner() {
 
   return (
     <>
-      <div className="border-b border-border-subtle/50 bg-bg-secondary/60 px-4 py-3 sm:px-6">
+      <div className="border-b border-border-subtle/50 bg-bg-secondary/60 px-4 py-1.5 sm:px-6">
         <div className="mx-auto max-w-[1600px]">
           {/* Header */}
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-text-muted">
+          <div className="mb-1 flex items-center gap-2">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted">
               Live Setups
             </span>
             {profitCount > 0 && (
@@ -76,7 +76,7 @@ export function LiveSetupsBanner() {
           </div>
 
           {/* Cards */}
-          <div className="flex gap-3 overflow-x-auto pb-1">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {liveSetups.map((s) => {
               const isProfit = s.status === 'profit'
               const style = isProfit ? PROFIT_STYLES[s.heatTier] : UNDERWATER_STYLE
@@ -87,12 +87,12 @@ export function LiveSetupsBanner() {
                 <button
                   key={s.tracked.id}
                   onClick={() => setReviewSetup(s.tracked)}
-                  className={`flex min-w-[230px] shrink-0 cursor-pointer flex-col gap-1.5 rounded-lg border ${style.border} ${style.bg} ${style.cls} p-3 text-left transition-colors hover:bg-bg-card-hover`}
+                  className={`flex min-w-[170px] shrink-0 cursor-pointer flex-col gap-0.5 rounded-md border ${style.border} ${style.bg} ${style.cls} px-2.5 py-1.5 text-left transition-colors hover:bg-bg-card-hover`}
                 >
                   {/* Row 1: coin + direction + confidence */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-semibold text-text-primary">{coin}</span>
+                      <span className="text-xs font-semibold text-text-primary">{coin}</span>
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
                           direction === 'long'
@@ -128,7 +128,7 @@ export function LiveSetupsBanner() {
                   {/* Row 3: P&L + status label */}
                   <div className="flex items-baseline justify-between">
                     <span
-                      className={`text-base font-bold ${isProfit ? 'text-signal-green' : 'text-signal-red'}`}
+                      className={`text-xs font-bold ${isProfit ? 'text-signal-green' : 'text-signal-red'}`}
                     >
                       {formatPercent(s.unrealizedPct)}
                     </span>
@@ -148,7 +148,7 @@ export function LiveSetupsBanner() {
                   </div>
 
                   {/* Row 4: Progress bar */}
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-border-subtle/40">
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-border-subtle/40">
                     <div
                       className={`h-full rounded-full transition-[width] duration-700 ${
                         isProfit ? 'bg-signal-green' : 'bg-signal-red'
