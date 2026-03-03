@@ -61,6 +61,12 @@ export const useStore = create<AppStore>()(
         if (merged.riskInputs && merged.riskInputs.leverage > 40) {
           merged.riskInputs = { ...merged.riskInputs, leverage: 40 }
         }
+        // Close overlay panels on refresh so dashboard is always the landing
+        if (merged.expandedSections) {
+          merged.expandedSections = { ...merged.expandedSections }
+          delete merged.expandedSections['analytics']
+          delete merged.expandedSections['how-it-works']
+        }
         return merged as AppStore
       },
     },
