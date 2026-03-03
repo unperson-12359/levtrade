@@ -40,7 +40,8 @@ function runResolveOutcomeTest() {
   assert.equal(outcome.priceAtResolution, 105)
   assert.equal(outcome.result, 'expired')
   assert.equal(outcome.coverageStatus, 'full')
-  assert.equal(outcome.candleCountUsed, 4)
+  // 5 candles: 21:00 through 01:00 inclusive (floor of signal hour through floor of boundary)
+  assert.equal(outcome.candleCountUsed, 5)
 }
 
 function runOiDeltaTest() {

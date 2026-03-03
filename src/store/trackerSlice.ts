@@ -12,6 +12,7 @@ import { computeDecisionState } from '../signals/decision'
 import { computeRisk } from '../signals/risk'
 import { TRACKER_RETENTION_MS, TRACKER_DEDUPE_WINDOW_MS } from '../config/constants'
 import { buildTrackedSignalId, strengthBucket } from '../utils/identity'
+import { floorToHour } from '../utils/candleTime'
 
 const TRACKER_WINDOWS: Record<TrackerWindow, number> = {
   '4h': 4 * 60 * 60 * 1000,
@@ -354,7 +355,8 @@ function shouldTrackRecord(record: TrackedSignalRecord, existing: TrackedSignalR
 }
 
 function resolveFuturePrice(state: AppStore, coin: TrackedCoin, targetTime: number): number | null {
-  const matchingCandle = state.candles[coin].find((candle) => candle.time >= targetTime)
+  const bucketTime = floorToHour(targetTime)
+  const matchingCandle = state.candles[coin].find((candle) => candle.time === bucketTime)
   if (matchingCandle) {
     return matchingCandle.close
   }

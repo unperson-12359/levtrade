@@ -71,7 +71,7 @@ export function resolveSetupWindow(
     return null
   }
 
-  const traversal = candles.filter((c) => c.time >= setupWindowStart && c.time < targetTime)
+  const traversal = candles.filter((c) => c.time >= setupWindowStart && c.time <= resolutionBucketTime)
   let resolutionCandle = candles.find((c) => c.time === resolutionBucketTime) ?? null
 
   const regularCandles = options?.regularCandles

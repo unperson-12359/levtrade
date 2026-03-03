@@ -249,18 +249,14 @@ var MS_PER_HOUR = 60 * 60 * 1e3;
 function floorToHour(timestamp) {
   return Math.floor(timestamp / MS_PER_HOUR) * MS_PER_HOUR;
 }
-function ceilToHour(timestamp) {
-  const floored = floorToHour(timestamp);
-  return floored === timestamp ? timestamp : floored + MS_PER_HOUR;
-}
 function getSetupWindowStart(generatedAt) {
-  return ceilToHour(generatedAt);
+  return floorToHour(generatedAt);
 }
 function getSetupWindowBoundary(generatedAt, windowMs) {
-  return getSetupWindowStart(generatedAt) + windowMs;
+  return generatedAt + windowMs;
 }
 function getResolutionBucketStart(generatedAt, windowMs) {
-  return getSetupWindowBoundary(generatedAt, windowMs) - MS_PER_HOUR;
+  return floorToHour(generatedAt + windowMs);
 }
 
 // src/utils/oiSeries.ts
@@ -1106,7 +1102,7 @@ function resolveSetupWindow(setup, window, candles, now, options) {
   if (now < targetTime) {
     return null;
   }
-  const traversal = candles.filter((c) => c.time >= setupWindowStart && c.time < targetTime);
+  const traversal = candles.filter((c) => c.time >= setupWindowStart && c.time <= resolutionBucketTime);
   let resolutionCandle = candles.find((c) => c.time === resolutionBucketTime) ?? null;
   const regularCandles = options?.regularCandles;
   const extendedCandles = options?.extendedCandles;

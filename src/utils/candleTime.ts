@@ -10,13 +10,13 @@ export function ceilToHour(timestamp: number): number {
 }
 
 export function getSetupWindowStart(generatedAt: number): number {
-  return ceilToHour(generatedAt)
+  return floorToHour(generatedAt)
 }
 
 export function getSetupWindowBoundary(generatedAt: number, windowMs: number): number {
-  return getSetupWindowStart(generatedAt) + windowMs
+  return generatedAt + windowMs
 }
 
 export function getResolutionBucketStart(generatedAt: number, windowMs: number): number {
-  return getSetupWindowBoundary(generatedAt, windowMs) - MS_PER_HOUR
+  return floorToHour(generatedAt + windowMs)
 }
