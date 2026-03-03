@@ -93,26 +93,24 @@ export function RiskResults() {
                   />
                 </div>
               </div>
-              {(outputs.usedCustomStop || outputs.usedCustomTarget) && (
-                <div className="mt-2 flex flex-wrap gap-2 text-xs text-text-muted">
-                  {outputs.usedCustomStop && (
-                    <span>
-                      Custom stop {formatPrice(outputs.effectiveStopPrice, inputs.coin)}{' '}
-                      <span className="text-text-secondary">
-                        vs auto {formatPrice(outputs.suggestedStopPrice, inputs.coin)}
-                      </span>
-                    </span>
-                  )}
-                  {outputs.usedCustomTarget && (
-                    <span>
-                      Custom target {formatPrice(outputs.effectiveTargetPrice, inputs.coin)}{' '}
-                      <span className="text-text-secondary">
-                        vs auto {formatPrice(outputs.suggestedTargetPrice, inputs.coin)}
-                      </span>
-                    </span>
-                  )}
+              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-text-muted">Effective stop</span>
+                  <span className="font-mono text-signal-red">{formatPrice(outputs.effectiveStopPrice, inputs.coin)}</span>
                 </div>
-              )}
+                <div className="flex items-center justify-between">
+                  <span className="text-text-muted">Effective target</span>
+                  <span className="font-mono text-signal-green">{formatPrice(outputs.effectiveTargetPrice, inputs.coin)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-text-muted">Suggested stop</span>
+                  <span className="font-mono text-text-secondary">{formatPrice(outputs.suggestedStopPrice, inputs.coin)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-text-muted">Suggested target</span>
+                  <span className="font-mono text-text-secondary">{formatPrice(outputs.suggestedTargetPrice, inputs.coin)}</span>
+                </div>
+              </div>
             </section>
 
             <section className="subpanel-shell">
