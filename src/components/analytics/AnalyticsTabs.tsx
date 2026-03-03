@@ -1,10 +1,12 @@
 import { useStore } from '../../store'
 import type { AnalyticsTab } from '../../store/uiSlice'
+import { PerformanceDashboard } from './PerformanceDashboard'
 import { AccuracyPanel } from '../tracker/AccuracyPanel'
 import { SetupHistory } from '../setup/SetupHistory'
 import { TrustPanel } from '../claims/TrustPanel'
 
 const TABS: { id: AnalyticsTab; label: string }[] = [
+  { id: 'performance', label: 'Performance' },
   { id: 'accuracy', label: 'Accuracy' },
   { id: 'history', label: 'History' },
   { id: 'storage', label: 'Data & Storage' },
@@ -41,6 +43,7 @@ export function AnalyticsTabs() {
       </div>
 
       <div className="analytics-tabs__content">
+        {activeTab === 'performance' && <PerformanceDashboard />}
         {activeTab === 'accuracy' && <AccuracyPanel />}
         {activeTab === 'history' && <SetupHistory />}
         {activeTab === 'storage' && <TrustPanel />}

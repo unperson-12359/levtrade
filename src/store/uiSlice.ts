@@ -5,7 +5,7 @@ import { DEFAULT_RISK_INPUTS } from '../types/risk'
 import type { CandleInterval } from '../config/intervals'
 import type { AppStore } from '.'
 
-export type AnalyticsTab = 'accuracy' | 'history' | 'storage'
+export type AnalyticsTab = 'performance' | 'accuracy' | 'history' | 'storage'
 
 export interface UISlice {
   expandedSections: Record<string, boolean>
@@ -30,7 +30,7 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
   selectedInterval: '1h',
   riskInputs: { ...DEFAULT_RISK_INPUTS },
   riskInputsLocked: false,
-  analyticsTab: 'accuracy',
+  analyticsTab: 'performance',
 
   toggleSection: (sectionId) =>
     set((state) => ({
