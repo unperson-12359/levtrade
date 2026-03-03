@@ -4,6 +4,7 @@ import { useSignals } from '../../hooks/useSignals'
 import { formatFundingRate, formatPercent, formatCompact, timeAgo } from '../../utils/format'
 import { getMarketWorkflowGuidance } from '../../utils/workflowGuidance'
 import { classifyFearGreed, classifyBtcDominance, classifyFundingDivergence, classifyOiDivergence } from '../../utils/contextGuidance'
+import { formatContextFreshness } from '../../utils/contextFreshness'
 import type { SignalSeriesKind } from '../../utils/provenance'
 import { ExpandableSection } from '../shared/ExpandableSection'
 import { JargonTerm } from '../shared/JargonTerm'
@@ -169,6 +170,9 @@ function ContextPanels({ fearGreed, cryptoMacro, binanceContext, coin }: Context
   const oiDiv = classifyOiDivergence(binanceContext.oiVsHyperliquid[coin])
 
   const hasBinance = binanceContext.fundingRate[coin] !== null
+  const fearGreedFooter = `Alternative.me Fear & Greed | ${formatContextFreshness(fearGreed.timestamp, 30 * 60 * 1000)}`
+  const macroFooter = `CoinGecko Global | ${formatContextFreshness(cryptoMacro.timestamp, 10 * 60 * 1000)}`
+  const binanceFooter = `Binance Futures | ${formatContextFreshness(binanceContext.timestamp, 5 * 60 * 1000)}`
 
   return (
     <div className="context-panels">
@@ -183,7 +187,7 @@ function ContextPanels({ fearGreed, cryptoMacro, binanceContext, coin }: Context
             { label: 'State', value: fearGreed.classification ?? '--' },
           ]}
           copy={fg.explanation}
-          footerNote="Alternative.me Fear & Greed"
+          footerNote={fearGreedFooter}
         />
 
         <MiniPanel
@@ -196,7 +200,7 @@ function ContextPanels({ fearGreed, cryptoMacro, binanceContext, coin }: Context
             { label: 'Total Vol', value: cryptoMacro.totalVolumeUsd !== null ? `$${formatCompact(cryptoMacro.totalVolumeUsd)}` : '--' },
           ]}
           copy={btcDom.explanation}
-          footerNote="CoinGecko Global"
+          footerNote={macroFooter}
         />
 
         {hasBinance ? (
@@ -211,7 +215,7 @@ function ContextPanels({ fearGreed, cryptoMacro, binanceContext, coin }: Context
               { label: 'OI vs HL', value: oiDiv.label },
             ]}
             copy={fundingDiv.explanation}
-            footerNote="Binance Futures"
+            footerNote={binanceFooter}
           />
         ) : (
           <MiniPanel
@@ -220,7 +224,7 @@ function ContextPanels({ fearGreed, cryptoMacro, binanceContext, coin }: Context
             tone="yellow"
             rows={[]}
             copy={`${coin} is not listed on Binance Futures. Cross-exchange comparison is unavailable for this asset.`}
-            footerNote="Binance Futures"
+            footerNote={binanceFooter}
           />
         )}
       </div>

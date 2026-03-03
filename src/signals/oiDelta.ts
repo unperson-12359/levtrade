@@ -1,5 +1,6 @@
 import type { OIDeltaResult, SignalColor } from '../types/signals'
 import type { OISnapshot } from '../types/market'
+import { bucketOiSnapshotsHourly } from '../utils/oiSeries'
 
 /**
  * Compute OI Delta + Price Direction: measure money flow conviction.
@@ -14,8 +15,9 @@ export function computeOIDelta(
   closes: number[],
   windowSize: number = 5,
 ): OIDeltaResult {
+  const hourlyOiHistory = bucketOiSnapshotsHourly(oiHistory)
   const minRequired = Math.max(2, windowSize + 1)
-  if (oiHistory.length < minRequired || closes.length < minRequired) {
+  if (hourlyOiHistory.length < minRequired || closes.length < minRequired) {
     return {
       oiChangePct: 0,
       priceChangePct: 0,
@@ -23,18 +25,18 @@ export function computeOIDelta(
       normalizedSignal: 0,
       label: 'Insufficient Data',
       color: 'yellow',
-      explanation: `Need at least ${minRequired} data points to measure money flow. Currently have ${oiHistory.length}.`,
+      explanation: `Need at least ${minRequired} hourly data points to measure money flow. Currently have ${hourlyOiHistory.length}.`,
     }
   }
 
   // Use rolling window average for noise reduction instead of just 2 points
-  const recentOI = oiHistory.slice(-windowSize)
-  const olderOI = oiHistory.slice(-(windowSize * 2), -windowSize)
+  const recentOI = hourlyOiHistory.slice(-windowSize)
+  const olderOI = hourlyOiHistory.slice(-(windowSize * 2), -windowSize)
 
   const avgRecentOI = recentOI.reduce((s, v) => s + v.oi, 0) / recentOI.length
   const avgOlderOI = olderOI.length > 0
     ? olderOI.reduce((s, v) => s + v.oi, 0) / olderOI.length
-    : oiHistory[oiHistory.length - minRequired]!.oi
+    : hourlyOiHistory[hourlyOiHistory.length - minRequired]!.oi
 
   const recentCloses = closes.slice(-windowSize)
   const olderClose = closes[closes.length - minRequired]!

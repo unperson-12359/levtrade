@@ -2,7 +2,7 @@ import type { StateCreator } from 'zustand'
 import type { AppStore } from '.'
 import { TRACKED_COINS, type Candle } from '../types/market'
 import { computeSuggestedSetup } from '../signals/setup'
-import { SETUP_WINDOWS, emptyOutcome, resolveSetupWindow, summarizeCoverage } from '../signals/resolveOutcome'
+import { SETUP_WINDOWS, emptyOutcome, resolveSetupWindow } from '../signals/resolveOutcome'
 import type {
   SetupOutcome,
   SetupResolutionReason,
@@ -12,6 +12,7 @@ import type {
 } from '../types/setup'
 import { SETUP_RETENTION_MS, SETUP_DEDUPE_WINDOW_MS, ENTRY_SIMILARITY_THRESHOLD } from '../config/constants'
 import { buildSetupId } from '../utils/identity'
+import { summarizeCoverage } from '../utils/setupCoverage'
 
 export interface SetupSlice {
   trackedSetups: TrackedSetup[]

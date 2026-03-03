@@ -61,7 +61,7 @@ export function LiveSetupsBanner() {
           {/* Header */}
           <div className="mb-1 flex items-center gap-2">
             <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted">
-              Live Setups
+              Open Setups
             </span>
             {profitCount > 0 && (
               <span className="rounded-full bg-signal-green/15 px-1.5 py-0.5 text-[10px] font-semibold text-signal-green">

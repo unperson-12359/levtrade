@@ -244,10 +244,43 @@ function buildExplanation3(z, rate) {
   return `Crowd positioning is balanced (funding: ${rateStr}%, z-score: ${zStr}). No strong contrarian signal \u2014 the crowd isn't extreme.`;
 }
 
+// src/utils/candleTime.ts
+var MS_PER_HOUR = 60 * 60 * 1e3;
+function floorToHour(timestamp) {
+  return Math.floor(timestamp / MS_PER_HOUR) * MS_PER_HOUR;
+}
+function ceilToHour(timestamp) {
+  const floored = floorToHour(timestamp);
+  return floored === timestamp ? timestamp : floored + MS_PER_HOUR;
+}
+function getSetupWindowStart(generatedAt) {
+  return ceilToHour(generatedAt);
+}
+function getSetupWindowBoundary(generatedAt, windowMs) {
+  return getSetupWindowStart(generatedAt) + windowMs;
+}
+function getResolutionBucketStart(generatedAt, windowMs) {
+  return getSetupWindowBoundary(generatedAt, windowMs) - MS_PER_HOUR;
+}
+
+// src/utils/oiSeries.ts
+function bucketOiSnapshotsHourly(history) {
+  if (history.length === 0) {
+    return [];
+  }
+  const buckets = /* @__PURE__ */ new Map();
+  for (const snapshot of history) {
+    const bucketTime = floorToHour(snapshot.time);
+    buckets.set(bucketTime, { time: bucketTime, oi: snapshot.oi });
+  }
+  return [...buckets.values()].sort((left, right) => left.time - right.time);
+}
+
 // src/signals/oiDelta.ts
 function computeOIDelta(oiHistory, closes, windowSize = 5) {
+  const hourlyOiHistory = bucketOiSnapshotsHourly(oiHistory);
   const minRequired = Math.max(2, windowSize + 1);
-  if (oiHistory.length < minRequired || closes.length < minRequired) {
+  if (hourlyOiHistory.length < minRequired || closes.length < minRequired) {
     return {
       oiChangePct: 0,
       priceChangePct: 0,
@@ -255,13 +288,13 @@ function computeOIDelta(oiHistory, closes, windowSize = 5) {
       normalizedSignal: 0,
       label: "Insufficient Data",
       color: "yellow",
-      explanation: `Need at least ${minRequired} data points to measure money flow. Currently have ${oiHistory.length}.`
+      explanation: `Need at least ${minRequired} hourly data points to measure money flow. Currently have ${hourlyOiHistory.length}.`
     };
   }
-  const recentOI = oiHistory.slice(-windowSize);
-  const olderOI = oiHistory.slice(-(windowSize * 2), -windowSize);
+  const recentOI = hourlyOiHistory.slice(-windowSize);
+  const olderOI = hourlyOiHistory.slice(-(windowSize * 2), -windowSize);
   const avgRecentOI = recentOI.reduce((s, v) => s + v.oi, 0) / recentOI.length;
-  const avgOlderOI = olderOI.length > 0 ? olderOI.reduce((s, v) => s + v.oi, 0) / olderOI.length : oiHistory[oiHistory.length - minRequired].oi;
+  const avgOlderOI = olderOI.length > 0 ? olderOI.reduce((s, v) => s + v.oi, 0) / olderOI.length : hourlyOiHistory[hourlyOiHistory.length - minRequired].oi;
   const recentCloses = closes.slice(-windowSize);
   const olderClose = closes[closes.length - minRequired];
   const avgRecentPrice = recentCloses.reduce((s, v) => s + v, 0) / recentCloses.length;
@@ -1067,21 +1100,23 @@ function emptyOutcome(window) {
 }
 function resolveSetupWindow(setup, window, candles, now, options) {
   const windowMs = SETUP_WINDOWS[window];
-  const targetTime = setup.generatedAt + windowMs;
+  const setupWindowStart = getSetupWindowStart(setup.generatedAt);
+  const targetTime = getSetupWindowBoundary(setup.generatedAt, windowMs);
+  const resolutionBucketTime = getResolutionBucketStart(setup.generatedAt, windowMs);
   if (now < targetTime) {
     return null;
   }
-  const traversal = candles.filter((c) => c.time >= setup.generatedAt && c.time <= targetTime);
-  let resolutionCandle = candles.find((c) => c.time >= targetTime) ?? null;
+  const traversal = candles.filter((c) => c.time >= setupWindowStart && c.time < targetTime);
+  let resolutionCandle = candles.find((c) => c.time === resolutionBucketTime) ?? null;
   const regularCandles = options?.regularCandles;
   const extendedCandles = options?.extendedCandles;
   const oldestRegularTime = regularCandles && regularCandles.length > 0 ? regularCandles[0].time : Infinity;
-  const usedBackfill = extendedCandles ? extendedCandles.length > 0 && setup.generatedAt < oldestRegularTime : false;
+  const usedBackfill = extendedCandles ? extendedCandles.length > 0 && setupWindowStart < oldestRegularTime : false;
   let partialResolution = false;
   if (!resolutionCandle) {
-    const latestCandle = candles.length > 0 ? candles[candles.length - 1] : null;
-    if (latestCandle && latestCandle.time >= setup.generatedAt && targetTime - latestCandle.time <= CLOSE_ENOUGH_MS) {
-      resolutionCandle = latestCandle;
+    const latestClosedCandle = [...candles].reverse().find((c) => c.time >= setupWindowStart && c.time < targetTime) ?? null;
+    if (latestClosedCandle && resolutionBucketTime - latestClosedCandle.time <= CLOSE_ENOUGH_MS) {
+      resolutionCandle = latestClosedCandle;
       partialResolution = true;
     } else if (now >= targetTime + GRACE_PERIOD_MS) {
       return {
@@ -1095,6 +1130,9 @@ function resolveSetupWindow(setup, window, candles, now, options) {
     } else {
       return null;
     }
+  }
+  if (resolutionCandle.time !== resolutionBucketTime) {
+    partialResolution = true;
   }
   const candlesToInspect = traversal.length > 0 ? traversal : [resolutionCandle];
   let highestHigh = -Infinity;
@@ -1149,14 +1187,14 @@ function resolveSetupWindow(setup, window, candles, now, options) {
   const stopDistance = Math.abs(setup.entryPrice - setup.stopPrice);
   const returnPct = setup.direction === "long" ? (priceAtResolution - setup.entryPrice) / setup.entryPrice * 100 : (setup.entryPrice - priceAtResolution) / setup.entryPrice * 100;
   const rAchieved = stopDistance > 0 ? setup.direction === "long" ? (priceAtResolution - setup.entryPrice) / stopDistance : (setup.entryPrice - priceAtResolution) / stopDistance : null;
-  const coverageStatus = partialResolution || usedBackfill ? "partial" : "full";
+  const coverageStatus = partialResolution || usedBackfill || traversal.length === 0 ? "partial" : "full";
   return {
     window,
     resolvedAt: now,
     result,
     resolutionReason,
     coverageStatus,
-    candleCountUsed: traversal.length > 0 ? inspectedCandles + 1 : inspectedCandles,
+    candleCountUsed: candlesToInspect.length,
     returnPct,
     rAchieved,
     mfe: computeMfe(setup, highestHigh, lowestLow),

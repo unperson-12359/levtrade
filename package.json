@@ -7,9 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build && npm run build:signals",
     "build:signals": "npx esbuild src/signals/api-entry.ts --bundle --format=esm --platform=node --outfile=api/_signals.mjs",
-    "build:collector": "npx esbuild scripts/run-collector.ts --bundle --format=esm --platform=node --outfile=dist-server/run-collector.mjs && npx esbuild scripts/collector-loop.ts --bundle --format=esm --platform=node --outfile=dist-server/collector-loop.mjs",
+    "build:collector": "npx esbuild scripts/run-collector.ts --bundle --format=esm --platform=node --outfile=dist-server/run-collector.mjs && npx esbuild scripts/collector-loop.ts --bundle --format=esm --platform=node --outfile=dist-server/collector-loop.mjs && npx esbuild scripts/recompute-server-outcomes.ts --bundle --format=esm --platform=node --outfile=dist-server/recompute-server-outcomes.mjs",
     "collector:once": "node dist-server/run-collector.mjs",
     "collector:start": "node dist-server/collector-loop.mjs",
+    "repair:server-outcomes": "node dist-server/recompute-server-outcomes.mjs",
+    "test:logic": "npm run build:signals && node tests/run-logic-tests.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

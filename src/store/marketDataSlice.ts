@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand'
 import { TRACKED_COINS } from '../types/market'
 import type { TrackedCoin, Candle, AssetContext, FundingSnapshot, OISnapshot } from '../types/market'
 import type { AppStore } from '.'
+import { floorToHour } from '../utils/candleTime'
 
 export interface MarketDataSlice {
   // Data
@@ -41,8 +42,6 @@ function initRecord<T>(defaultVal: T): Record<TrackedCoin, T> {
 }
 
 import { MAX_FUNDING_HISTORY, MAX_OI_HISTORY } from '../config/constants'
-
-const MS_PER_HOUR = 60 * 60 * 1000
 
 export const createMarketDataSlice: StateCreator<AppStore, [], [], MarketDataSlice> = (set) => ({
   prices: initRecord(null),
@@ -134,7 +133,11 @@ export const createMarketDataSlice: StateCreator<AppStore, [], [], MarketDataSli
 
   appendOI: (coin, time, oi) =>
     set((state) => {
-      const history = [...state.oiHistory[coin], { time, oi }]
+      const existing = state.oiHistory[coin]
+      const nextEntry = { time, oi }
+      const history = existing.length > 0 && sameHourBucket(existing[existing.length - 1]!.time, time)
+        ? [...existing.slice(0, -1), nextEntry]
+        : [...existing, nextEntry]
       const trimmed = history.length > MAX_OI_HISTORY
         ? history.slice(-MAX_OI_HISTORY)
         : history
@@ -154,5 +157,5 @@ export const createMarketDataSlice: StateCreator<AppStore, [], [], MarketDataSli
 })
 
 function sameHourBucket(left: number, right: number): boolean {
-  return Math.floor(left / MS_PER_HOUR) === Math.floor(right / MS_PER_HOUR)
+  return floorToHour(left) === floorToHour(right)
 }

@@ -1674,3 +1674,56 @@ Move long-term setup collection off the browser and onto the existing Oracle VM 
   - trust-panel heartbeat display when the heartbeat endpoint is unavailable
   - startup hydration of server-collected setups into analytics/autopsy history
   - copy clarity around server-backed history vs browser-local tracker state
+
+## 2026-03-03 - Codex / Trust remediation for accuracy history and market context
+
+### Goal
+Fix the trust-review findings that could make LevTrade's numbers or historical accuracy stats misleading:
+- align setup outcome windows to fully closed 1h buckets
+- normalize OI delta to an hourly cadence
+- stop overstating server coverage
+- add freshness cues to external context
+- relabel the banner so it does not overstate recency
+
+### Files Changed
+- `COLLAB_LOG.md`
+- `api/_signals.mjs`
+- `api/server-setups.ts`
+- `package.json`
+- `scripts/recompute-server-outcomes.ts` (new)
+- `src/components/market/MarketRail.tsx`
+- `src/components/predictions/HotPredictionsBanner.tsx`
+- `src/signals/oiDelta.ts`
+- `src/signals/resolveOutcome.ts`
+- `src/store/marketDataSlice.ts`
+- `src/store/setupSlice.ts`
+- `src/utils/candleTime.ts` (new)
+- `src/utils/contextFreshness.ts` (new)
+- `src/utils/oiSeries.ts` (new)
+- `src/utils/setupCoverage.ts` (new)
+- `src/utils/setupOutcomeFormat.ts`
+- `tests/run-logic-tests.mjs` (new)
+
+### What changed
+- Reworked `resolveSetupWindow()` to use hour-bucket boundaries instead of raw millisecond comparisons so outcomes resolve against fully closed 1h candles
+- Added shared candle-time helpers for setup-window alignment and reused them in pending ETA formatting
+- Added hourly OI bucketing and updated both `appendOI()` and `computeOIDelta()` so browser and collector money-flow logic operate on the same cadence
+- Moved coverage summarization into a shared helper and updated `/api/server-setups` to derive setup-level coverage from actual outcomes instead of hardcoding `full`
+- Added external-context freshness helpers and surfaced source freshness in Step 1 advanced panels
+- Renamed the banner label from `Live Setups` to `Open Setups` to match its actual selection logic
+- Added a repair script for recomputing persisted server outcomes after the resolver fix
+- Added a lightweight logic regression harness that proves the outcome-window alignment and OI normalization behavior without relying on the sandboxed Node test runner
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run build:collector`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd exec -- esbuild api/server-setups.ts --bundle --format=esm --platform=node --outfile=dist-server/server-setups-check.mjs`: PASS
+
+### Notes
+- The frontend bundle still emits the existing Vite chunk-size warning (`dist/assets/index-*.js` above `500 kB`); this pass did not try to shrink the bundle
+- The trust fix is in code, but existing persisted production outcomes are still historical data until the repair script is run
+
+### Remaining Follow-up
+- Run `npm run build:collector` and then `npm run repair:server-outcomes` against the live Supabase environment to repair previously persisted server outcomes
+- After the repair run, re-check one or two known server setups from production and confirm the corrected `priceAtResolution` / `rAchieved` values match the fixed resolver

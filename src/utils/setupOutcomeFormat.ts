@@ -1,5 +1,6 @@
 import { SETUP_WINDOWS } from '../signals/resolveOutcome'
 import type { SetupWindow } from '../types/setup'
+import { getSetupWindowBoundary } from './candleTime'
 
 interface PendingOutcomeDisplay {
   label: string
@@ -12,7 +13,7 @@ export function getPendingOutcomeDisplay(
   window: SetupWindow,
   now = Date.now(),
 ): PendingOutcomeDisplay {
-  const eligibleAt = generatedAt + SETUP_WINDOWS[window]
+  const eligibleAt = getSetupWindowBoundary(generatedAt, SETUP_WINDOWS[window])
 
   if (now < eligibleAt) {
     return {

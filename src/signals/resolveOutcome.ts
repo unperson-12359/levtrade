@@ -6,6 +6,12 @@ import type {
   SetupWindow,
   SuggestedSetup,
 } from '../types/setup'
+import {
+  getResolutionBucketStart,
+  getSetupWindowBoundary,
+  getSetupWindowStart,
+} from '../utils/candleTime'
+import { summarizeCoverage } from '../utils/setupCoverage'
 
 export const SETUP_WINDOWS: Record<SetupWindow, number> = {
   '4h': 4 * 60 * 60 * 1000,
@@ -57,25 +63,30 @@ export function resolveSetupWindow(
   },
 ): SetupOutcome | null {
   const windowMs = SETUP_WINDOWS[window]
-  const targetTime = setup.generatedAt + windowMs
+  const setupWindowStart = getSetupWindowStart(setup.generatedAt)
+  const targetTime = getSetupWindowBoundary(setup.generatedAt, windowMs)
+  const resolutionBucketTime = getResolutionBucketStart(setup.generatedAt, windowMs)
+
   if (now < targetTime) {
     return null
   }
 
-  const traversal = candles.filter((c) => c.time >= setup.generatedAt && c.time <= targetTime)
-  let resolutionCandle = candles.find((c) => c.time >= targetTime) ?? null
+  const traversal = candles.filter((c) => c.time >= setupWindowStart && c.time < targetTime)
+  let resolutionCandle = candles.find((c) => c.time === resolutionBucketTime) ?? null
 
   const regularCandles = options?.regularCandles
   const extendedCandles = options?.extendedCandles
   const oldestRegularTime = regularCandles && regularCandles.length > 0 ? regularCandles[0]!.time : Infinity
-  const usedBackfill = extendedCandles ? extendedCandles.length > 0 && setup.generatedAt < oldestRegularTime : false
+  const usedBackfill = extendedCandles ? extendedCandles.length > 0 && setupWindowStart < oldestRegularTime : false
   let partialResolution = false
 
   if (!resolutionCandle) {
-    const latestCandle = candles.length > 0 ? candles[candles.length - 1]! : null
+    const latestClosedCandle = [...candles]
+      .reverse()
+      .find((c) => c.time >= setupWindowStart && c.time < targetTime) ?? null
 
-    if (latestCandle && latestCandle.time >= setup.generatedAt && (targetTime - latestCandle.time) <= CLOSE_ENOUGH_MS) {
-      resolutionCandle = latestCandle
+    if (latestClosedCandle && (resolutionBucketTime - latestClosedCandle.time) <= CLOSE_ENOUGH_MS) {
+      resolutionCandle = latestClosedCandle
       partialResolution = true
     } else if (now >= targetTime + GRACE_PERIOD_MS) {
       return {
@@ -89,6 +100,10 @@ export function resolveSetupWindow(
     } else {
       return null
     }
+  }
+
+  if (resolutionCandle.time !== resolutionBucketTime) {
+    partialResolution = true
   }
 
   const candlesToInspect = traversal.length > 0 ? traversal : [resolutionCandle]
@@ -161,7 +176,7 @@ export function resolveSetupWindow(
       : null
 
   const coverageStatus: SetupCoverageStatus =
-    partialResolution || usedBackfill ? 'partial' : 'full'
+    partialResolution || usedBackfill || traversal.length === 0 ? 'partial' : 'full'
 
   return {
     window,
@@ -169,9 +184,7 @@ export function resolveSetupWindow(
     result,
     resolutionReason,
     coverageStatus,
-    candleCountUsed: traversal.length > 0
-      ? inspectedCandles + 1
-      : inspectedCandles,
+    candleCountUsed: candlesToInspect.length,
     returnPct,
     rAchieved,
     mfe: computeMfe(setup, highestHigh, lowestLow),
@@ -208,12 +221,4 @@ function computeMaePct(setup: SuggestedSetup, highestHigh: number, lowestLow: nu
   return (computeMae(setup, highestHigh, lowestLow) / setup.entryPrice) * 100
 }
 
-export function summarizeCoverage(
-  outcomes: Record<SetupWindow, SetupOutcome>,
-  current: SetupCoverageStatus | undefined,
-): SetupCoverageStatus {
-  const values = Object.values(outcomes).map((o) => o.coverageStatus).filter(Boolean) as SetupCoverageStatus[]
-  if (values.includes('insufficient')) return 'insufficient'
-  if (values.includes('partial')) return 'partial'
-  return current ?? 'full'
-}
+export { summarizeCoverage }

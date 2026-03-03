@@ -1,3 +1,7 @@
+import { emptyOutcome } from '../src/signals/resolveOutcome'
+import { summarizeCoverage } from '../src/utils/setupCoverage'
+import type { SetupOutcome, SetupWindow } from '../src/types/setup'
+
 interface VercelRequest {
   method?: string
   headers: Record<string, string | string[] | undefined>
@@ -54,16 +58,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       generated_at: string
     }>
 
-    const setups = rows.map((row) => ({
-      id: row.id,
-      setup: row.setup_json,
-      coverageStatus: 'full',
-      outcomes: row.outcomes_json ?? {
-        '4h': emptyOutcome('4h'),
-        '24h': emptyOutcome('24h'),
-        '72h': emptyOutcome('72h'),
-      },
-    }))
+    const setups = rows.map((row) => {
+      const outcomes = normalizeOutcomes(row.outcomes_json)
+      return {
+        id: row.id,
+        setup: row.setup_json,
+        coverageStatus: summarizeCoverage(outcomes, undefined),
+        outcomes,
+      }
+    })
 
     return res.status(200).json({ ok: true, setups, count: setups.length })
   } catch (err) {
@@ -85,24 +88,20 @@ function resolveSince(query: VercelRequest['query']): string {
   return new Date(Date.now() - days * MS_PER_DAY).toISOString()
 }
 
-function emptyOutcome(window: string) {
+function normalizeOutcomes(raw: Record<string, unknown> | null): Record<SetupWindow, SetupOutcome> {
   return {
-    window,
-    resolvedAt: null,
-    result: 'pending',
-    resolutionReason: 'pending',
-    coverageStatus: 'full',
-    candleCountUsed: 0,
-    returnPct: null,
-    rAchieved: null,
-    mfe: null,
-    mfePct: null,
-    mae: null,
-    maePct: null,
-    targetHit: false,
-    stopHit: false,
-    priceAtResolution: null,
+    '4h': normalizeOutcome(raw?.['4h'], '4h'),
+    '24h': normalizeOutcome(raw?.['24h'], '24h'),
+    '72h': normalizeOutcome(raw?.['72h'], '72h'),
   }
+}
+
+function normalizeOutcome(raw: unknown, window: SetupWindow): SetupOutcome {
+  return {
+    ...emptyOutcome(window),
+    ...(typeof raw === 'object' && raw !== null ? raw : {}),
+    window,
+  } as SetupOutcome
 }
 
 function firstQueryValue(value: string | string[] | undefined): string | null {
