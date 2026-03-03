@@ -339,10 +339,6 @@ button {
   gap: 0.5rem;
 }
 
-.dashboard-main {
-  min-width: 0;
-}
-
 .dashboard-secondary {
   min-width: 0;
 }
@@ -350,14 +346,21 @@ button {
 .dashboard-decision {
   min-width: 0;
   align-self: start;
+  grid-column: 1;
 }
 
 .dashboard-decision .workflow-summary-grid--hero {
   grid-template-columns: 1fr;
 }
 
+.dashboard-main {
+  min-width: 0;
+  grid-column: 2;
+}
+
 .dashboard-risk {
   min-width: 0;
+  grid-column: 3;
   grid-row: 1 / 3;
 }
 
@@ -2304,7 +2307,10 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dashboard-decision,
+  .dashboard-main,
   .dashboard-risk {
+    grid-column: auto;
     grid-row: auto;
   }
 
