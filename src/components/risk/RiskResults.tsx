@@ -81,7 +81,7 @@ export function RiskResults() {
         <div className="workflow-summary-card">
           <div className="workflow-summary-card__kicker">Reduced-risk draft</div>
           <p className="workflow-summary-card__copy">
-            Exposure is intentionally reduced while Step 2 is still in caution mode. LevTrade is trimming capital used and capping leverage until confirmation improves.
+            Exposure is intentionally reduced while Step 2 is still in caution mode. LevTrade is using a smaller target account risk and a lower capital allocation cap until confirmation improves.
           </p>
         </div>
       )}
@@ -90,6 +90,16 @@ export function RiskResults() {
         <Stat label="Capital used" value={formatUSD(inputs.positionSize)} tone="yellow" />
         <Stat label="Suggested leverage" value={`${inputs.leverage.toFixed(1)}x`} tone="yellow" />
         <Stat label="Notional" value={formatUSD(outputs.notionalValue)} tone="green" />
+        <Stat
+          label="Target account risk"
+          value={composition.display.targetRiskPct !== null ? formatPercent(composition.display.targetRiskPct * 100, 2) : '--'}
+          tone="yellow"
+        />
+        <Stat
+          label="Max capital allocation"
+          value={composition.display.capitalFractionCap !== null ? formatPercent(composition.display.capitalFractionCap * 100, 0) : '--'}
+          tone="yellow"
+        />
         <Stat label="Account hit at stop" value={formatPercent(outputs.lossAtStopPercent, 1)} tone={lossColor} />
         <Stat label={<JargonTerm term="R:R">Reward vs risk</JargonTerm>} value={formatRR(outputs.rrRatio)} tone={rrColor} />
         <Stat
@@ -99,13 +109,6 @@ export function RiskResults() {
         />
         <Stat label="Target gain" value={formatPercent(outputs.profitAtTargetPercent, 1)} tone={targetGainColor} />
         <Stat label="Trade timeframe" value={setup.timeframe} tone="yellow" />
-        {composition.mode === 'provisional' && (
-          <Stat
-            label="Capital fraction used"
-            value={formatPercent((composition.display.capitalFraction ?? 0) * 100, 0)}
-            tone="yellow"
-          />
-        )}
       </div>
 
       <ExpandableSection sectionId="step3-advanced" title="advanced composition details">

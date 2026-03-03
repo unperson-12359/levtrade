@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { computeDecisionState } from '../signals'
-import { usePositionRisk } from './usePositionRisk'
 import { useStore } from '../store'
 import type { DecisionAction, RiskStatus, SignalColor } from '../types/signals'
 import type { TrackedCoin } from '../types/market'
@@ -15,7 +14,6 @@ export interface EntryDecisionState {
 
 export function useEntryDecision(coin: TrackedCoin): EntryDecisionState {
   const signals = useStore((s) => s.signals[coin])
-  const { inputs, riskStatus } = usePositionRisk()
 
   return useMemo(() => {
     if (!signals) {
@@ -28,14 +26,13 @@ export function useEntryDecision(coin: TrackedCoin): EntryDecisionState {
       }
     }
 
-    const activeRiskStatus = inputs.coin === coin ? riskStatus : 'unknown'
     const decision = computeDecisionState({
       composite: signals.composite,
       entryGeometry: signals.entryGeometry,
       hurst: signals.hurst,
       isStale: signals.isStale,
       isWarmingUp: signals.isWarmingUp,
-      riskStatus: activeRiskStatus,
+      riskStatus: 'unknown',
     })
 
     return {
@@ -43,9 +40,9 @@ export function useEntryDecision(coin: TrackedCoin): EntryDecisionState {
       label: decision.label,
       reasons: decision.reasons,
       color: decisionColor(decision.action),
-      riskStatus: activeRiskStatus,
+      riskStatus: 'unknown',
     }
-  }, [coin, inputs.coin, riskStatus, signals])
+  }, [signals])
 }
 
 /** Lightweight signal-only decision — no risk subscription, minimal store reads */

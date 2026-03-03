@@ -1,8 +1,9 @@
 import type { TrackedCoin } from '../types'
 import type { AssetSignals } from '../types/signals'
-import type { ConfidenceTier, SetupTimeframe, SuggestedSetup } from '../types/setup'
+import type { SuggestedSetup } from '../types/setup'
 import { DEFAULT_ACCOUNT_SIZE } from '../config/constants'
 import { computeRisk } from './risk'
+import { computeSetupMetrics } from './setupMetrics'
 
 const PROVISIONAL_CONFIDENCE_SCALE = 0.55
 
@@ -24,12 +25,30 @@ export function computeProvisionalSetup(
     return null
   }
 
-  const direction =
-    signals.composite.direction !== 'neutral'
+  const regimeBlocked = signals.hurst.regime === 'trending' && signals.hurst.value > 0.6
+  if (regimeBlocked || signals.entryGeometry.entryQuality === 'no-edge') {
+    return null
+  }
+
+  const compositeDirectional =
+    signals.composite.direction === 'long' || signals.composite.direction === 'short'
       ? signals.composite.direction
-      : signals.entryGeometry.directionBias !== 'neutral'
-        ? signals.entryGeometry.directionBias
-        : null
+      : null
+  const geometryDirectional =
+    signals.entryGeometry.directionBias === 'long' || signals.entryGeometry.directionBias === 'short'
+      ? signals.entryGeometry.directionBias
+      : null
+
+  const direction =
+    compositeDirectional && geometryDirectional && compositeDirectional === geometryDirectional
+      ? compositeDirectional
+      : compositeDirectional && signals.composite.strength !== 'weak' && signals.entryGeometry.directionBias === 'neutral'
+        ? compositeDirectional
+        : !compositeDirectional && geometryDirectional && (
+            signals.entryGeometry.entryQuality === 'early' || signals.entryGeometry.entryQuality === 'extended'
+          )
+          ? geometryDirectional
+          : null
 
   if (!direction) {
     return null
@@ -50,30 +69,15 @@ export function computeProvisionalSetup(
     atr,
   )
 
-  const alignmentRatio =
-    signals.composite.agreementTotal > 0
-      ? signals.composite.agreementCount / signals.composite.agreementTotal
-      : 0
-  const compositeStrength = Math.min(1, Math.abs(signals.composite.value))
-  const reversionPotential = signals.entryGeometry.reversionPotential
-  const hurstConfidence = signals.hurst.confidence
-  const confidence = clamp(
-    alignmentRatio * compositeStrength * reversionPotential * hurstConfidence * 2 * PROVISIONAL_CONFIDENCE_SCALE,
-    0,
-    PROVISIONAL_CONFIDENCE_SCALE,
-  )
-
-  const confidenceTier: ConfidenceTier = confidence > 0.4 ? 'medium' : 'low'
-
-  const timeframe: SetupTimeframe =
-    signals.entryGeometry.entryQuality === 'ideal' &&
-    signals.hurst.regime === 'mean-reverting'
-      ? '4-24h'
-      : signals.entryGeometry.entryQuality === 'extended'
-        ? '4-12h'
-        : signals.entryGeometry.entryQuality === 'early'
-          ? '24-72h'
-          : '4-24h'
+  const {
+    confidence,
+    confidenceTier,
+    timeframe,
+    reversionPotential,
+  } = computeSetupMetrics(signals, {
+    confidenceScale: PROVISIONAL_CONFIDENCE_SCALE,
+    confidenceCap: PROVISIONAL_CONFIDENCE_SCALE,
+  })
 
   const stretch = Math.abs(signals.entryGeometry.stretchZEquivalent).toFixed(1)
   const mean = signals.entryGeometry.meanPrice
@@ -90,7 +94,7 @@ export function computeProvisionalSetup(
     targetPrice: riskOutputs.suggestedTargetPrice,
     meanReversionTarget: mean,
     rrRatio: riskOutputs.rrRatio,
-    suggestedPositionSize: DEFAULT_ACCOUNT_SIZE * 0.35,
+    suggestedPositionSize: riskOutputs.suggestedPositionSize,
     suggestedLeverage: clampLeverage(riskOutputs.suggestedLeverage),
     tradeGrade: riskOutputs.tradeGrade,
     confidence,
@@ -108,10 +112,6 @@ export function computeProvisionalSetup(
     generatedAt: options?.generatedAt ?? Date.now(),
     source: options?.source,
   }
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
 }
 
 function clampLeverage(value: number): number {

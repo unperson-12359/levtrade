@@ -990,6 +990,55 @@ function validateTarget(direction, entryPrice, targetPrice) {
   return null;
 }
 
+// src/signals/setupMetrics.ts
+function computeSetupMetrics(signals, options) {
+  const confidenceScale = options?.confidenceScale ?? 1;
+  const confidenceCap = options?.confidenceCap ?? 1;
+  const alignmentRatio = signals.composite.agreementTotal > 0 ? signals.composite.agreementCount / signals.composite.agreementTotal : 0;
+  const compositeStrength = Math.min(1, Math.abs(signals.composite.value));
+  const reversionPotential = signals.entryGeometry.reversionPotential;
+  const hurstConfidence = signals.hurst.confidence;
+  const confidence = clamp2(
+    alignmentRatio * compositeStrength * reversionPotential * hurstConfidence * 2 * confidenceScale,
+    0,
+    confidenceCap
+  );
+  const confidenceTier = computeConfidenceTier(confidence, confidenceCap);
+  const timeframe = computeTimeframe(signals);
+  return {
+    alignmentRatio,
+    compositeStrength,
+    reversionPotential,
+    hurstConfidence,
+    confidence,
+    confidenceTier,
+    timeframe
+  };
+}
+function computeConfidenceTier(confidence, confidenceCap) {
+  if (confidenceCap <= 0.55) {
+    return confidence > 0.4 ? "medium" : "low";
+  }
+  if (confidence > 0.6) return "high";
+  if (confidence > 0.3) return "medium";
+  return "low";
+}
+function computeTimeframe(signals) {
+  if (signals.entryGeometry.entryQuality === "ideal" && signals.hurst.regime === "mean-reverting") {
+    return "4-24h";
+  }
+  if (signals.entryGeometry.entryQuality === "extended") {
+    return "4-12h";
+  }
+  if (signals.entryGeometry.entryQuality === "early") {
+    return "24-72h";
+  }
+  return "4-24h";
+}
+function clamp2(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 // src/signals/setup.ts
 function computeSuggestedSetup(coin, signals, currentPrice, options) {
   if (!isFinite(currentPrice) || currentPrice <= 0 || signals.isStale || signals.isWarmingUp || !isFinite(signals.volatility.atr) || signals.volatility.atr <= 0 || !isFinite(signals.entryGeometry.meanPrice)) {
@@ -1021,17 +1070,12 @@ function computeSuggestedSetup(coin, signals, currentPrice, options) {
     },
     atr
   );
-  const alignmentRatio = signals.composite.agreementTotal > 0 ? signals.composite.agreementCount / signals.composite.agreementTotal : 0;
-  const compositeStrength = Math.min(1, Math.abs(signals.composite.value));
-  const reversionPotential = signals.entryGeometry.reversionPotential;
-  const hurstConfidence = signals.hurst.confidence;
-  const confidence = clamp2(
-    alignmentRatio * compositeStrength * reversionPotential * hurstConfidence * 2,
-    0,
-    1
-  );
-  const confidenceTier = confidence > 0.6 ? "high" : confidence > 0.3 ? "medium" : "low";
-  const timeframe = signals.entryGeometry.entryQuality === "ideal" && signals.hurst.regime === "mean-reverting" ? "4-24h" : signals.entryGeometry.entryQuality === "extended" ? "4-12h" : signals.entryGeometry.entryQuality === "early" ? "24-72h" : "4-24h";
+  const {
+    confidence,
+    confidenceTier,
+    timeframe,
+    reversionPotential
+  } = computeSetupMetrics(signals);
   const stretch = Math.abs(signals.entryGeometry.stretchZEquivalent).toFixed(1);
   const mean = signals.entryGeometry.meanPrice;
   const agreementStr = `${signals.composite.agreementCount}/${signals.composite.agreementTotal}`;
@@ -1063,8 +1107,148 @@ function computeSuggestedSetup(coin, signals, currentPrice, options) {
     source: options?.source
   };
 }
-function clamp2(value, min, max) {
+
+// src/signals/provisionalSetup.ts
+var PROVISIONAL_CONFIDENCE_SCALE = 0.55;
+function computeProvisionalSetup(coin, signals, currentPrice, options) {
+  if (!isFinite(currentPrice) || currentPrice <= 0 || signals.isStale || signals.isWarmingUp || !isFinite(signals.volatility.atr) || signals.volatility.atr <= 0 || !isFinite(signals.entryGeometry.meanPrice)) {
+    return null;
+  }
+  const regimeBlocked = signals.hurst.regime === "trending" && signals.hurst.value > 0.6;
+  if (regimeBlocked || signals.entryGeometry.entryQuality === "no-edge") {
+    return null;
+  }
+  const compositeDirectional = signals.composite.direction === "long" || signals.composite.direction === "short" ? signals.composite.direction : null;
+  const geometryDirectional = signals.entryGeometry.directionBias === "long" || signals.entryGeometry.directionBias === "short" ? signals.entryGeometry.directionBias : null;
+  const direction = compositeDirectional && geometryDirectional && compositeDirectional === geometryDirectional ? compositeDirectional : compositeDirectional && signals.composite.strength !== "weak" && signals.entryGeometry.directionBias === "neutral" ? compositeDirectional : !compositeDirectional && geometryDirectional && (signals.entryGeometry.entryQuality === "early" || signals.entryGeometry.entryQuality === "extended") ? geometryDirectional : null;
+  if (!direction) {
+    return null;
+  }
+  const atr = signals.volatility.atr;
+  const riskOutputs = computeRisk(
+    {
+      coin,
+      direction,
+      entryPrice: currentPrice,
+      accountSize: DEFAULT_ACCOUNT_SIZE,
+      positionSize: 0,
+      leverage: 1,
+      stopPrice: null,
+      targetPrice: null
+    },
+    atr
+  );
+  const {
+    confidence,
+    confidenceTier,
+    timeframe,
+    reversionPotential
+  } = computeSetupMetrics(signals, {
+    confidenceScale: PROVISIONAL_CONFIDENCE_SCALE,
+    confidenceCap: PROVISIONAL_CONFIDENCE_SCALE
+  });
+  const stretch = Math.abs(signals.entryGeometry.stretchZEquivalent).toFixed(1);
+  const mean = signals.entryGeometry.meanPrice;
+  const agreementStr = `${signals.composite.agreementCount}/${signals.composite.agreementTotal}`;
+  const summary = `Draft ${direction.toUpperCase()} composition for ${coin}: price is ${stretch}\u03C3 ${direction === "long" ? "below" : "above"} its 20-period mean ($${mean.toFixed(0)}) with ${agreementStr} signal agreement. This is a reduced-risk provisional setup, not a fully validated entry.`;
+  return {
+    coin,
+    direction,
+    entryPrice: currentPrice,
+    stopPrice: riskOutputs.suggestedStopPrice,
+    targetPrice: riskOutputs.suggestedTargetPrice,
+    meanReversionTarget: mean,
+    rrRatio: riskOutputs.rrRatio,
+    suggestedPositionSize: riskOutputs.suggestedPositionSize,
+    suggestedLeverage: clampLeverage(riskOutputs.suggestedLeverage),
+    tradeGrade: riskOutputs.tradeGrade,
+    confidence,
+    confidenceTier,
+    entryQuality: signals.entryGeometry.entryQuality,
+    agreementCount: signals.composite.agreementCount,
+    agreementTotal: signals.composite.agreementTotal,
+    regime: signals.hurst.regime,
+    reversionPotential,
+    stretchSigma: Math.abs(signals.entryGeometry.stretchZEquivalent),
+    atr,
+    compositeValue: signals.composite.value,
+    timeframe,
+    summary,
+    generatedAt: options?.generatedAt ?? Date.now(),
+    source: options?.source
+  };
+}
+function clampLeverage(value) {
+  if (!isFinite(value) || value <= 0) {
+    return 1.5;
+  }
+  return Math.min(value, 2.5);
+}
+
+// src/signals/positionPolicy.ts
+function computePositionPolicy(setup, mode, accountSize) {
+  if (!isFinite(accountSize) || accountSize <= 0) {
+    return emptyPolicy();
+  }
+  const agreementRatio = setup.agreementTotal > 0 ? setup.agreementCount / setup.agreementTotal : 0;
+  const stopDistanceRatio = Math.abs(setup.entryPrice - setup.stopPrice) / setup.entryPrice;
+  if (!isFinite(stopDistanceRatio) || stopDistanceRatio <= 0) {
+    return emptyPolicy();
+  }
+  const targetRiskPct = mode === "validated" ? clamp3(
+    75e-4 + (setup.confidenceTier === "high" ? 25e-4 : 0) + (setup.entryQuality === "ideal" ? 15e-4 : 0) + (agreementRatio >= 0.75 ? 1e-3 : 0),
+    5e-3,
+    0.0125
+  ) : clamp3(
+    35e-4 + (setup.confidence > 0.4 ? 5e-4 : 0) + (setup.entryQuality === "extended" ? 5e-4 : 0),
+    25e-4,
+    5e-3
+  );
+  const capitalFractionCap = mode === "validated" ? clamp3(
+    0.25 + (setup.confidenceTier === "high" ? 0.1 : 0) + (setup.entryQuality === "ideal" ? 0.1 : 0) + (agreementRatio >= 0.75 ? 0.05 : 0),
+    0.2,
+    0.5
+  ) : clamp3(
+    0.1 + (setup.confidence > 0.4 ? 0.05 : 0) + (setup.entryQuality === "extended" ? 0.05 : 0),
+    0.08,
+    0.2
+  );
+  const leverageCap = mode === "validated" ? clampLeverage2(setup.suggestedLeverage, 6, 1) : clampLeverage2(setup.suggestedLeverage, 2.5, 1);
+  const desiredNotionalUsd = accountSize * targetRiskPct / stopDistanceRatio;
+  const marginCapUsd = accountSize * capitalFractionCap;
+  const marginUsd = Math.max(0, Math.min(marginCapUsd, desiredNotionalUsd));
+  const leverage = clamp3(
+    desiredNotionalUsd / Math.max(marginUsd, 1e-9),
+    1,
+    leverageCap
+  );
+  return {
+    targetRiskPct,
+    capitalFractionCap,
+    leverageCap,
+    marginUsd,
+    leverage,
+    desiredNotionalUsd
+  };
+}
+function emptyPolicy() {
+  return {
+    targetRiskPct: 0,
+    capitalFractionCap: 0,
+    leverageCap: 0,
+    marginUsd: 0,
+    leverage: 0,
+    desiredNotionalUsd: 0
+  };
+}
+function clamp3(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+function clampLeverage2(value, max, fallback) {
+  if (!isFinite(value) || value <= 0) {
+    return fallback;
+  }
+  return clamp3(value, 1, max);
 }
 
 // src/utils/setupCoverage.ts
@@ -1497,7 +1681,10 @@ export {
   computeFundingZScore,
   computeHurst,
   computeOIDelta,
+  computePositionPolicy,
+  computeProvisionalSetup,
   computeRealizedVol,
+  computeSetupMetrics,
   computeSuggestedSetup,
   computeTrackerStats,
   computeZScore,

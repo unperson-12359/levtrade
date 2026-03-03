@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useStore } from '../store'
 import { computeRisk } from '../signals/risk'
 import { computeProvisionalSetup } from '../signals/provisionalSetup'
+import { computePositionPolicy } from '../signals/positionPolicy'
 import type { SuggestedPositionComposition } from '../types/position'
 import { DEFAULT_RISK_INPUTS } from '../types/risk'
 import type { TrackedCoin } from '../types/market'
@@ -43,8 +44,8 @@ export function useSuggestedPosition(coin?: TrackedCoin): SuggestedPositionCompo
           explanation: 'Waiting for live price and signal data before composing a position.',
           modeLabel: 'Waiting',
           modeExplanation: 'Live market inputs are still loading for this asset.',
-          confidencePenalty: null,
-          capitalFraction: null,
+          targetRiskPct: null,
+          capitalFractionCap: null,
         },
         status: 'none' as const,
       }
@@ -70,8 +71,8 @@ export function useSuggestedPosition(coin?: TrackedCoin): SuggestedPositionCompo
           explanation: 'Waiting for a fresh feed before composing the next position.',
           modeLabel: 'Waiting',
           modeExplanation: 'The live feed is stale, so LevTrade is holding off on composition updates.',
-          confidencePenalty: null,
-          capitalFraction: null,
+          targetRiskPct: null,
+          capitalFractionCap: null,
         },
         status: 'none' as const,
       }
@@ -97,22 +98,22 @@ export function useSuggestedPosition(coin?: TrackedCoin): SuggestedPositionCompo
           explanation: 'Waiting for enough candles to stabilize the composition engine.',
           modeLabel: 'Warming up',
           modeExplanation: 'LevTrade needs more market history before suggesting a position.',
-          confidencePenalty: null,
-          capitalFraction: null,
+          targetRiskPct: null,
+          capitalFractionCap: null,
         },
         status: 'none' as const,
       }
     }
 
-    const activeSetup = setup ?? computeProvisionalSetup(activeCoin, signals, currentPrice, { source: 'live' })
-    const mode = setup ? 'validated' as const : activeSetup ? 'provisional' as const : 'none' as const
+    const provisionalSetup = setup ? null : computeProvisionalSetup(activeCoin, signals, currentPrice, { source: 'live' })
+    const activeSetup = setup ?? provisionalSetup
 
     if (!activeSetup) {
       return {
         hasSetup: false,
         setup: null,
         accountSize,
-        mode,
+        mode: 'none' as const,
         inputs: emptyInputs,
         outputs: null,
         display: {
@@ -127,27 +128,24 @@ export function useSuggestedPosition(coin?: TrackedCoin): SuggestedPositionCompo
           explanation: 'Waiting for clearer directional structure before composing a draft position.',
           modeLabel: 'Waiting',
           modeExplanation: 'Signals are live, but the market is too neutral to size even a provisional position.',
-          confidencePenalty: null,
-          capitalFraction: null,
+          targetRiskPct: null,
+          capitalFractionCap: null,
         },
         status: 'none' as const,
       }
     }
 
-    const capitalFraction = mode === 'provisional' ? 0.35 : 1
-    const leverage = mode === 'provisional'
-      ? !isFinite(activeSetup.suggestedLeverage) || activeSetup.suggestedLeverage <= 0
-        ? 1.5
-        : Math.min(activeSetup.suggestedLeverage, 2.5)
-      : activeSetup.suggestedLeverage
+    const mode = setup ? 'validated' as const : 'provisional' as const
+    const effectiveAccountSize = isFinite(accountSize) && accountSize > 0 ? accountSize : 1
+    const policy = computePositionPolicy(activeSetup, mode, effectiveAccountSize)
 
     const inputs = {
       coin: activeSetup.coin,
       direction: activeSetup.direction,
       entryPrice: activeSetup.entryPrice,
       accountSize,
-      positionSize: accountSize * capitalFraction,
-      leverage,
+      positionSize: policy.marginUsd,
+      leverage: policy.leverage,
       stopPrice: activeSetup.stopPrice,
       targetPrice: activeSetup.targetPrice,
     }
@@ -163,7 +161,7 @@ export function useSuggestedPosition(coin?: TrackedCoin): SuggestedPositionCompo
         display: {
           marginUsd: null,
           notionalUsd: null,
-          leverage,
+          leverage: policy.leverage > 0 ? policy.leverage : null,
           accountHitAtStopPct: null,
           liquidationDistancePct: null,
           rrRatio: activeSetup.rrRatio,
@@ -175,8 +173,8 @@ export function useSuggestedPosition(coin?: TrackedCoin): SuggestedPositionCompo
             mode === 'validated'
               ? 'Suggested from the current confirmed setup and your account capital.'
               : 'Draft composition from the current directional bias. Size and leverage stay reduced until setup confirmation improves.',
-          confidencePenalty: mode === 'provisional' ? 0.45 : 0,
-          capitalFraction,
+          targetRiskPct: policy.targetRiskPct,
+          capitalFractionCap: policy.capitalFractionCap,
         },
         status: 'invalid' as const,
       }
@@ -199,7 +197,7 @@ export function useSuggestedPosition(coin?: TrackedCoin): SuggestedPositionCompo
       display: {
         marginUsd: inputs.positionSize,
         notionalUsd: outputs.notionalValue,
-        leverage,
+        leverage: inputs.leverage,
         accountHitAtStopPct: outputs.lossAtStopPercent,
         liquidationDistancePct: outputs.liquidationDistance,
         rrRatio: outputs.rrRatio,
@@ -208,8 +206,8 @@ export function useSuggestedPosition(coin?: TrackedCoin): SuggestedPositionCompo
         explanation: outputs.tradeGradeExplanation,
         modeLabel,
         modeExplanation,
-        confidencePenalty: mode === 'provisional' ? 0.45 : 0,
-        capitalFraction,
+        targetRiskPct: policy.targetRiskPct,
+        capitalFractionCap: policy.capitalFractionCap,
       },
       status: outputs.hasInputError ? 'invalid' as const : 'ready' as const,
     }

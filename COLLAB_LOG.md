@@ -2248,3 +2248,44 @@ Keep Step 3 active even when Step 2 is not fully validated by introducing a prov
 ### Remaining risks / follow-up
 - A truly neutral or stale market can still produce a `none` state because LevTrade refuses to invent a direction when the live data is missing or fully directionless
 - The main Vite client chunk remains over the warning threshold; this is performance-only and unrelated to Step 3 behavior
+
+---
+
+## 2026-03-03 19:36 - Codex - One-Way Step Pipeline and Derived Position Policy
+
+### Goal
+Make the dashboard pipeline strictly flow from Step 1 -> Step 2 -> Step 3 by removing account-specific risk feedback from Step 2 and replacing Step 3's hardcoded capital fractions with setup-derived position policy.
+
+### Files changed
+- `src/signals/setupMetrics.ts` (new)
+- `src/signals/positionPolicy.ts` (new)
+- `src/signals/setup.ts`
+- `src/signals/provisionalSetup.ts`
+- `src/hooks/useSuggestedPosition.ts`
+- `src/hooks/useEntryDecision.ts`
+- `src/types/position.ts`
+- `src/components/risk/RiskForm.tsx`
+- `src/components/risk/RiskResults.tsx`
+- `src/components/guide/HowItWorks.tsx`
+- `src/utils/workflowGuidance.ts`
+- `src/signals/api-entry.ts`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Extracted shared setup confidence and timeframe logic into `computeSetupMetrics()` so validated and provisional setup generation use one metrics implementation
+- Added `computePositionPolicy()` so Step 3 derives target risk, capital allocation cap, margin, and leverage from Step 2 setup geometry instead of using `100%` or `35%` capital shortcuts
+- Tightened provisional setup gating so draft compositions are blocked during strong trending veto conditions and `no-edge` entry states
+- Reworked `useSuggestedPosition()` to build validated or provisional compositions from Step 2 setup state plus account capital, while only returning `none` for stale, warming-up, or truly directionless markets
+- Removed Step 3 risk/account-size feedback from `useEntryDecision()` so Step 2 is signal-only again and account capital only affects Step 3 outputs
+- Updated Step 3 UI copy and metrics to explain setup-derived target account risk and max capital allocation
+- Expanded the logic regression harness to cover provisional gating, shared setup metrics, and position policy behavior
+
+### Verification
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+- `npm run test:logic`: PASS
+
+### Remaining risks / follow-up
+- The main Vite client chunk remains above the warning threshold; this is performance-only and unrelated to pipeline correctness
+- No manual browser QA has been run yet for validated vs provisional composition states on desktop/mobile

@@ -22,8 +22,8 @@ export interface SuggestedPositionComposition {
     explanation: string
     modeLabel: string
     modeExplanation: string
-    confidencePenalty: number | null
-    capitalFraction: number | null
+    targetRiskPct: number | null
+    capitalFractionCap: number | null
   }
   status: 'ready' | 'none' | 'invalid'
 }

@@ -271,8 +271,8 @@ export function getRiskWorkflowGuidance(
     return {
       tone: 'yellow',
       label: 'NOT SIZED',
-      summary: 'You still need to enter or confirm the trade parameters before the risk can be judged.',
-      action: 'Set your entry, stop, target, and position size in Step 3.',
+      summary: 'You still need to enter account capital before LevTrade can finalize the composition and risk check.',
+      action: 'Set your account capital in Step 3 to size the current setup automatically.',
       nextStep: 'Only enter once this section says SAFE ENOUGH.',
       canProceed: false,
     }

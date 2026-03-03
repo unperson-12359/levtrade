@@ -140,7 +140,7 @@ export function RiskForm() {
           <InfoCard
             label="Suggested leverage"
             value={formatLeverage(composition.inputs.leverage)}
-            helper={composition.mode === 'validated' ? 'Derived from ATR and stop' : 'Capped lower while confirmation is incomplete'}
+            helper={composition.mode === 'validated' ? 'Derived from setup geometry, stop width, and target account risk' : 'Derived from directional bias with a lower leverage cap and smaller allocation'}
           />
         </div>
       ) : (

@@ -107,7 +107,7 @@ export function HowItWorks() {
               />
               <GridCard
                 title="Direction Decision"
-                detail="Combines composite direction, entry geometry bias, regime, and risk status into a single action: LONG, SHORT, WAIT, or AVOID."
+                detail="Combines composite direction, entry geometry bias, and regime into a single signal action: LONG, SHORT, WAIT, or AVOID. Step 3 then turns that signal state into an account-sized composition."
               />
               <GridCard
                 title="Suggested Setup"
@@ -122,8 +122,8 @@ export function HowItWorks() {
               You only input account size. LevTrade then derives:
             </p>
             <ul className="guide-list">
-              <li><strong>Capital used</strong> - margin allocated from your account size</li>
-              <li><strong>Suggested leverage</strong> - leverage derived from the setup geometry and ATR</li>
+              <li><strong>Capital used</strong> - margin allocated from a setup-derived capital allocation cap</li>
+              <li><strong>Suggested leverage</strong> - leverage derived from setup geometry, stop width, and target account risk</li>
               <li><strong>Notional size</strong> - effective position size after leverage</li>
               <li><strong>Account hit at stop</strong> - what percent of your account is lost if the setup fails</li>
               <li><strong>Liquidation price and distance</strong> - how far price must move against you to liquidate</li>
@@ -131,7 +131,8 @@ export function HowItWorks() {
             </ul>
             <p>
               Validated setups produce a full confirmed composition. Weaker directional states still produce a provisional
-              reduced-risk composition instead of turning the panel off. There is no manual fallback form.
+              reduced-risk composition instead of turning the panel off. Step 3 is derived from the previous steps rather than
+              re-asking you to build the trade manually.
             </p>
           </Section>
 

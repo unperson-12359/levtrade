@@ -1,9 +1,10 @@
 import type { TrackedCoin } from '../types'
 import type { AssetSignals } from '../types/signals'
-import type { ConfidenceTier, SetupTimeframe, SuggestedSetup } from '../types/setup'
+import type { SuggestedSetup } from '../types/setup'
 import { DEFAULT_ACCOUNT_SIZE } from '../config/constants'
 import { computeDecisionState } from './decision'
 import { computeRisk } from './risk'
+import { computeSetupMetrics } from './setupMetrics'
 
 export function computeSuggestedSetup(
   coin: TrackedCoin,
@@ -52,31 +53,12 @@ export function computeSuggestedSetup(
     atr,
   )
 
-  const alignmentRatio =
-    signals.composite.agreementTotal > 0
-      ? signals.composite.agreementCount / signals.composite.agreementTotal
-      : 0
-  const compositeStrength = Math.min(1, Math.abs(signals.composite.value))
-  const reversionPotential = signals.entryGeometry.reversionPotential
-  const hurstConfidence = signals.hurst.confidence
-  const confidence = clamp(
-    alignmentRatio * compositeStrength * reversionPotential * hurstConfidence * 2,
-    0,
-    1,
-  )
-
-  const confidenceTier: ConfidenceTier =
-    confidence > 0.6 ? 'high' : confidence > 0.3 ? 'medium' : 'low'
-
-  const timeframe: SetupTimeframe =
-    signals.entryGeometry.entryQuality === 'ideal' &&
-    signals.hurst.regime === 'mean-reverting'
-      ? '4-24h'
-      : signals.entryGeometry.entryQuality === 'extended'
-        ? '4-12h'
-        : signals.entryGeometry.entryQuality === 'early'
-          ? '24-72h'
-          : '4-24h'
+  const {
+    confidence,
+    confidenceTier,
+    timeframe,
+    reversionPotential,
+  } = computeSetupMetrics(signals)
 
   const stretch = Math.abs(signals.entryGeometry.stretchZEquivalent).toFixed(1)
   const mean = signals.entryGeometry.meanPrice
@@ -111,8 +93,4 @@ export function computeSuggestedSetup(
     generatedAt: options?.generatedAt ?? Date.now(),
     source: options?.source,
   }
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
 }

@@ -990,6 +990,55 @@ function validateTarget(direction, entryPrice, targetPrice) {
   return null;
 }
 
+// src/signals/setupMetrics.ts
+function computeSetupMetrics(signals, options) {
+  const confidenceScale = options?.confidenceScale ?? 1;
+  const confidenceCap = options?.confidenceCap ?? 1;
+  const alignmentRatio = signals.composite.agreementTotal > 0 ? signals.composite.agreementCount / signals.composite.agreementTotal : 0;
+  const compositeStrength = Math.min(1, Math.abs(signals.composite.value));
+  const reversionPotential = signals.entryGeometry.reversionPotential;
+  const hurstConfidence = signals.hurst.confidence;
+  const confidence = clamp2(
+    alignmentRatio * compositeStrength * reversionPotential * hurstConfidence * 2 * confidenceScale,
+    0,
+    confidenceCap
+  );
+  const confidenceTier = computeConfidenceTier(confidence, confidenceCap);
+  const timeframe = computeTimeframe(signals);
+  return {
+    alignmentRatio,
+    compositeStrength,
+    reversionPotential,
+    hurstConfidence,
+    confidence,
+    confidenceTier,
+    timeframe
+  };
+}
+function computeConfidenceTier(confidence, confidenceCap) {
+  if (confidenceCap <= 0.55) {
+    return confidence > 0.4 ? "medium" : "low";
+  }
+  if (confidence > 0.6) return "high";
+  if (confidence > 0.3) return "medium";
+  return "low";
+}
+function computeTimeframe(signals) {
+  if (signals.entryGeometry.entryQuality === "ideal" && signals.hurst.regime === "mean-reverting") {
+    return "4-24h";
+  }
+  if (signals.entryGeometry.entryQuality === "extended") {
+    return "4-12h";
+  }
+  if (signals.entryGeometry.entryQuality === "early") {
+    return "24-72h";
+  }
+  return "4-24h";
+}
+function clamp2(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 // src/signals/setup.ts
 function computeSuggestedSetup(coin, signals, currentPrice, options) {
   if (!isFinite(currentPrice) || currentPrice <= 0 || signals.isStale || signals.isWarmingUp || !isFinite(signals.volatility.atr) || signals.volatility.atr <= 0 || !isFinite(signals.entryGeometry.meanPrice)) {
@@ -1021,17 +1070,12 @@ function computeSuggestedSetup(coin, signals, currentPrice, options) {
     },
     atr
   );
-  const alignmentRatio = signals.composite.agreementTotal > 0 ? signals.composite.agreementCount / signals.composite.agreementTotal : 0;
-  const compositeStrength = Math.min(1, Math.abs(signals.composite.value));
-  const reversionPotential = signals.entryGeometry.reversionPotential;
-  const hurstConfidence = signals.hurst.confidence;
-  const confidence = clamp2(
-    alignmentRatio * compositeStrength * reversionPotential * hurstConfidence * 2,
-    0,
-    1
-  );
-  const confidenceTier = confidence > 0.6 ? "high" : confidence > 0.3 ? "medium" : "low";
-  const timeframe = signals.entryGeometry.entryQuality === "ideal" && signals.hurst.regime === "mean-reverting" ? "4-24h" : signals.entryGeometry.entryQuality === "extended" ? "4-12h" : signals.entryGeometry.entryQuality === "early" ? "24-72h" : "4-24h";
+  const {
+    confidence,
+    confidenceTier,
+    timeframe,
+    reversionPotential
+  } = computeSetupMetrics(signals);
   const stretch = Math.abs(signals.entryGeometry.stretchZEquivalent).toFixed(1);
   const mean = signals.entryGeometry.meanPrice;
   const agreementStr = `${signals.composite.agreementCount}/${signals.composite.agreementTotal}`;
@@ -1062,9 +1106,6 @@ function computeSuggestedSetup(coin, signals, currentPrice, options) {
     generatedAt: options?.generatedAt ?? Date.now(),
     source: options?.source
   };
-}
-function clamp2(value, min, max) {
-  return Math.max(min, Math.min(max, value));
 }
 
 // src/signals/resolveOutcome.ts
