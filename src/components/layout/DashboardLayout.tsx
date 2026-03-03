@@ -58,6 +58,10 @@ export function DashboardLayout() {
       <LiveSetupsBanner />
 
       <main className="dashboard-shell">
+        <aside className="dashboard-decision">
+          <DecisionHero />
+        </aside>
+
         <section className="workspace-stack dashboard-main">
           <div className="panel-shell panel-shell--chart">
             <div className="chart-header-row">
@@ -76,7 +80,6 @@ export function DashboardLayout() {
             </div>
             <PriceChart coin={coin} embedded showHeader={false} />
           </div>
-          <DecisionHero />
           <div className="steps-row">
             <MarketRail />
             <SignalSection />
