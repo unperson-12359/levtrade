@@ -1067,6 +1067,14 @@ function clamp2(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+// src/utils/setupCoverage.ts
+function summarizeCoverage(outcomes, current) {
+  const values = Object.values(outcomes).map((outcome) => outcome.coverageStatus).filter(Boolean);
+  if (values.includes("insufficient")) return "insufficient";
+  if (values.includes("partial")) return "partial";
+  return current ?? "full";
+}
+
 // src/signals/resolveOutcome.ts
 var SETUP_WINDOWS = {
   "4h": 4 * 60 * 60 * 1e3,
@@ -1480,5 +1488,6 @@ export {
   parseCandle,
   resolveSetupWindow,
   scoreDirection,
-  shouldTrackRecord
+  shouldTrackRecord,
+  summarizeCoverage
 };
