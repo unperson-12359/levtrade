@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useStore } from '../../store'
+import { useEntryDecision } from '../../hooks/useEntryDecision'
+import { usePositionRisk } from '../../hooks/usePositionRisk'
+import { useSuggestedPosition } from '../../hooks/useSuggestedPosition'
 import { useSignals } from '../../hooks/useSignals'
 import { formatFundingRate, formatPercent, formatCompact, timeAgo } from '../../utils/format'
-import { getMarketWorkflowGuidance } from '../../utils/workflowGuidance'
+import { getMarketWorkflowGuidance, getWorkflowStepStates } from '../../utils/workflowGuidance'
 import { classifyFearGreed, classifyBtcDominance, classifyFundingDivergence, classifyOiDivergence } from '../../utils/contextGuidance'
 import { formatContextFreshness } from '../../utils/contextFreshness'
 import type { SignalSeriesKind } from '../../utils/provenance'
@@ -20,7 +23,11 @@ const toneClasses = {
 export function MarketRail() {
   const coin = useStore((s) => s.selectedCoin)
   const { signals, isWarmingUp, warmupProgress } = useSignals(coin)
+  const decision = useEntryDecision(coin)
+  const { outputs, riskStatus } = usePositionRisk()
+  const composition = useSuggestedPosition(coin)
   const guidance = getMarketWorkflowGuidance(signals)
+  const [step1] = getWorkflowStepStates(signals, decision, outputs, riskStatus, composition)
   const [drawerKind, setDrawerKind] = useState<SignalSeriesKind | null>(null)
   const fearGreed = useStore((s) => s.fearGreed)
   const cryptoMacro = useStore((s) => s.cryptoMacro)
@@ -28,8 +35,8 @@ export function MarketRail() {
 
   if (!signals) {
     return (
-      <section className="panel-shell">
-        <StepLabel step={1} />
+      <section className="panel-shell workflow-card workflow-card--yellow workflow-card--wait workflow-card--current">
+        <StepLabel step={1} tone="yellow" state="wait" access="current" isCurrentFocus />
         <div className="panel-kicker">Step 1</div>
         <h2 className="panel-title">Can I trade this market?</h2>
         <div className="loading-block h-24" />
@@ -38,8 +45,23 @@ export function MarketRail() {
   }
 
   return (
-    <section className="panel-shell">
-      <StepLabel step={1} />
+    <section
+      className={[
+        'panel-shell',
+        'workflow-card',
+        `workflow-card--${step1.tone}`,
+        `workflow-card--${step1.state}`,
+        `workflow-card--${step1.access}`,
+        step1.isCurrentFocus ? 'workflow-card--pulse' : '',
+      ].join(' ')}
+    >
+      <StepLabel
+        step={1}
+        tone={step1.tone}
+        state={step1.state}
+        access={step1.access}
+        isCurrentFocus={step1.isCurrentFocus}
+      />
       <div className="panel-header">
         <div>
           <div className="panel-kicker">Step 1</div>

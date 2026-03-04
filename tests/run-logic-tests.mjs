@@ -25,6 +25,7 @@ runPositionPolicyTest()
 runSuggestedPositionCompositionTest()
 runIncrementalRefreshSourceCheck()
 runWorkflowTerminologyCheck()
+runWorkflowStateSourceCheck()
 runTrackerRiskSourceCheck()
 runBundleDriftCheck()
 
@@ -290,6 +291,33 @@ function runWorkflowTerminologyCheck() {
   const workflowSource = readFileSync(join(__dirname, '../src/utils/workflowGuidance.ts'), 'utf8')
   assert.match(workflowSource, /title: 'POSITION COMPOSITION'/)
   assert.match(workflowSource, /account-sized composition/)
+}
+
+function runWorkflowStateSourceCheck() {
+  const workflowSource = readFileSync(join(__dirname, '../src/utils/workflowGuidance.ts'), 'utf8')
+  const marketSource = readFileSync(join(__dirname, '../src/components/market/MarketRail.tsx'), 'utf8')
+  const signalSource = readFileSync(join(__dirname, '../src/components/signal/SignalSection.tsx'), 'utf8')
+  const riskSource = readFileSync(join(__dirname, '../src/components/risk/RiskSection.tsx'), 'utf8')
+  const bannerSource = readFileSync(join(__dirname, '../src/components/methodology/MethodologyBanner.tsx'), 'utf8')
+  const menuSource = readFileSync(join(__dirname, '../src/components/menu/MenuDrawer.tsx'), 'utf8')
+  const stepLabelSource = readFileSync(join(__dirname, '../src/components/methodology/StepLabel.tsx'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+
+  assert.match(workflowSource, /export function getWorkflowStepStates/)
+  assert.match(workflowSource, /export type WorkflowVisualState = 'pass' \| 'fail' \| 'wait'/)
+  assert.match(workflowSource, /export type WorkflowAccessState = 'current' \| 'unlocked' \| 'locked'/)
+  assert.match(workflowSource, /label: 'LOCKED'/)
+  assert.match(workflowSource, /label: provisionalIsDanger \? 'DO NOT TAKE' : 'DRAFT ONLY'/)
+  assert.match(marketSource, /workflow-card/)
+  assert.match(signalSource, /workflow-card/)
+  assert.match(riskSource, /workflow-card/)
+  assert.match(riskSource, /status-pill status-pill--\$\{step3\.tone\}/)
+  assert.match(bannerSource, /methodology-step--\$\{step\.state\}/)
+  assert.match(menuSource, /menu-drawer__workflow-row--\$\{step\.access\}/)
+  assert.match(stepLabelSource, /STEP \$\{step\} OF 3/)
+  assert.match(cssSource, /\.workflow-card--pulse/)
+  assert.match(cssSource, /\.methodology-step__detail--next/)
+  assert.match(cssSource, /prefers-reduced-motion: reduce/)
 }
 
 function runTrackerRiskSourceCheck() {

@@ -373,6 +373,89 @@ button {
   max-width: 100%;
 }
 
+.workflow-card {
+  --workflow-accent: var(--color-signal-yellow);
+  --workflow-border: color-mix(in srgb, var(--color-signal-yellow) 28%, var(--color-border-subtle));
+  --workflow-bg: rgba(234, 179, 8, 0.08);
+  --workflow-glow: rgba(234, 179, 8, 0.12);
+  position: relative;
+  overflow: hidden;
+  border-color: var(--workflow-border);
+  background:
+    linear-gradient(180deg, var(--workflow-bg), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 24%),
+    var(--color-bg-card);
+  transition:
+    border-color 200ms ease,
+    background 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease,
+    opacity 180ms ease;
+}
+
+.workflow-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--workflow-accent) 16%, transparent), transparent 46%),
+    linear-gradient(135deg, color-mix(in srgb, var(--workflow-accent) 10%, transparent), transparent 32%);
+  opacity: 0.85;
+}
+
+.workflow-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.workflow-card--green {
+  --workflow-accent: var(--color-signal-green);
+  --workflow-border: color-mix(in srgb, var(--color-signal-green) 34%, var(--color-border-subtle));
+  --workflow-bg: rgba(34, 197, 94, 0.1);
+  --workflow-glow: rgba(34, 197, 94, 0.15);
+}
+
+.workflow-card--yellow {
+  --workflow-accent: var(--color-signal-yellow);
+  --workflow-border: color-mix(in srgb, var(--color-signal-yellow) 34%, var(--color-border-subtle));
+  --workflow-bg: rgba(234, 179, 8, 0.08);
+  --workflow-glow: rgba(234, 179, 8, 0.14);
+}
+
+.workflow-card--red {
+  --workflow-accent: var(--color-signal-red);
+  --workflow-border: color-mix(in srgb, var(--color-signal-red) 34%, var(--color-border-subtle));
+  --workflow-bg: rgba(239, 68, 68, 0.08);
+  --workflow-glow: rgba(239, 68, 68, 0.14);
+}
+
+.workflow-card--locked {
+  opacity: 0.9;
+}
+
+.workflow-card--current {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--workflow-accent) 18%, transparent), 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.workflow-card--unlocked.workflow-card--pass {
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+}
+
+@keyframes workflow-card-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--workflow-accent) 14%, transparent), 0 10px 20px rgba(0, 0, 0, 0.14);
+  }
+  50% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--workflow-accent) 22%, transparent), 0 0 24px 2px var(--workflow-glow), 0 12px 26px rgba(0, 0, 0, 0.18);
+  }
+}
+
+.workflow-card--pulse {
+  animation: workflow-card-pulse 2.3s ease-in-out infinite;
+}
+
 .panel-shell--tight {
   padding: 0.65rem;
 }
@@ -856,24 +939,41 @@ button {
 }
 
 .methodology-step {
+  --methodology-accent: var(--color-signal-yellow);
   border-radius: 0.7rem;
   border: 1px solid color-mix(in srgb, var(--color-border-subtle) 70%, transparent);
-  background: color-mix(in srgb, var(--color-bg-input) 82%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--methodology-accent) 9%, transparent), transparent 34%),
+    color-mix(in srgb, var(--color-bg-input) 82%, transparent);
   padding: 0.75rem;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
+  transition: border-color 200ms ease, box-shadow 200ms ease, opacity 180ms ease, transform 180ms ease;
 }
 
-.methodology-step--active {
-  border-color: color-mix(in srgb, var(--color-signal-blue) 40%, transparent);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.1);
-}
-
-.methodology-step--done {
+.methodology-step--green {
+  --methodology-accent: var(--color-signal-green);
   border-color: color-mix(in srgb, var(--color-signal-green) 26%, transparent);
 }
 
-.methodology-step--pending {
-  opacity: 0.72;
+.methodology-step--yellow {
+  --methodology-accent: var(--color-signal-yellow);
+  border-color: color-mix(in srgb, var(--color-signal-yellow) 24%, transparent);
+}
+
+.methodology-step--red {
+  --methodology-accent: var(--color-signal-red);
+  border-color: color-mix(in srgb, var(--color-signal-red) 24%, transparent);
+}
+
+.methodology-step--current {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--methodology-accent) 20%, transparent);
+}
+
+.methodology-step--locked {
+  opacity: 0.8;
+}
+
+.methodology-step--pulse {
+  animation: workflow-card-pulse 2.8s ease-in-out infinite;
 }
 
 .methodology-step__header {
@@ -923,6 +1023,10 @@ button {
   font-size: 0.8rem;
   color: var(--color-text-secondary);
   line-height: 1.45;
+}
+
+.methodology-step__detail--next {
+  color: var(--color-text-primary);
 }
 
 .methodology-step__hint {
@@ -1040,10 +1144,31 @@ button {
   text-align: left;
   color: inherit;
   font: inherit;
+  transition: background 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
 }
 
 .menu-drawer__workflow-row:hover {
   background: color-mix(in srgb, var(--color-bg-card-hover) 60%, transparent);
+}
+
+.menu-drawer__workflow-row--green {
+  background: color-mix(in srgb, var(--color-signal-green) 8%, transparent);
+}
+
+.menu-drawer__workflow-row--yellow {
+  background: color-mix(in srgb, var(--color-signal-yellow) 7%, transparent);
+}
+
+.menu-drawer__workflow-row--red {
+  background: color-mix(in srgb, var(--color-signal-red) 7%, transparent);
+}
+
+.menu-drawer__workflow-row--locked {
+  opacity: 0.82;
+}
+
+.menu-drawer__workflow-row--current {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-signal-blue) 18%, transparent);
 }
 
 .menu-drawer__workflow-name {
@@ -1392,7 +1517,7 @@ button {
 .step-label {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   margin-bottom: 0.2rem;
 }
 
@@ -1403,11 +1528,26 @@ button {
   width: 1.25rem;
   height: 1.25rem;
   border-radius: 0.35rem;
-  background: var(--color-signal-blue-bg);
-  border: 1px solid color-mix(in srgb, var(--color-signal-blue) 30%, transparent);
+  background: var(--color-signal-yellow-bg);
+  border: 1px solid color-mix(in srgb, var(--color-signal-yellow) 28%, transparent);
   font-size: 0.68rem;
   font-weight: 700;
-  color: var(--color-signal-blue);
+  color: var(--color-signal-yellow);
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.step-label__copy {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.step-label__eyebrow {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 .step-label__text {
@@ -1415,7 +1555,45 @@ button {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--color-signal-blue);
+  color: var(--color-text-secondary);
+}
+
+.step-label--green .step-label__number {
+  background: var(--color-signal-green-bg);
+  border-color: color-mix(in srgb, var(--color-signal-green) 28%, transparent);
+  color: var(--color-signal-green);
+}
+
+.step-label--yellow .step-label__number {
+  background: var(--color-signal-yellow-bg);
+  border-color: color-mix(in srgb, var(--color-signal-yellow) 28%, transparent);
+  color: var(--color-signal-yellow);
+}
+
+.step-label--red .step-label__number {
+  background: var(--color-signal-red-bg);
+  border-color: color-mix(in srgb, var(--color-signal-red) 28%, transparent);
+  color: var(--color-signal-red);
+}
+
+.step-label--green .step-label__text {
+  color: var(--color-signal-green);
+}
+
+.step-label--yellow .step-label__text {
+  color: var(--color-signal-yellow);
+}
+
+.step-label--red .step-label__text {
+  color: var(--color-signal-red);
+}
+
+.step-label--locked {
+  opacity: 0.82;
+}
+
+.step-label--current .step-label__number {
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 20%, transparent);
 }
 
 /* Action Guidance strips */
@@ -2635,4 +2813,23 @@ button {
 
 .live-setup-card--on-fire {
   animation: live-setup-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflow-card,
+  .methodology-step,
+  .step-label__number,
+  .menu-drawer__workflow-row,
+  .methodology-banner__chevron,
+  .signal-drawer,
+  .signal-drawer__frame,
+  .guide-page {
+    transition: none;
+  }
+
+  .workflow-card--pulse,
+  .methodology-step--pulse,
+  .live-setup-card--on-fire {
+    animation: none;
+  }
 }

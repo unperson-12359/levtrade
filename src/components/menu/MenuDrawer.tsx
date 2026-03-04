@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useEntryDecision } from '../../hooks/useEntryDecision'
 import { usePositionRisk } from '../../hooks/usePositionRisk'
+import { useSuggestedPosition } from '../../hooks/useSuggestedPosition'
 import { useSignals } from '../../hooks/useSignals'
 import { useStore } from '../../store'
 import { timeAgo } from '../../utils/format'
@@ -20,7 +21,8 @@ export function MenuDrawer() {
   const { signals } = useSignals(coin)
   const decision = useEntryDecision(coin)
   const { outputs, riskStatus } = usePositionRisk()
-  const steps = getMethodologySteps(signals, decision, outputs, riskStatus)
+  const composition = useSuggestedPosition(coin)
+  const steps = getMethodologySteps(signals, decision, outputs, riskStatus, composition)
 
   const [expandedStep, setExpandedStep] = useState<number | null>(null)
 
@@ -89,7 +91,12 @@ export function MenuDrawer() {
               <div key={step.step}>
                 <button
                   type="button"
-                  className="menu-drawer__workflow-row"
+                  className={[
+                    'menu-drawer__workflow-row',
+                    `menu-drawer__workflow-row--${step.tone}`,
+                    `menu-drawer__workflow-row--${step.access}`,
+                    step.isCurrentFocus ? 'menu-drawer__workflow-row--current' : '',
+                  ].join(' ')}
                   onClick={() => setExpandedStep(isOpen ? null : step.step)}
                 >
                   <span className={`menu-drawer__dot menu-drawer__dot--${step.tone}`} />
@@ -107,6 +114,7 @@ export function MenuDrawer() {
                   <div className="menu-drawer__workflow-expand">
                     <div className="menu-drawer__workflow-question">{step.question}</div>
                     <div className="menu-drawer__workflow-detail">{step.detail}</div>
+                    <div className="menu-drawer__workflow-detail">{step.nextInstruction}</div>
                   </div>
                 )}
               </div>

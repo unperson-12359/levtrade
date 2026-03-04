@@ -1,5 +1,6 @@
 import { useEntryDecision } from '../../hooks/useEntryDecision'
 import { usePositionRisk } from '../../hooks/usePositionRisk'
+import { useSuggestedPosition } from '../../hooks/useSuggestedPosition'
 import { useSignals } from '../../hooks/useSignals'
 import { useStore } from '../../store'
 import { getMethodologySteps } from '../../utils/workflowGuidance'
@@ -11,7 +12,8 @@ export function MethodologyBanner() {
   const { signals } = useSignals(coin)
   const decision = useEntryDecision(coin)
   const { outputs, riskStatus } = usePositionRisk()
-  const steps = getMethodologySteps(signals, decision, outputs, riskStatus)
+  const composition = useSuggestedPosition(coin)
+  const steps = getMethodologySteps(signals, decision, outputs, riskStatus, composition)
   const contentId = 'methodology-banner-content'
 
   return (
@@ -34,7 +36,13 @@ export function MethodologyBanner() {
           {steps.map((step) => (
             <div
               key={step.step}
-              className={`methodology-step methodology-step--${step.status}`}
+              className={[
+                'methodology-step',
+                `methodology-step--${step.tone}`,
+                `methodology-step--${step.state}`,
+                `methodology-step--${step.access}`,
+                step.isCurrentFocus ? 'methodology-step--pulse' : '',
+              ].join(' ')}
             >
               <div className="methodology-step__header">
                 <span className={`methodology-step__dot methodology-step__dot--${step.tone}`} />
@@ -45,6 +53,7 @@ export function MethodologyBanner() {
                 {step.label}
               </div>
               <div className="methodology-step__detail">{step.detail}</div>
+              <div className="methodology-step__detail methodology-step__detail--next">{step.nextInstruction}</div>
               <div className="methodology-step__hint">{step.successRule}</div>
             </div>
           ))}

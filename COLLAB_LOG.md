@@ -2421,3 +2421,39 @@ Implement the remaining distinct issues from the four-agent plan after consolida
 - The canonical setup repair script now scans much more than before, but it still uses a ceiling and warns rather than scanning unbounded history
 - Legacy manual `riskInputs` geometry fields still exist in persisted browser state for compatibility even though tracker truth no longer depends on them
 - The main Vite client chunk remains above the warning threshold; this is performance-only and unrelated to analytics correctness or Step 3 semantics
+
+---
+
+## 2026-03-04 15:24 - Codex - Animated Workflow Step States
+
+### Goal
+Add a sharper visual state system to the three main workflow cards so Step 1, Step 2, and Step 3 announce pass/block/wait states immediately through card-level color and restrained motion instead of relying on text alone.
+
+### Files changed
+- `src/utils/workflowGuidance.ts`
+- `src/components/market/MarketRail.tsx`
+- `src/components/signal/SignalSection.tsx`
+- `src/components/risk/RiskSection.tsx`
+- `src/components/methodology/StepLabel.tsx`
+- `src/components/methodology/MethodologyBanner.tsx`
+- `src/components/menu/MenuDrawer.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added a shared workflow step-state model with explicit `pass` / `fail` / `wait` and `current` / `unlocked` / `locked` access semantics
+- Kept Step 1 and Step 2 sequential, but made Step 3 reflect the real always-on composition behavior so provisional draft compositions show as yellow/current instead of falsely looking locked
+- Applied card-level green/red/yellow treatment plus a restrained pulse to the current actionable workflow card only
+- Upgraded `StepLabel` into a state-aware badge with color-coded number treatment and `STEP X OF 3` copy
+- Synced the methodology banner and menu workflow rows to the same shared state model with lighter visuals and next-step guidance
+- Added reduced-motion handling so persistent pulse is disabled when the OS requests it
+- Expanded the logic regression harness to assert the new workflow state helper, card-level treatment, synced secondary surfaces, and reduced-motion styling hooks
+
+### Verification
+- `npm run test:logic`: PASS
+- `npm run build`: PASS
+
+### Remaining risks / follow-up
+- This pass validates compile/runtime correctness, but the new card treatment still deserves manual browser QA to tune visual intensity on desktop and mobile
+- The main Vite client chunk remains above the warning threshold; this is performance-only and unrelated to the workflow-state feature

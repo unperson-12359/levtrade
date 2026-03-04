@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useEntryDecision } from '../../hooks/useEntryDecision'
+import { usePositionRisk } from '../../hooks/usePositionRisk'
+import { useSuggestedPosition } from '../../hooks/useSuggestedPosition'
 import { useSignals } from '../../hooks/useSignals'
 import { useStore } from '../../store'
 import type { SignalSeriesKind } from '../../utils/provenance'
-import { getEntryWorkflowGuidance, getMarketWorkflowGuidance } from '../../utils/workflowGuidance'
+import { getEntryWorkflowGuidance, getMarketWorkflowGuidance, getWorkflowStepStates } from '../../utils/workflowGuidance'
 import { EntryGeometryPanel } from '../entry/EntryGeometryPanel'
 import { StepLabel } from '../methodology/StepLabel'
 import { ExpandableSection } from '../shared/ExpandableSection'
@@ -21,12 +23,15 @@ export function SignalSection() {
   const coin = useStore((s) => s.selectedCoin)
   const { signals } = useSignals(coin)
   const decision = useEntryDecision(coin)
+  const { outputs, riskStatus } = usePositionRisk()
+  const composition = useSuggestedPosition(coin)
+  const [, step2] = getWorkflowStepStates(signals, decision, outputs, riskStatus, composition)
   const [drawerKind, setDrawerKind] = useState<SignalSeriesKind | null>(null)
 
   if (!signals) {
     return (
-      <section className="panel-shell">
-        <StepLabel step={2} />
+      <section className="panel-shell workflow-card workflow-card--yellow workflow-card--wait workflow-card--locked">
+        <StepLabel step={2} tone="yellow" state="wait" access="locked" />
         <div className="panel-kicker">Step 2</div>
         <h2 className="panel-title">Is there an entry right now?</h2>
         <div className="loading-block h-24" />
@@ -38,8 +43,23 @@ export function SignalSection() {
   const guidance = getEntryWorkflowGuidance(signals, decision, marketGuidance)
 
   return (
-    <section className="panel-shell">
-      <StepLabel step={2} />
+    <section
+      className={[
+        'panel-shell',
+        'workflow-card',
+        `workflow-card--${step2.tone}`,
+        `workflow-card--${step2.state}`,
+        `workflow-card--${step2.access}`,
+        step2.isCurrentFocus ? 'workflow-card--pulse' : '',
+      ].join(' ')}
+    >
+      <StepLabel
+        step={2}
+        tone={step2.tone}
+        state={step2.state}
+        access={step2.access}
+        isCurrentFocus={step2.isCurrentFocus}
+      />
       <div className="panel-header">
         <div>
           <div className="panel-kicker">Step 2</div>

@@ -1,4 +1,5 @@
 import type { TrackedCoin } from '../types/market'
+import type { SuggestedPositionComposition } from '../types/position'
 import type { RiskOutputs } from '../types/risk'
 import type { AssetSignals, DecisionAction, RiskStatus, SignalColor } from '../types/signals'
 
@@ -44,16 +45,27 @@ export interface HeroGuidance {
   bullets: string[]
 }
 
-export interface MethodologyStepState {
+export type WorkflowVisualState = 'pass' | 'fail' | 'wait'
+export type WorkflowAccessState = 'current' | 'unlocked' | 'locked'
+export type WorkflowStepStatus = 'active' | 'done' | 'pending'
+
+export interface WorkflowStepState {
   step: 1 | 2 | 3
   title: string
   question: string
-  status: 'active' | 'done' | 'pending'
+  status: WorkflowStepStatus
+  state: WorkflowVisualState
+  access: WorkflowAccessState
   tone: SignalColor
   label: string
   detail: string
+  nextInstruction: string
   successRule: string
+  isActionable: boolean
+  isCurrentFocus: boolean
 }
+
+export type MethodologyStepState = WorkflowStepState
 
 export function getMarketWorkflowGuidance(signals: AssetSignals | null | undefined): WorkflowGuidance {
   if (!signals) {
@@ -388,48 +400,95 @@ export function getDecisionHeroGuidance(
   }
 }
 
+export function getWorkflowStepStates(
+  signals: AssetSignals | null | undefined,
+  decision: EntryDecisionSnapshot,
+  outputs: RiskOutputs | null | undefined,
+  riskStatus: RiskStatus,
+  composition?: SuggestedPositionComposition | null,
+): [WorkflowStepState, WorkflowStepState, WorkflowStepState] {
+  const market = getMarketWorkflowGuidance(signals)
+  const entry = getEntryWorkflowGuidance(signals, decision, market)
+  const risk = getRiskWorkflowGuidance(outputs, riskStatus, entry)
+  const step1State = resolveVisualState(market)
+  const step2Unlocked = step1State === 'pass'
+  const step2State = step2Unlocked ? resolveVisualState(entry) : 'wait'
+  const step3Presentation = resolveStep3Presentation({
+    composition,
+    risk,
+    step2Passed: step2State === 'pass',
+  })
+
+  const step1 = buildWorkflowStepState({
+    step: 1,
+    state: step1State,
+    access: step1State === 'pass' ? 'unlocked' : 'current',
+    tone: market.tone,
+    label: market.label,
+    detail: market.summary,
+    nextInstruction: market.canProceed ? 'Step 2 is now unlocked.' : market.action,
+    successRule: market.canProceed
+      ? 'Step 1 passed. You can now judge whether there is a live entry.'
+      : 'Only continue when this step turns FAVORABLE.',
+  })
+
+  const step2 = step2Unlocked
+    ? buildWorkflowStepState({
+        step: 2,
+        state: step2State,
+        access: step2State === 'pass' ? 'unlocked' : 'current',
+        tone: entry.tone,
+        label: entry.label,
+        detail: entry.summary,
+        nextInstruction: entry.canProceed ? 'Step 3 is now unlocked.' : entry.waitFor,
+        successRule: entry.canProceed
+          ? 'Step 2 passed. You can now size the setup in Step 3.'
+          : 'Only continue when there is a real entry right now.',
+      })
+    : buildWorkflowStepState({
+        step: 2,
+        state: 'wait',
+        access: 'locked',
+        tone: 'yellow',
+        label: 'LOCKED',
+        detail: 'Step 1 has not passed yet, so the entry check is not actionable.',
+        nextInstruction: 'Wait for Step 1 to turn green before judging the entry.',
+        successRule: 'Step 2 unlocks only after Step 1 passes.',
+      })
+
+  const step3 = step3Presentation.unlocked
+    ? buildWorkflowStepState({
+        step: 3,
+        state: step3Presentation.state,
+        access: step3Presentation.state === 'pass' ? 'unlocked' : 'current',
+        tone: step3Presentation.tone,
+        label: step3Presentation.label,
+        detail: step3Presentation.detail,
+        nextInstruction: step3Presentation.nextInstruction,
+        successRule: step3Presentation.successRule,
+      })
+    : buildWorkflowStepState({
+        step: 3,
+        state: 'wait',
+        access: 'locked',
+        tone: 'yellow',
+        label: 'LOCKED',
+        detail: 'LevTrade will light up Step 3 once there is enough directional structure to size a real or draft composition.',
+        nextInstruction: 'Wait for Step 2 confirmation or for a provisional draft to appear.',
+        successRule: 'Step 3 becomes actionable only when LevTrade can size the trade.',
+      })
+
+  return [step1, step2, step3]
+}
+
 export function getMethodologySteps(
   signals: AssetSignals | null | undefined,
   decision: EntryDecisionSnapshot,
   outputs: RiskOutputs | null | undefined,
   riskStatus: RiskStatus,
+  composition?: SuggestedPositionComposition | null,
 ): [MethodologyStepState, MethodologyStepState, MethodologyStepState] {
-  const market = getMarketWorkflowGuidance(signals)
-  const entry = getEntryWorkflowGuidance(signals, decision, market)
-  const risk = getRiskWorkflowGuidance(outputs, riskStatus, entry)
-
-  return [
-    {
-      step: 1,
-      title: WORKFLOW_STEPS[1].title,
-      question: WORKFLOW_STEPS[1].question,
-      status: market.canProceed ? 'done' : 'active',
-      tone: market.tone,
-      label: market.label,
-      detail: market.summary,
-      successRule: 'Only continue when this step turns FAVORABLE.',
-    },
-    {
-      step: 2,
-      title: WORKFLOW_STEPS[2].title,
-      question: WORKFLOW_STEPS[2].question,
-      status: !market.canProceed ? 'pending' : entry.canProceed ? 'done' : 'active',
-      tone: !market.canProceed ? 'yellow' : entry.tone,
-      label: !market.canProceed ? 'WAIT FOR STEP 1' : entry.label,
-      detail: !market.canProceed ? 'Start here only after the market check is favorable.' : entry.summary,
-      successRule: 'Only continue when there is a real entry right now.',
-    },
-    {
-      step: 3,
-      title: WORKFLOW_STEPS[3].title,
-      question: WORKFLOW_STEPS[3].question,
-      status: !entry.canProceed ? 'pending' : risk.canProceed ? 'done' : 'active',
-      tone: !entry.canProceed ? 'yellow' : risk.tone,
-      label: !entry.canProceed ? 'WAIT FOR STEP 2' : risk.label,
-      detail: !entry.canProceed ? 'Only compose a trade after the entry check passes.' : risk.summary,
-      successRule: 'Only trade when the proposed composition is safe enough.',
-    },
-  ]
+  return getWorkflowStepStates(signals, decision, outputs, riskStatus, composition)
 }
 
 function humanizeReason(reason: string): string {
@@ -462,5 +521,131 @@ function humanizeReason(reason: string): string {
       return 'market conditions are acceptable'
     default:
       return reason
+  }
+}
+
+function resolveVisualState(guidance: WorkflowGuidance): WorkflowVisualState {
+  if (guidance.canProceed) {
+    return 'pass'
+  }
+  return guidance.tone === 'red' ? 'fail' : 'wait'
+}
+
+function resolveStepStatus(state: WorkflowVisualState, access: WorkflowAccessState): WorkflowStepStatus {
+  if (access === 'locked') {
+    return 'pending'
+  }
+  return state === 'pass' ? 'done' : 'active'
+}
+
+function buildWorkflowStepState({
+  step,
+  state,
+  access,
+  tone,
+  label,
+  detail,
+  nextInstruction,
+  successRule,
+}: {
+  step: 1 | 2 | 3
+  state: WorkflowVisualState
+  access: WorkflowAccessState
+  tone: SignalColor
+  label: string
+  detail: string
+  nextInstruction: string
+  successRule: string
+}): WorkflowStepState {
+  return {
+    step,
+    title: WORKFLOW_STEPS[step].title,
+    question: WORKFLOW_STEPS[step].question,
+    status: resolveStepStatus(state, access),
+    state,
+    access,
+    tone,
+    label,
+    detail,
+    nextInstruction,
+    successRule,
+    isActionable: access === 'current',
+    isCurrentFocus: access === 'current',
+  }
+}
+
+function resolveStep3Presentation({
+  composition,
+  risk,
+  step2Passed,
+}: {
+  composition?: SuggestedPositionComposition | null
+  risk: WorkflowGuidance
+  step2Passed: boolean
+}): {
+  unlocked: boolean
+  state: WorkflowVisualState
+  tone: SignalColor
+  label: string
+  detail: string
+  nextInstruction: string
+  successRule: string
+} {
+  if (!composition || composition.mode === 'none' || composition.status === 'none') {
+    return {
+      unlocked: false,
+      state: 'wait',
+      tone: 'yellow',
+      label: 'LOCKED',
+      detail: 'LevTrade is waiting for enough directional structure before it can size this trade.',
+      nextInstruction: 'Wait for Step 2 confirmation or a provisional draft composition.',
+      successRule: 'This step unlocks only when a composition is available.',
+    }
+  }
+
+  if (composition.mode === 'provisional') {
+    if (composition.status === 'invalid') {
+      return {
+        unlocked: true,
+        state: 'wait',
+        tone: 'yellow',
+        label: 'NOT SIZED',
+        detail: 'A reduced-risk draft exists, but you still need account capital before LevTrade can finish the provisional composition.',
+        nextInstruction: 'Enter account capital to size the draft, then wait for Step 2 confirmation before treating it as green.',
+        successRule: 'This stays yellow until Step 2 confirms the setup and the composition is safe enough.',
+      }
+    }
+
+    const provisionalIsDanger = composition.outputs?.tradeGrade === 'red'
+
+    return {
+      unlocked: true,
+      state: provisionalIsDanger ? 'fail' : 'wait',
+      tone: provisionalIsDanger ? 'red' : 'yellow',
+      label: provisionalIsDanger ? 'DO NOT TAKE' : 'DRAFT ONLY',
+      detail: provisionalIsDanger
+        ? composition.outputs?.tradeGradeExplanation ?? 'The provisional draft is still too risky to act on.'
+        : 'LevTrade can draft a reduced-risk composition here, but Step 2 has not fully confirmed the setup yet.',
+      nextInstruction: provisionalIsDanger
+        ? 'Wait for a better setup or materially reduce the risk before acting on the draft.'
+        : 'Treat this as a caution draft until Step 2 turns green.',
+      successRule: 'Step 3 turns green only after Step 2 confirms the setup and the composition stays safe enough.',
+    }
+  }
+
+  return {
+    unlocked: true,
+    state: resolveVisualState(risk),
+    tone: risk.tone,
+    label: risk.label,
+    detail: risk.summary,
+    nextInstruction: risk.canProceed
+      ? 'The setup is fully qualified.'
+      : risk.nextStep,
+    successRule: risk.canProceed
+      ? (step2Passed
+        ? 'All three steps are green. The setup is ready if you want to take it.'
+        : 'The composition is safe enough, but Step 2 still needs confirmation.')
+      : 'Only trade when the proposed composition is safe enough.',
   }
 }
