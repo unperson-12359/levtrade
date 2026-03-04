@@ -6,6 +6,8 @@ import { parseCandle } from '../src/types/market'
 
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
 const WINDOWS: SetupWindow[] = ['4h', '24h', '72h']
+const PAGE_SIZE = 500
+const MAX_FETCH_ROWS = 10_000
 
 interface ServerSetupRow {
   id: string
@@ -19,7 +21,7 @@ async function main(): Promise<void> {
     throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required')
   }
 
-  const rows = await fetchServerSetups()
+  const { rows, truncated } = await fetchServerSetups()
   let updatedRows = 0
   let changedOutcomes = 0
 
@@ -52,24 +54,39 @@ async function main(): Promise<void> {
 
   console.log(`Reviewed ${rows.length} server setups`)
   console.log(`Updated ${updatedRows} rows and ${changedOutcomes} outcome windows`)
+  if (truncated) {
+    console.warn(`Reached repair scan ceiling of ${MAX_FETCH_ROWS} setup rows; rerun with a narrower scope if older rows still need reconciliation.`)
+  }
 }
 
-async function fetchServerSetups(): Promise<ServerSetupRow[]> {
-  const params = new URLSearchParams({
-    scope: 'eq.global',
-    order: 'generated_at.desc',
-    limit: '2000',
-    select: 'id,coin,setup_json,outcomes_json',
-  })
+async function fetchServerSetups(): Promise<{ rows: ServerSetupRow[]; truncated: boolean }> {
+  const rows: ServerSetupRow[] = []
 
-  const response = await fetch(`${restBaseUrl()}/server_setups?${params.toString()}`, {
-    headers: supabaseHeaders(),
-  })
-  if (!response.ok) {
-    throw new Error(`Failed to load server setups: ${response.status}`)
+  for (let offset = 0; offset < MAX_FETCH_ROWS; offset += PAGE_SIZE) {
+    const params = new URLSearchParams({
+      scope: 'eq.global',
+      order: 'generated_at.desc',
+      limit: String(PAGE_SIZE),
+      offset: String(offset),
+      select: 'id,coin,setup_json,outcomes_json',
+    })
+
+    const response = await fetch(`${restBaseUrl()}/server_setups?${params.toString()}`, {
+      headers: supabaseHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(`Failed to load server setups: ${response.status}`)
+    }
+
+    const page = await response.json() as ServerSetupRow[]
+    rows.push(...page)
+
+    if (page.length < PAGE_SIZE) {
+      return { rows, truncated: false }
+    }
   }
 
-  return response.json() as Promise<ServerSetupRow[]>
+  return { rows, truncated: true }
 }
 
 async function fetchResolutionCandles(setup: SuggestedSetup): Promise<Candle[]> {

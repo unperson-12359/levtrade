@@ -25,6 +25,7 @@ import type { TrackedCoin } from '../types/market'
 const FEAR_GREED_REFRESH_MS = 15 * 60 * 1000
 const CRYPTO_MACRO_REFRESH_MS = 5 * 60 * 1000
 const BINANCE_CONTEXT_REFRESH_MS = 2 * 60 * 1000
+const SERVER_SETUP_REFRESH_MS = 5 * 60 * 1000
 
 export class DataManager {
   private ws: HyperliquidWS
@@ -33,8 +34,11 @@ export class DataManager {
   private unsubscribers: (() => void)[] = []
   private initialized = false
   private contextRefreshing = false
+  private serverSetupRefreshing = false
   private setupSyncInFlight = false
   private pendingSetupUploadIds = new Set<string>()
+  private lastServerSetupFetchAt: string | null = null
+  private lastServerSetupRefreshAttemptAt = 0
 
   constructor(store: StoreApi<AppStore>) {
     this.store = store
@@ -195,10 +199,15 @@ export class DataManager {
 
   private async fetchServerSetupHistory(): Promise<void> {
     try {
-      const state = this.store.getState()
-      const latestTracked = state.serverTrackedSetups[state.serverTrackedSetups.length - 1]
-      const since = latestTracked ? new Date(latestTracked.setup.generatedAt).toISOString() : undefined
-      const response = await fetchServerSetups(since)
+      const response = await fetchServerSetups(
+        this.lastServerSetupFetchAt
+          ? { updatedSince: this.lastServerSetupFetchAt }
+          : undefined,
+      )
+
+      if (response.fetchedAt) {
+        this.lastServerSetupFetchAt = response.fetchedAt
+      }
 
       if (response.truncated) {
         this.store.getState().addError(
@@ -214,6 +223,24 @@ export class DataManager {
       void this.syncLocalSetupsToServer()
     } catch {
       // Non-critical: the dashboard still works with browser-local fallback history if server hydration fails.
+    }
+  }
+
+  private shouldRefreshServerSetupHistory(now: number): boolean {
+    return now - this.lastServerSetupRefreshAttemptAt >= SERVER_SETUP_REFRESH_MS
+  }
+
+  private async refreshServerSetupHistoryIfNeeded(now: number): Promise<void> {
+    if (this.serverSetupRefreshing || !this.shouldRefreshServerSetupHistory(now)) {
+      return
+    }
+
+    this.serverSetupRefreshing = true
+    this.lastServerSetupRefreshAttemptAt = now
+    try {
+      await this.fetchServerSetupHistory()
+    } finally {
+      this.serverSetupRefreshing = false
     }
   }
 
@@ -488,6 +515,8 @@ export class DataManager {
         this.store.getState().resolveTrackedOutcomes()
         this.store.getState().pruneTrackerHistory()
 
+        void this.refreshServerSetupHistoryIfNeeded(now)
+
         // Refresh external context at independent cadences
         this.refreshExternalContextIfNeeded()
       } catch {
@@ -639,6 +668,9 @@ export class DataManager {
       this.pollTimer = null
     }
     this.initialized = false
+    this.serverSetupRefreshing = false
+    this.lastServerSetupFetchAt = null
+    this.lastServerSetupRefreshAttemptAt = 0
   }
 }
 

@@ -14,6 +14,8 @@ export function getSetupWindowStart(generatedAt: number): number {
 }
 
 export function getSetupWindowBoundary(generatedAt: number, windowMs: number): number {
+  // Settlement becomes eligible at the exact generated timestamp plus the window.
+  // We do not round this boundary to the next hour; only the candle lookup bucket is hour-aligned.
   return generatedAt + windowMs
 }
 

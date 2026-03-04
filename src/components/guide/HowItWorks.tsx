@@ -29,7 +29,7 @@ export function HowItWorks() {
             <ol className="guide-list guide-list--numbered">
               <li><strong>Is the market favorable?</strong> - regime, volatility, funding, money flow</li>
               <li><strong>Is there an entry right now?</strong> - signal strength, stretch, agreement, setup geometry</li>
-              <li><strong>How big should the trade be?</strong> - position size, leverage, stop, target, liquidation</li>
+              <li><strong>What should the position composition be?</strong> - capital used, leverage, stop, target, liquidation</li>
             </ol>
             <p>
               Everything is color-coded: <span className="text-signal-green">green</span> means favorable,{' '}

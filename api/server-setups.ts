@@ -30,7 +30,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const since = resolveSince(req.query)
-    const rows = await fetchServerSetupsFromSupabase(since)
+    const updatedSince = resolveUpdatedSince(req.query)
+    const rows = await fetchServerSetupsFromSupabase(since, updatedSince)
 
     const setups = rows.map((row) => {
       const outcomes = normalizeOutcomes(row.outcomes_json)
@@ -59,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-async function fetchServerSetupsFromSupabase(since: string): Promise<Array<{
+async function fetchServerSetupsFromSupabase(since: string, updatedSince: string | null): Promise<Array<{
   id: string
   coin: string
   direction: string
@@ -85,6 +86,9 @@ async function fetchServerSetupsFromSupabase(since: string): Promise<Array<{
       offset: String(offset),
       select: 'id,coin,direction,setup_json,outcomes_json,generated_at,updated_at',
     })
+    if (updatedSince) {
+      params.set('updated_at', `gte.${updatedSince}`)
+    }
 
     const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/server_setups?${params.toString()}`, {
       headers: {
@@ -124,6 +128,16 @@ function resolveSince(query: VercelRequest['query']): string {
 
   const days = Math.min(MAX_DAYS, parseInt(firstQueryValue(query.days) ?? '', 10) || DEFAULT_DAYS)
   return new Date(Date.now() - days * MS_PER_DAY).toISOString()
+}
+
+function resolveUpdatedSince(query: VercelRequest['query']): string | null {
+  const rawUpdatedSince = firstQueryValue(query.updatedSince)
+  const parsedUpdatedSince = rawUpdatedSince ? Date.parse(rawUpdatedSince) : Number.NaN
+  if (!Number.isFinite(parsedUpdatedSince)) {
+    return null
+  }
+
+  return new Date(parsedUpdatedSince).toISOString()
 }
 
 function normalizeOutcomes(raw: Record<string, unknown> | null): Record<SetupWindow, SetupOutcome> {

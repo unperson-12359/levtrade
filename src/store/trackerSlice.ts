@@ -9,7 +9,10 @@ import type {
 } from '../types/tracker'
 import { TRACKED_COINS, type TrackedCoin } from '../types/market'
 import { computeDecisionState } from '../signals/decision'
-import { computeRisk } from '../signals/risk'
+import {
+  computeSuggestedPositionComposition,
+  deriveCompositionRiskStatus,
+} from '../signals/suggestedPosition'
 import { TRACKER_RETENTION_MS } from '../config/constants'
 import { floorToHour } from '../utils/candleTime'
 import {
@@ -116,15 +119,14 @@ export const createTrackerSlice: StateCreator<AppStore, [], [], TrackerSlice> = 
 
   trackAllDecisionSnapshots: () => {
     const state = get()
-    const riskCoin = state.riskInputs.coin
-    const riskSignals = state.signals[riskCoin]
-    const atr = riskSignals?.volatility.atr ?? 0
-    const riskOutputs = state.riskInputs.entryPrice > 0 ? computeRisk(state.riskInputs, atr) : null
-    const globalRiskStatus: RiskStatus = riskOutputs
-      ? riskOutputs.tradeGrade === 'green' ? 'safe'
-        : riskOutputs.tradeGrade === 'yellow' ? 'borderline'
-        : 'danger'
-      : 'unknown'
+    const selectedCoin = state.selectedCoin
+    const selectedComposition = computeSuggestedPositionComposition({
+      coin: selectedCoin,
+      accountSize: state.riskInputs.accountSize,
+      currentPrice: state.prices[selectedCoin],
+      signals: state.signals[selectedCoin],
+    })
+    const selectedRiskStatus = deriveCompositionRiskStatus(selectedComposition)
 
     for (const coin of TRACKED_COINS) {
       const signals = state.signals[coin]
@@ -133,7 +135,7 @@ export const createTrackerSlice: StateCreator<AppStore, [], [], TrackerSlice> = 
         continue
       }
 
-      const activeRiskStatus: RiskStatus = coin === riskCoin ? globalRiskStatus : 'unknown'
+      const activeRiskStatus: RiskStatus = coin === selectedCoin ? selectedRiskStatus : 'unknown'
       const decision = computeDecisionState({
         composite: signals.composite,
         entryGeometry: signals.entryGeometry,

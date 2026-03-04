@@ -1,5 +1,5 @@
 import { useStore } from '../store'
-import type { RiskStatus } from '../types/signals'
+import { deriveCompositionRiskStatus } from '../signals/suggestedPosition'
 import { useSuggestedPosition } from './useSuggestedPosition'
 
 export function usePositionRisk() {
@@ -9,14 +9,7 @@ export function usePositionRisk() {
   const position = useSuggestedPosition(selectedCoin)
   const riskInputs = position.inputs
   const riskOutputs = position.outputs
-
-  const riskStatus: RiskStatus = riskOutputs
-    ? riskOutputs.tradeGrade === 'green'
-      ? 'safe'
-      : riskOutputs.tradeGrade === 'yellow'
-        ? 'borderline'
-        : 'danger'
-    : 'unknown'
+  const riskStatus = deriveCompositionRiskStatus(position)
 
   return {
     inputs: riskInputs,

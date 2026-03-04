@@ -48,6 +48,8 @@ const ENTRY_SIMILARITY_THRESHOLD = 0.02
 const SIGNAL_DEDUPE_FETCH_LIMIT = 400
 const SIGNAL_RESOLUTION_PAGE_SIZE = 500
 const SIGNAL_RESOLUTION_MAX_ROWS = 5_000
+const SETUP_RESOLUTION_PAGE_SIZE = 500
+const SETUP_RESOLUTION_MAX_ROWS = 5_000
 
 const COINALYZE_SYMBOLS: Record<TrackedCoin, string> = {
   BTC: 'BTCUSD_PERP.H',
@@ -344,24 +346,7 @@ async function resolveServerOutcomes(scope: string, coin: string, candles: Candl
   let resolved = 0
   try {
     const cutoff = new Date(now - 7 * 24 * MS_PER_HOUR).toISOString()
-    const params = new URLSearchParams({
-      scope: `eq.${scope}`,
-      coin: `eq.${coin}`,
-      generated_at: `gte.${cutoff}`,
-      order: 'generated_at.desc',
-      limit: '100',
-      select: 'id,setup_json,outcomes_json',
-    })
-    const res = await fetch(`${restBaseUrl()}/server_setups?${params.toString()}`, {
-      headers: supabaseHeaders(),
-    })
-    if (!res.ok) return 0
-
-    const rows = (await res.json()) as Array<{
-      id: string
-      setup_json: SuggestedSetup
-      outcomes_json: Record<SetupWindow, SetupOutcome> | null
-    }>
+    const rows = await fetchServerSetupsForResolution(scope, coin, cutoff)
 
     const windows: SetupWindow[] = ['4h', '24h', '72h']
 
@@ -395,6 +380,53 @@ async function resolveServerOutcomes(scope: string, coin: string, candles: Candl
   }
 
   return resolved
+}
+
+async function fetchServerSetupsForResolution(
+  scope: string,
+  coin: string,
+  cutoff: string,
+): Promise<Array<{
+  id: string
+  setup_json: SuggestedSetup
+  outcomes_json: Record<SetupWindow, SetupOutcome> | null
+}>> {
+  const rows: Array<{
+    id: string
+    setup_json: SuggestedSetup
+    outcomes_json: Record<SetupWindow, SetupOutcome> | null
+  }> = []
+
+  for (let offset = 0; offset < SETUP_RESOLUTION_MAX_ROWS; offset += SETUP_RESOLUTION_PAGE_SIZE) {
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      coin: `eq.${coin}`,
+      generated_at: `gte.${cutoff}`,
+      order: 'generated_at.desc',
+      limit: String(SETUP_RESOLUTION_PAGE_SIZE),
+      offset: String(offset),
+      select: 'id,setup_json,outcomes_json',
+    })
+    const res = await fetch(`${restBaseUrl()}/server_setups?${params.toString()}`, {
+      headers: supabaseHeaders(),
+    })
+    if (!res.ok) {
+      return rows
+    }
+
+    const page = (await res.json()) as Array<{
+      id: string
+      setup_json: SuggestedSetup
+      outcomes_json: Record<SetupWindow, SetupOutcome> | null
+    }>
+
+    rows.push(...page)
+    if (page.length < SETUP_RESOLUTION_PAGE_SIZE) {
+      break
+    }
+  }
+
+  return rows
 }
 
 async function updateSetupOutcomes(

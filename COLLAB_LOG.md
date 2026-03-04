@@ -2324,3 +2324,100 @@ Fix awkward chart behavior by preserving user zoom/pan, using real container hei
 - Manual browser QA is still needed to confirm zoom/pan persistence feels good on desktop and mobile
 - `VerificationChart` still uses a simple initial-fit model with no explicit reset button; that may be worth adding later if users want manual recovery there too
 - The main Vite client chunk remains above the warning threshold; this is performance-only and unrelated to chart behavior
+
+---
+
+## 2026-03-04 13:05 - Codex - Canonical Setup Settlement Refresh and 4-Agent Audit Handoffs
+
+### Goal
+Fix stale setup-history rows that could remain pending after their 72h window should have settled, and add four separate repo-visible handoff artifacts for the requested agent tracks:
+- stale setup settlement investigation
+- Step 1 -> Step 3 pipeline audit
+- server analytics production parity trace
+- focused repo map
+
+### Files changed
+- `.env.example`
+- `api/server-setups.ts`
+- `src/server/collector/runCollector.ts`
+- `src/services/api.ts`
+- `src/services/dataManager.ts`
+- `audits/agent-a-72h-settlement.md`
+- `audits/agent-b-step-pipeline-audit.md`
+- `audits/agent-c-production-parity.md`
+- `audits/agent-d-repo-map.md`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added browser-side incremental canonical setup-history refresh every 5 minutes so server-resolved setup outcomes can appear without a page reload
+- Added `updatedSince` support to `/api/server-setups` and wired the frontend client to use it for incremental canonical hydration
+- Expanded collector-side setup outcome resolution from a hard `100`-row per-coin cap to paginated scanning up to `5,000` rows per coin in the resolution window
+- Updated `.env.example` to match the current secured upload path using `SETUP_UPLOAD_SECRET` and `VITE_SETUP_UPLOAD_SECRET`
+- Added four separate audit/handoff files under `audits/` corresponding to the requested agent split
+
+### Verification
+- `npm run test:logic`: PASS
+- `npm run build`: PASS
+
+### Remaining risks / follow-up
+- `scripts/recompute-server-outcomes.ts` still uses a smaller repair-script fetch ceiling and was not changed in this pass
+- If setup volume exceeds the new collector pagination ceiling inside the 7-day resolution window, canonical setup resolution should be revisited again
+- The main Vite client chunk remains above the warning threshold; this is performance-only and unrelated to setup settlement freshness
+
+---
+
+## 2026-03-04 14:02 - Codex - Parallel Agent Release Consolidation
+
+### Goal
+Implement the remaining distinct issues from the four-agent plan after consolidating Claude's review:
+- repair-script parity for canonical setup settlement
+- Step 3 position-composition semantics cleanup
+- tracker risk-aware snapshot alignment to the real automatic composition engine
+- production parity and engineering handoff docs
+
+### Files changed
+- `.env.collector.example`
+- `api/_signals.d.mts`
+- `api/_signals.mjs`
+- `api/_collector.mjs`
+- `deploy/oracle/README.md`
+- `scripts/recompute-server-outcomes.ts`
+- `src/components/guide/HowItWorks.tsx`
+- `src/hooks/usePositionRisk.ts`
+- `src/hooks/useSuggestedPosition.ts`
+- `src/signals/api-entry.ts`
+- `src/signals/suggestedPosition.ts`
+- `src/store/trackerSlice.ts`
+- `src/utils/candleTime.ts`
+- `src/utils/workflowGuidance.ts`
+- `tests/run-logic-tests.mjs`
+- `audits/agent-d-repo-map.md`
+- `docs/engineering-map.md`
+- `docs/production-parity-checklist.md`
+- `COLLAB_LOG.md`
+
+### What changed
+- Extracted a shared pure Step 3 engine in `src/signals/suggestedPosition.ts` so the UI and local decision tracker derive composition state and composition-derived risk status from the same logic
+- Updated `useSuggestedPosition()` and `usePositionRisk()` to use the shared composition engine instead of duplicating Step 3 derivation in the hook layer
+- Reworked `trackAllDecisionSnapshots()` in `src/store/trackerSlice.ts` so the selected coin's risk-aware decision snapshots now follow the actual automatic composition output rather than legacy manual `riskInputs` geometry
+- Renamed remaining workflow semantics from `RISK CHECK` to `POSITION COMPOSITION` and updated Step 3 guidance copy accordingly
+- Added an explicit comment clarifying that setup settlement becomes eligible at the exact `generatedAt + window`, while only the candle lookup bucket is hour-aligned
+- Upgraded `scripts/recompute-server-outcomes.ts` from a silent `2000`-row cap to paginated fetching with a `10,000` row ceiling and a truncation warning
+- Expanded the logic regression harness to cover:
+  - `72h` deadline/grace/unresolvable behavior
+  - shared composition/risk-status logic
+  - incremental canonical refresh source wiring
+  - workflow terminology drift
+  - tracker source-of-truth drift
+- Added durable docs for production parity and repo engineering hot zones under `docs/`
+- Refreshed the lightweight Agent D audit file to point to the new maintained docs
+
+### Verification
+- `npm run test:logic`: PASS
+- `npm run build`: PASS
+- `npm run build:collector`: PASS
+
+### Remaining risks / follow-up
+- The canonical setup repair script now scans much more than before, but it still uses a ceiling and warns rather than scanning unbounded history
+- Legacy manual `riskInputs` geometry fields still exist in persisted browser state for compatibility even though tracker truth no longer depends on them
+- The main Vite client chunk remains above the warning threshold; this is performance-only and unrelated to analytics correctness or Step 3 semantics

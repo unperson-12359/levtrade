@@ -11,14 +11,21 @@ const {
   computeOIDelta,
   computeProvisionalSetup,
   computePositionPolicy,
+  computeSuggestedPositionComposition,
+  deriveCompositionRiskStatus,
   computeSetupMetrics,
 } = signals
 
 runResolveOutcomeTest()
+runSettlementBoundaryTests()
 runOiDeltaTest()
 runBuildSetupIdExportTest()
 runProvisionalSetupGateTest()
 runPositionPolicyTest()
+runSuggestedPositionCompositionTest()
+runIncrementalRefreshSourceCheck()
+runWorkflowTerminologyCheck()
+runTrackerRiskSourceCheck()
 runBundleDriftCheck()
 
 console.log('Logic regression checks passed')
@@ -58,6 +65,52 @@ function runResolveOutcomeTest() {
   assert.equal(outcome.coverageStatus, 'full')
   // 5 candles: 21:00 through 01:00 inclusive (floor of signal hour through floor of boundary)
   assert.equal(outcome.candleCountUsed, 5)
+}
+
+function runSettlementBoundaryTests() {
+  const generatedAt = Date.UTC(2026, 2, 2, 10, 17, 0)
+  const setup = {
+    coin: 'BTC',
+    direction: 'long',
+    entryPrice: 100,
+    stopPrice: 90,
+    targetPrice: 130,
+    meanReversionTarget: 110,
+    suggestedLeverage: 2,
+    suggestedPositionSize: 1000,
+    confidence: 0.7,
+    confidenceTier: 'medium',
+    regime: 'mean-reverting',
+    entryQuality: 'ideal',
+    rrRatio: 3,
+    reversionPotential: 0.75,
+    stretchSigma: 2.1,
+    atr: 2,
+    compositeValue: 0.4,
+    timeframe: '24-72h',
+    summary: '72h check',
+    generatedAt,
+    source: 'server',
+  }
+
+  const targetTime = generatedAt + 72 * 60 * 60 * 1000
+  const beforeDeadline = resolveSetupWindow(setup, '72h', [], targetTime - 1)
+  assert.equal(beforeDeadline, null)
+
+  const missingCoverageCandles = buildFlatCandles(Date.UTC(2026, 2, 2, 10), 70, 100)
+  const withinGrace = resolveSetupWindow(setup, '72h', missingCoverageCandles, targetTime + 60 * 60 * 1000)
+  assert.equal(withinGrace, null)
+
+  const afterGrace = resolveSetupWindow(setup, '72h', missingCoverageCandles, targetTime + 25 * 60 * 60 * 1000)
+  assert.ok(afterGrace)
+  assert.equal(afterGrace.result, 'unresolvable')
+  assert.equal(afterGrace.coverageStatus, 'insufficient')
+
+  const fullCoverageCandles = buildFlatCandles(Date.UTC(2026, 2, 2, 10), 73, 101)
+  const resolved = resolveSetupWindow(setup, '72h', fullCoverageCandles, targetTime + 5 * 60 * 1000)
+  assert.ok(resolved)
+  assert.equal(resolved.result, 'expired')
+  assert.equal(resolved.coverageStatus, 'full')
 }
 
 function runOiDeltaTest() {
@@ -196,12 +249,67 @@ function runPositionPolicyTest() {
   assert.equal(validatedMetrics.confidenceTier, 'high')
 }
 
+function runSuggestedPositionCompositionTest() {
+  const composition = computeSuggestedPositionComposition({
+    coin: 'BTC',
+    accountSize: 10_000,
+    currentPrice: 100,
+    signals: buildSignals(),
+  })
+
+  assert.equal(composition.mode, 'validated')
+  assert.equal(composition.status, 'ready')
+  assert.ok(composition.outputs)
+  assert.equal(deriveCompositionRiskStatus(composition), 'safe')
+
+  const noCapitalComposition = computeSuggestedPositionComposition({
+    coin: 'BTC',
+    accountSize: 0,
+    currentPrice: 100,
+    signals: buildSignals(),
+  })
+
+  assert.equal(noCapitalComposition.status, 'invalid')
+  assert.equal(deriveCompositionRiskStatus(noCapitalComposition), 'unknown')
+}
+
+function runIncrementalRefreshSourceCheck() {
+  const apiSource = readFileSync(join(__dirname, '../src/services/api.ts'), 'utf8')
+  const managerSource = readFileSync(join(__dirname, '../src/services/dataManager.ts'), 'utf8')
+  const serverApiSource = readFileSync(join(__dirname, '../api/server-setups.ts'), 'utf8')
+  const repairScriptSource = readFileSync(join(__dirname, '../scripts/recompute-server-outcomes.ts'), 'utf8')
+
+  assert.match(apiSource, /updatedSince\?: string/)
+  assert.match(managerSource, /lastServerSetupFetchAt/)
+  assert.match(managerSource, /updatedSince: this\.lastServerSetupFetchAt/)
+  assert.match(serverApiSource, /resolveUpdatedSince/)
+  assert.match(repairScriptSource, /MAX_FETCH_ROWS = 10_000/)
+}
+
+function runWorkflowTerminologyCheck() {
+  const workflowSource = readFileSync(join(__dirname, '../src/utils/workflowGuidance.ts'), 'utf8')
+  assert.match(workflowSource, /title: 'POSITION COMPOSITION'/)
+  assert.match(workflowSource, /account-sized composition/)
+}
+
+function runTrackerRiskSourceCheck() {
+  const trackerSource = readFileSync(join(__dirname, '../src/store/trackerSlice.ts'), 'utf8')
+  assert.match(trackerSource, /computeSuggestedPositionComposition/)
+  assert.doesNotMatch(trackerSource, /computeRisk\(state\.riskInputs/)
+}
+
 function candle(time, open, high, low, close) {
   return { time, open, high, low, close, volume: 1, trades: 1 }
 }
 
 function snapshot(time, oi) {
   return { time, oi }
+}
+
+function buildFlatCandles(startTime, hours, close) {
+  return Array.from({ length: hours }, (_, index) =>
+    candle(startTime + index * 60 * 60 * 1000, close, close + 0.5, close - 0.5, close),
+  )
 }
 
 function buildSignals(overrides = {}) {

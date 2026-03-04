@@ -12,8 +12,8 @@ export const WORKFLOW_STEPS = {
     question: 'Is there a real entry right now?',
   },
   3: {
-    title: 'RISK CHECK',
-    question: 'If I take it, is the size and leverage safe enough?',
+    title: 'POSITION COMPOSITION',
+    question: 'If I take it, what account-sized composition is safe enough?',
   },
 } as const
 
@@ -176,11 +176,11 @@ export function getEntryWorkflowGuidance(
       tone: 'green',
       label: 'ENTRY VALID',
       summary: `Signals and price stretch are lined up for a ${directionLabel.toLowerCase()} setup right now.`,
-      action: 'Move to Step 3 and check whether the position size and leverage are acceptable.',
-      nextStep: 'Only enter after Step 3 says the risk is safe enough.',
+      action: 'Move to Step 3 and review the account-sized position composition.',
+      nextStep: 'Only enter after Step 3 says the composition is safe enough.',
       canProceed: true,
       directionLabel,
-      waitFor: 'A safe position size in Step 3.',
+      waitFor: 'A safe account-sized composition in Step 3.',
       reasons: filteredReasons,
     }
   }
@@ -250,7 +250,7 @@ export function getRiskWorkflowGuidance(
       tone: 'red',
       label: 'FIX INPUTS',
       summary: outputs.inputErrorMessage ?? 'One of the risk inputs is invalid.',
-      action: 'Fix the highlighted input before trusting any size or liquidation numbers.',
+      action: 'Fix the highlighted input before trusting the composition or liquidation numbers.',
       nextStep: 'Then re-check whether the trade is still worth taking.',
       canProceed: false,
     }
@@ -260,8 +260,8 @@ export function getRiskWorkflowGuidance(
     return {
       tone: 'yellow',
       label: 'PENDING',
-      summary: 'Only size a trade here after Step 2 says there is a real entry.',
-      action: 'Use this section after Steps 1 and 2 are both green.',
+      summary: 'Only compose a trade here after Step 2 says there is a real entry.',
+      action: 'Use this section after Steps 1 and 2 are both green to confirm the account-sized composition.',
       nextStep: 'Come back here once the setup is valid.',
       canProceed: false,
     }
@@ -271,7 +271,7 @@ export function getRiskWorkflowGuidance(
     return {
       tone: 'yellow',
       label: 'NOT SIZED',
-      summary: 'You still need to enter account capital before LevTrade can finalize the composition and risk check.',
+      summary: 'You still need to enter account capital before LevTrade can finalize the position composition.',
       action: 'Set your account capital in Step 3 to size the current setup automatically.',
       nextStep: 'Only enter once this section says SAFE ENOUGH.',
       canProceed: false,
@@ -361,7 +361,7 @@ export function getDecisionHeroGuidance(
     return {
       tone: risk.tone,
       badge: risk.label,
-      title: 'TRADE IS POSSIBLE, CHECK RISK',
+      title: 'TRADE IS POSSIBLE, CHECK COMPOSITION',
       summary: entry.summary,
       action: risk.action,
       nextStep: risk.nextStep,
@@ -426,8 +426,8 @@ export function getMethodologySteps(
       status: !entry.canProceed ? 'pending' : risk.canProceed ? 'done' : 'active',
       tone: !entry.canProceed ? 'yellow' : risk.tone,
       label: !entry.canProceed ? 'WAIT FOR STEP 2' : risk.label,
-      detail: !entry.canProceed ? 'Only size a trade after the entry check passes.' : risk.summary,
-      successRule: 'Only trade when the size and leverage are acceptable.',
+      detail: !entry.canProceed ? 'Only compose a trade after the entry check passes.' : risk.summary,
+      successRule: 'Only trade when the proposed composition is safe enough.',
     },
   ]
 }

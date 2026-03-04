@@ -28,7 +28,21 @@ COINALYZE_API_KEY=...
 
 `COINALYZE_API_KEY` is optional. If omitted, the collector falls back to Supabase-backed OI history.
 
-## 3. Install the service
+## 3. Build and verify locally before restart
+
+From the repo root:
+
+```bash
+npm run test:logic
+npm run build
+npm run build:collector
+```
+
+The Vercel fallback path depends on the bundled API artifacts:
+- `api/_signals.mjs`
+- `api/_collector.mjs`
+
+## 4. Install the service
 
 Copy and adjust the template if your deploy user/path differ:
 
@@ -38,14 +52,19 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now levtrade-collector
 ```
 
-## 4. Verify it is running
+## 5. Verify it is running
 
 ```bash
 sudo systemctl status levtrade-collector
 journalctl -u levtrade-collector -f
 ```
 
-## 5. Updating after new deploys
+Expected healthy behavior:
+- the collector service stays active
+- new heartbeat rows appear in `collector_heartbeat`
+- new setups and resolved outcomes continue to update in Supabase
+
+## 6. Updating after new deploys
 
 ```bash
 cd /srv/levtrade/collector/app
@@ -54,3 +73,11 @@ npm ci
 npm run build:collector
 sudo systemctl restart levtrade-collector
 ```
+
+## 7. Post-restart checks
+
+After restart, verify:
+- `collector_heartbeat` shows a recent `last_run_at`
+- Setup History in the frontend picks up canonical settlement updates without a full reload
+- `/api/collector-heartbeat` reports `live` when the collector is healthy
+- `/api/signal-accuracy` continues to return canonical data

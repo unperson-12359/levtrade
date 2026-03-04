@@ -1461,6 +1461,8 @@ var ENTRY_SIMILARITY_THRESHOLD = 0.02;
 var SIGNAL_DEDUPE_FETCH_LIMIT = 400;
 var SIGNAL_RESOLUTION_PAGE_SIZE = 500;
 var SIGNAL_RESOLUTION_MAX_ROWS = 5e3;
+var SETUP_RESOLUTION_PAGE_SIZE = 500;
+var SETUP_RESOLUTION_MAX_ROWS = 5e3;
 var COINALYZE_SYMBOLS = {
   BTC: "BTCUSD_PERP.H",
   ETH: "ETHUSD_PERP.H",
@@ -1711,19 +1713,7 @@ async function resolveServerOutcomes(scope, coin, candles, now) {
   let resolved = 0;
   try {
     const cutoff = new Date(now - 7 * 24 * MS_PER_HOUR2).toISOString();
-    const params = new URLSearchParams({
-      scope: `eq.${scope}`,
-      coin: `eq.${coin}`,
-      generated_at: `gte.${cutoff}`,
-      order: "generated_at.desc",
-      limit: "100",
-      select: "id,setup_json,outcomes_json"
-    });
-    const res = await fetch(`${restBaseUrl()}/server_setups?${params.toString()}`, {
-      headers: supabaseHeaders()
-    });
-    if (!res.ok) return 0;
-    const rows = await res.json();
+    const rows = await fetchServerSetupsForResolution(scope, coin, cutoff);
     const windows = ["4h", "24h", "72h"];
     for (const row of rows) {
       const currentOutcomes = row.outcomes_json ?? {
@@ -1749,6 +1739,32 @@ async function resolveServerOutcomes(scope, coin, candles, now) {
   } catch {
   }
   return resolved;
+}
+async function fetchServerSetupsForResolution(scope, coin, cutoff) {
+  const rows = [];
+  for (let offset = 0; offset < SETUP_RESOLUTION_MAX_ROWS; offset += SETUP_RESOLUTION_PAGE_SIZE) {
+    const params = new URLSearchParams({
+      scope: `eq.${scope}`,
+      coin: `eq.${coin}`,
+      generated_at: `gte.${cutoff}`,
+      order: "generated_at.desc",
+      limit: String(SETUP_RESOLUTION_PAGE_SIZE),
+      offset: String(offset),
+      select: "id,setup_json,outcomes_json"
+    });
+    const res = await fetch(`${restBaseUrl()}/server_setups?${params.toString()}`, {
+      headers: supabaseHeaders()
+    });
+    if (!res.ok) {
+      return rows;
+    }
+    const page = await res.json();
+    rows.push(...page);
+    if (page.length < SETUP_RESOLUTION_PAGE_SIZE) {
+      break;
+    }
+  }
+  return rows;
 }
 async function updateSetupOutcomes(setupId, outcomes, now) {
   await fetch(`${restBaseUrl()}/server_setups?id=eq.${setupId}`, {

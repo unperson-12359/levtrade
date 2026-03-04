@@ -146,11 +146,17 @@ export interface ServerSetupsResponse {
   maxRowsApplied: number | null
 }
 
-export async function fetchServerSetups(since?: string): Promise<ServerSetupsResponse> {
+export async function fetchServerSetups(options?: {
+  since?: string
+  updatedSince?: string
+}): Promise<ServerSetupsResponse> {
   try {
     const params = new URLSearchParams()
-    if (since) {
-      params.set('since', since)
+    if (options?.since) {
+      params.set('since', options.since)
+    }
+    if (options?.updatedSince) {
+      params.set('updatedSince', options.updatedSince)
     }
 
     const res = await fetch(`/api/server-setups${params.size > 0 ? `?${params.toString()}` : ''}`)
