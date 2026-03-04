@@ -28,6 +28,7 @@ runWorkflowTerminologyCheck()
 runWorkflowStateSourceCheck()
 runDashboardLayoutReflowCheck()
 runStep2KpiLayoutCheck()
+runSuggestedSetupKpiLayoutCheck()
 runHeroPairCompressionCheck()
 runTrackerRiskSourceCheck()
 runBundleDriftCheck()
@@ -352,13 +353,27 @@ function runStep2KpiLayoutCheck() {
   assert.doesNotMatch(signalSource, /sectionId="step2-advanced"/)
   assert.doesNotMatch(signalSource, /ExpandableSection/)
   assert.match(signalSource, /className="step2-kpi-shell"/)
-  assert.match(signalSource, /className="step2-kpi-row"/)
+  assert.match(signalSource, /className="step2-kpi-row step2-kpi-row--single"/)
   assert.match(signalSource, /<EntryGeometryPanel embedded mode="compactKpi" \/>/)
   assert.match(geometrySource, /mode\?: 'default' \| 'compactKpi'/)
   assert.match(geometrySource, /if \(mode === 'compactKpi'\)/)
+  assert.doesNotMatch(geometrySource, /step2-kpi-row--geometry/)
   assert.match(cssSource, /\.step2-kpi-shell \{/)
   assert.match(cssSource, /\.step2-kpi-row \{/)
+  assert.match(cssSource, /\.step2-kpi-row--single \{/)
   assert.match(cssSource, /\.step2-kpi-card--clickable/)
+}
+
+function runSuggestedSetupKpiLayoutCheck() {
+  const setupSource = readFileSync(join(__dirname, '../src/components/setup/SetupCard.tsx'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+
+  assert.match(setupSource, /className="setup-card__kpi-row"/)
+  assert.match(setupSource, /setup-kpi-card/)
+  assert.doesNotMatch(setupSource, /setup-card__prices/)
+  assert.match(cssSource, /\.setup-card__kpi-row \{/)
+  assert.match(cssSource, /grid-template-columns: repeat\(9, minmax\(0, 1fr\)\);/)
+  assert.match(cssSource, /\.setup-kpi-card \{/)
 }
 
 function runHeroPairCompressionCheck() {

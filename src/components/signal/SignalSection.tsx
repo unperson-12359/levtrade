@@ -79,7 +79,7 @@ export function SignalSection() {
       <SetupCard coin={coin} />
 
       <div className="step2-kpi-shell">
-        <div className="step2-kpi-row">
+        <div className="step2-kpi-row step2-kpi-row--single">
           {signals.composite.signalBreakdown.map((signal) => (
             <div key={signal.name} className="step2-kpi-card">
               <div className="step2-kpi-card__label">{signal.name}</div>
@@ -111,9 +111,8 @@ export function SignalSection() {
             onActivate={() => setDrawerKind('zScore')}
             compact
           />
+          <EntryGeometryPanel embedded mode="compactKpi" />
         </div>
-
-        <EntryGeometryPanel embedded mode="compactKpi" />
       </div>
 
       <SignalDrawer coin={coin} signalKind={drawerKind} onClose={() => setDrawerKind(null)} />

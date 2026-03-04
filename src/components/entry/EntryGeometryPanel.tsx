@@ -42,30 +42,28 @@ export function EntryGeometryPanel({ embedded = false, mode = 'default' }: Entry
   if (mode === 'compactKpi') {
     return (
       <>
-        <div className="step2-kpi-row step2-kpi-row--geometry">
-          <Stat
-            label="Distance"
-            value={`${entry.distanceFromMeanPct.toFixed(2)}%`}
-            tone={entry.color}
-            onActivate={() => setDrawerKind('distanceFromMean')}
-            compact
-          />
-          <Stat
-            label={<JargonTerm term="Stretch" />}
-            value={`${entry.stretchZEquivalent.toFixed(2)}\u03C3`}
-            tone={entry.color}
-            onActivate={() => setDrawerKind('stretchZ')}
-            compact
-          />
-          <Stat
-            label={<JargonTerm term="ATR">ATR Dislocation</JargonTerm>}
-            value={`${entry.atrDislocation.toFixed(2)}x`}
-            tone={entry.color}
-            onActivate={() => setDrawerKind('atr')}
-            compact
-          />
-          <Stat label="Bias" value={entry.directionBias.toUpperCase()} tone={entry.color} compact />
-        </div>
+        <Stat
+          label="Distance"
+          value={`${entry.distanceFromMeanPct.toFixed(2)}%`}
+          tone={entry.color}
+          onActivate={() => setDrawerKind('distanceFromMean')}
+          compact
+        />
+        <Stat
+          label={<JargonTerm term="Stretch" />}
+          value={`${entry.stretchZEquivalent.toFixed(2)}\u03C3`}
+          tone={entry.color}
+          onActivate={() => setDrawerKind('stretchZ')}
+          compact
+        />
+        <Stat
+          label={<JargonTerm term="ATR">ATR Dislocation</JargonTerm>}
+          value={`${entry.atrDislocation.toFixed(2)}x`}
+          tone={entry.color}
+          onActivate={() => setDrawerKind('atr')}
+          compact
+        />
+        <Stat label="Bias" value={entry.directionBias.toUpperCase()} tone={entry.color} compact />
         <SignalDrawer coin={coin} signalKind={drawerKind} onClose={() => setDrawerKind(null)} />
       </>
     )

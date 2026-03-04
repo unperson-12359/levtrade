@@ -2563,3 +2563,42 @@ Compress the two `BEGIN HERE` summary cards (`What to do now` and `What to wait 
 ### Remaining risks / follow-up
 - Visual tuning may still be requested for typography density preference on very small screens, but no logic behavior changed
 - Main Vite chunk warning remains above threshold; unchanged and unrelated to this pass
+
+---
+
+## 2026-03-04 17:22 - Codex - Ultra-Compact Single-Row KPI Compression
+
+### Goal
+Compress Step 2 KPI cards into a strict single desktop row (8 cards) and apply the same dense horizontal treatment to Suggested Setup KPIs without changing trading logic.
+
+### Files changed
+- `src/components/signal/SignalSection.tsx`
+- `src/components/entry/EntryGeometryPanel.tsx`
+- `src/components/setup/SetupCard.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Step 2 now renders all compact KPIs in one desktop strip:
+  - 3 composite breakdown cards
+  - 1 z-score/stretch card
+  - 4 entry-geometry cards
+- Updated `EntryGeometryPanel` compact mode to emit only compact KPI cards (no nested row wrapper), so `SignalSection` can place all 8 cards in a single shared row.
+- Tightened card density for Step 2 KPI cards (smaller padding, labels, values, hints) for better horizontal utilization.
+- Reworked Suggested Setup KPI rendering into one compact horizontal row (`setup-card__kpi-row`) combining:
+  - 4 price-level cards (entry/stop/target/mean target)
+  - 5 setup stats (R:R, leverage, entry quality, alignment, timeframe)
+- Added dedicated compact Suggested Setup KPI card styles (`setup-kpi-card*`) and responsive wrap behavior on smaller breakpoints.
+- Expanded logic regression checks to assert:
+  - Step 2 single-row class hook (`step2-kpi-row--single`)
+  - no legacy compact geometry row wrapper remains
+  - Suggested Setup compact KPI row/hooks exist and legacy split price-grid hook is absent
+
+### Verification
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- Card density is intentionally aggressive; minor typography tuning may still be needed for smallest devices.
+- Main Vite client chunk warning remains above 500k and is unrelated to this layout change.

@@ -93,17 +93,22 @@ export function SetupCard({ coin }: SetupCardProps) {
         </div>
       </div>
 
-      <div className="setup-card__prices">
-        <PriceStat coin={coin} label="Entry" price={setup.entryPrice} helper="Current setup trigger" tone="yellow" />
-        <PriceStat coin={coin} label="Stop" price={setup.stopPrice} helper={`${formatPercent(stopPct, 1)} from entry`} tone="red" />
-        <PriceStat coin={coin} label="Target" price={setup.targetPrice} helper={`${formatPercent(targetPct, 1)} from entry`} tone="green" />
+      <div className="setup-card__kpi-row">
+        <PriceStat coin={coin} label="Entry" price={setup.entryPrice} helper="Trigger" tone="yellow" />
+        <PriceStat coin={coin} label="Stop" price={setup.stopPrice} helper={formatPercent(stopPct, 1)} tone="red" />
+        <PriceStat coin={coin} label="Target" price={setup.targetPrice} helper={formatPercent(targetPct, 1)} tone="green" />
         <PriceStat
           coin={coin}
-          label="Mean-reversion target"
+          label="Mean target"
           price={setup.meanReversionTarget}
-          helper={`${formatPercent(meanPct, 1)} from entry`}
+          helper={formatPercent(meanPct, 1)}
           tone="yellow"
         />
+        <Stat label="R:R" value={formatRR(setup.rrRatio)} tone="green" />
+        <Stat label="Lev" value={formatLeverage(setup.suggestedLeverage)} tone="yellow" />
+        <Stat label="Entry" value={formatEntryQuality(setup.entryQuality)} tone={entryQualityTone(setup.entryQuality)} />
+        <Stat label="Align" value={`${setup.agreementCount}/${setup.agreementTotal}`} tone="yellow" />
+        <Stat label="TF" value={setup.timeframe} tone="yellow" />
       </div>
 
       <div className="price-range-bar">
@@ -120,14 +125,6 @@ export function SetupCard({ coin }: SetupCardProps) {
           className="price-range-bar__marker price-range-bar__marker--target"
           style={{ left: `${priceMarkers.target}%` }}
         />
-      </div>
-
-      <div className="stat-grid">
-        <Stat label="R:R" value={formatRR(setup.rrRatio)} tone="green" />
-        <Stat label="Suggested leverage" value={formatLeverage(setup.suggestedLeverage)} tone="yellow" />
-        <Stat label="Entry quality" value={formatEntryQuality(setup.entryQuality)} tone={entryQualityTone(setup.entryQuality)} />
-        <Stat label="Signal alignment" value={`${setup.agreementCount}/${setup.agreementTotal}`} tone="yellow" />
-        <Stat label="Expected timeframe" value={setup.timeframe} tone="yellow" />
       </div>
 
       <div className="setup-card__summary">
@@ -157,19 +154,20 @@ function PriceStat({
   tone: SignalColor
 }) {
   return (
-    <div className="workflow-summary-card">
-      <div className="workflow-summary-card__kicker">{label}</div>
-      <div className={`workflow-summary-card__value ${toneTextClasses[tone]}`}>{formatPrice(price, coin)}</div>
-      <div className="workflow-summary-card__copy">{helper}</div>
+    <div className="setup-kpi-card setup-kpi-card--price">
+      <div className="setup-kpi-card__label">{label}</div>
+      <div className={`setup-kpi-card__value ${toneTextClasses[tone]}`}>{formatPrice(price, coin)}</div>
+      <div className="setup-kpi-card__copy">{helper}</div>
     </div>
   )
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone: SignalColor }) {
   return (
-    <div className="stat-card">
-      <div className="stat-label">{label}</div>
-      <div className={`stat-value ${toneTextClasses[tone]}`}>{value}</div>
+    <div className="setup-kpi-card">
+      <div className="setup-kpi-card__label">{label}</div>
+      <div className={`setup-kpi-card__value ${toneTextClasses[tone]}`}>{value}</div>
+      <div className="setup-kpi-card__copy">Live metric</div>
     </div>
   )
 }
