@@ -2720,3 +2720,36 @@ Make Step 3 (`Position composition`) smaller, less intrusive, and more intuitive
 ### Remaining risks / follow-up
 - Legacy `stat-grid` styles still coexist with new Step 3 compact grids; further style cleanup could reduce CSS surface area.
 - Additional visual tuning may still be requested after live review on very narrow devices, but logic/outputs are unchanged.
+
+---
+
+## 2026-03-04 19:31 - Codex - Top-Row Split (Begin Here + Step 2 Side-by-Side)
+
+### Goal
+Implement the planned top-row reflow so `Begin Here` (Decision Hero) and Step 2 share the same horizontal row on desktop, while preserving stacked behavior on smaller viewports and keeping all strategy logic untouched.
+
+### Files changed
+- `src/components/layout/DashboardLayout.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Reworked the top workflow row in `DashboardLayout` to a split container:
+  - `workflow-row-top workflow-row-top--split`
+  - left slot `workflow-row-top__decision` renders `DecisionHero`
+  - right slot `workflow-row-top__signal` renders `SignalSection`
+- Added CSS split-layout hooks:
+  - `.workflow-row-top--split` as two-column desktop grid
+  - `.workflow-row-top__decision` / `.workflow-row-top__signal` sizing guards
+  - reused hero summary grid sizing for the new decision wrapper
+- Added responsive fallback:
+  - at `max-width: 1280px`, split row collapses to a single column (stacked)
+- Updated logic source checks so regression tests assert the new top-row structure and CSS hooks.
+
+### Verification
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- This pass is layout-only and compile/test-verified; visual QA on the live page is still recommended to fine-tune relative card heights at wide desktop widths.

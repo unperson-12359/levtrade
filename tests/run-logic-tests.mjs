@@ -333,7 +333,10 @@ function runDashboardLayoutReflowCheck() {
   const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
 
   assert.match(layoutSource, /className="dashboard-shell has-bottom-rail-padding"/)
-  assert.match(layoutSource, /className="workflow-row-top"/)
+  assert.match(layoutSource, /className="workflow-row-top workflow-row-top--split"/)
+  assert.match(layoutSource, /className="workflow-row-top__decision"/)
+  assert.match(layoutSource, /className="workflow-row-top__signal"/)
+  assert.match(layoutSource, /<DecisionHero \/>/)
   assert.match(layoutSource, /<SignalSection \/>/)
   assert.match(layoutSource, /className="workflow-row-main"/)
   assert.match(layoutSource, /className="workflow-col-left"/)
@@ -345,6 +348,9 @@ function runDashboardLayoutReflowCheck() {
   assert.match(liveRailSource, /className="live-rail-shell"/)
   assert.match(liveRailSource, /className="live-rail-track scrollbar-hide"/)
   assert.match(cssSource, /\.live-rail-shell \{\s*position: fixed;/)
+  assert.match(cssSource, /\.workflow-row-top--split \{/)
+  assert.match(cssSource, /\.workflow-row-top__decision,/)
+  assert.match(cssSource, /\.workflow-row-top__signal \{/)
   assert.match(cssSource, /\.workflow-row-main \{/)
 }
 

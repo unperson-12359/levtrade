@@ -811,11 +811,24 @@ button {
   min-width: 0;
 }
 
-.dashboard-decision--full .workflow-summary-grid--hero {
+.dashboard-decision--full .workflow-summary-grid--hero,
+.workflow-row-top__decision .workflow-summary-grid--hero {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .workflow-row-top {
+  min-width: 0;
+}
+
+.workflow-row-top--split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+}
+
+.workflow-row-top__decision,
+.workflow-row-top__signal {
   min-width: 0;
 }
 
@@ -3191,6 +3204,10 @@ button {
 }
 
 @media (max-width: 1280px) {
+  .workflow-row-top--split {
+    grid-template-columns: 1fr;
+  }
+
   .workflow-row-main {
     grid-template-columns: 250px minmax(0, 1fr) 320px;
   }
@@ -3218,7 +3235,7 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-decision--full .workflow-summary-grid--hero {
+  .workflow-row-top__decision .workflow-summary-grid--hero {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

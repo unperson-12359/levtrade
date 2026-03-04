@@ -58,12 +58,13 @@ export function DashboardLayout() {
       <LiveSetupsBanner />
 
       <main className="dashboard-shell has-bottom-rail-padding">
-        <section className="dashboard-decision dashboard-decision--full">
-          <DecisionHero />
-        </section>
-
-        <section className="workflow-row-top">
-          <SignalSection />
+        <section className="workflow-row-top workflow-row-top--split">
+          <div className="workflow-row-top__decision">
+            <DecisionHero />
+          </div>
+          <div className="workflow-row-top__signal">
+            <SignalSection />
+          </div>
         </section>
 
         <section className="workflow-row-main">
