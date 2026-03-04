@@ -23,12 +23,12 @@ export function DecisionHero() {
 
       <p className="decision-hero__summary">{hero.summary}</p>
 
-      <div className="workflow-summary-grid workflow-summary-grid--hero">
-        <article className="workflow-summary-card">
+      <div className="workflow-summary-grid workflow-summary-grid--hero decision-hero__pair">
+        <article className="workflow-summary-card decision-hero__pair-card decision-hero__pair-card--action">
           <div className="workflow-summary-card__kicker">What to do now</div>
           <p className="workflow-summary-card__copy">{hero.action}</p>
         </article>
-        <article className="workflow-summary-card">
+        <article className="workflow-summary-card decision-hero__pair-card decision-hero__pair-card--wait">
           <div className="workflow-summary-card__kicker">What to wait for</div>
           <p className="workflow-summary-card__copy">{hero.nextStep}</p>
         </article>

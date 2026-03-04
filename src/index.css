@@ -679,7 +679,7 @@ button {
 .decision-hero {
   border: 1px solid color-mix(in srgb, var(--color-border-subtle) 65%, transparent);
   border-radius: 0.7rem;
-  padding: 0.55rem;
+  padding: 0.48rem 0.52rem;
   background:
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 42%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
@@ -707,14 +707,43 @@ button {
 }
 
 .decision-hero__summary {
-  margin-top: 0.2rem;
-  font-size: 0.8rem;
-  line-height: 1.4;
+  margin-top: 0.15rem;
+  font-size: 0.76rem;
+  line-height: 1.32;
   color: var(--color-text-primary);
 }
 
 .decision-hero__reasons {
-  margin-top: 0.25rem;
+  margin-top: 0.2rem;
+}
+
+.decision-hero__pair {
+  margin-top: 0.22rem;
+  gap: 0.24rem;
+}
+
+.decision-hero__pair-card {
+  border-radius: 0.46rem;
+  padding: 0.24rem 0.38rem;
+}
+
+.decision-hero__pair-card .workflow-summary-card__kicker {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+}
+
+.decision-hero__pair-card .workflow-summary-card__copy {
+  margin-top: 0.11rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.decision-hero__pair-card--action {
+  background: color-mix(in srgb, var(--color-bg-input) 88%, transparent);
+}
+
+.decision-hero__pair-card--wait {
+  background: color-mix(in srgb, var(--color-bg-input) 85%, transparent);
 }
 
 .decision-strip__headline {

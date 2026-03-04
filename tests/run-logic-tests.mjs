@@ -28,6 +28,7 @@ runWorkflowTerminologyCheck()
 runWorkflowStateSourceCheck()
 runDashboardLayoutReflowCheck()
 runStep2KpiLayoutCheck()
+runHeroPairCompressionCheck()
 runTrackerRiskSourceCheck()
 runBundleDriftCheck()
 
@@ -358,6 +359,20 @@ function runStep2KpiLayoutCheck() {
   assert.match(cssSource, /\.step2-kpi-shell \{/)
   assert.match(cssSource, /\.step2-kpi-row \{/)
   assert.match(cssSource, /\.step2-kpi-card--clickable/)
+}
+
+function runHeroPairCompressionCheck() {
+  const heroSource = readFileSync(join(__dirname, '../src/components/decision/DecisionHero.tsx'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+
+  assert.match(heroSource, /decision-hero__pair/)
+  assert.match(heroSource, /decision-hero__pair-card/)
+  assert.match(heroSource, /decision-hero__pair-card--action/)
+  assert.match(heroSource, /decision-hero__pair-card--wait/)
+  assert.match(cssSource, /\.decision-hero__pair \{/)
+  assert.match(cssSource, /\.decision-hero__pair-card \{/)
+  assert.match(cssSource, /\.decision-hero__pair-card--action \{/)
+  assert.match(cssSource, /\.decision-hero__pair-card--wait \{/)
 }
 
 function runTrackerRiskSourceCheck() {

@@ -2529,3 +2529,37 @@ Remove the Step 2 collapsible advanced-details block and use the wider horizonta
 ### Remaining risks / follow-up
 - Visual tuning may still be needed for exact compact density preferences on ultra-small screens, but functionality and logic paths are unchanged
 - Main Vite client chunk warning remains above 500k; unchanged and unrelated to this Step 2 UI refactor
+
+---
+
+## 2026-03-04 16:56 - Codex - Hero Pair Compression
+
+### Goal
+Compress the two `BEGIN HERE` summary cards (`What to do now` and `What to wait for`) to use horizontal space better and reduce vertical bulk without changing any decision logic.
+
+### Files changed
+- `src/components/decision/DecisionHero.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added explicit compact pair classes in `DecisionHero`:
+  - `decision-hero__pair`
+  - `decision-hero__pair-card`
+  - `decision-hero__pair-card--action`
+  - `decision-hero__pair-card--wait`
+- Reduced hero pair card density via CSS:
+  - tighter card padding
+  - smaller kicker/copy typography
+  - reduced spacing/margins in the hero section
+- Kept status/tone logic and hero content flow unchanged
+- Added regression assertions in logic tests to guard compact Hero pair structure/styles
+
+### Verification
+- `npm run test:logic`: PASS
+- `npm run build`: PASS
+
+### Remaining risks / follow-up
+- Visual tuning may still be requested for typography density preference on very small screens, but no logic behavior changed
+- Main Vite chunk warning remains above threshold; unchanged and unrelated to this pass
