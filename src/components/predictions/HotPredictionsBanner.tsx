@@ -5,31 +5,13 @@ import type { TrackedCoin } from '../../types/market'
 import type { TrackedSetup } from '../../types/setup'
 import { SignalDrawer } from '../shared/SignalDrawer'
 
-/* ── Styling maps ────────────────────────────────────────────────────── */
-
-const PROFIT_STYLES: Record<HeatTier, { border: string; bg: string; cls: string }> = {
-  warm: {
-    border: 'border-signal-green/20',
-    bg: 'bg-signal-green/5',
-    cls: '',
-  },
-  hot: {
-    border: 'border-signal-green/40',
-    bg: 'bg-signal-green/10',
-    cls: 'shadow-[0_0_8px_0_rgba(34,197,94,0.12)]',
-  },
-  'on-fire': {
-    border: 'border-signal-green/60',
-    bg: 'bg-signal-green/15',
-    cls: 'live-setup-card--on-fire',
-  },
+const PROFIT_CLASSES: Record<HeatTier, string> = {
+  warm: 'live-rail-card--warm',
+  hot: 'live-rail-card--hot',
+  'on-fire': 'live-rail-card--on-fire live-setup-card--on-fire',
 }
 
-const UNDERWATER_STYLE = {
-  border: 'border-signal-red/25',
-  bg: 'bg-signal-red/5',
-  cls: '',
-}
+const UNDERWATER_CLASS = 'live-rail-card--underwater'
 
 const HEAT_LABELS: Record<HeatTier, string> = {
   warm: 'Warm',
@@ -43,8 +25,6 @@ const TIER_COLORS: Record<string, string> = {
   low: 'text-text-muted',
 }
 
-/* ── Component ───────────────────────────────────────────────────────── */
-
 export function LiveSetupsBanner() {
   const liveSetups = useLiveSetups()
   const [reviewSetup, setReviewSetup] = useState<TrackedSetup | null>(null)
@@ -56,62 +36,57 @@ export function LiveSetupsBanner() {
 
   return (
     <>
-      <div className="border-b border-border-subtle/50 bg-bg-secondary/60 px-4 py-1.5 sm:px-6">
-        <div className="mx-auto max-w-[1600px]">
-          {/* Header */}
-          <div className="mb-1 flex items-center gap-2">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted">
-              Open Setups
-            </span>
+      <section className="live-rail-shell" aria-label="Open setups carousel">
+        <div className="live-rail-inner">
+          <div className="live-rail-header">
+            <span className="live-rail-title">Open Setups</span>
             {profitCount > 0 && (
-              <span className="rounded-full bg-signal-green/15 px-1.5 py-0.5 text-[10px] font-semibold text-signal-green">
+              <span className="live-rail-pill live-rail-pill--green">
                 {profitCount} winning
               </span>
             )}
             {underwaterCount > 0 && (
-              <span className="rounded-full bg-signal-red/15 px-1.5 py-0.5 text-[10px] font-semibold text-signal-red">
+              <span className="live-rail-pill live-rail-pill--red">
                 {underwaterCount} underwater
               </span>
             )}
           </div>
 
-          {/* Cards */}
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="live-rail-track scrollbar-hide">
             {liveSetups.map((s) => {
               const isProfit = s.status === 'profit'
-              const style = isProfit ? PROFIT_STYLES[s.heatTier] : UNDERWATER_STYLE
+              const styleClass = isProfit ? PROFIT_CLASSES[s.heatTier] : UNDERWATER_CLASS
               const { coin, direction, confidenceTier, entryPrice, stopPrice, targetPrice, generatedAt } =
                 s.tracked.setup
 
               return (
                 <button
                   key={s.tracked.id}
+                  type="button"
                   onClick={() => setReviewSetup(s.tracked)}
-                  className={`flex min-w-[170px] shrink-0 cursor-pointer flex-col gap-0.5 rounded-md border ${style.border} ${style.bg} ${style.cls} px-2.5 py-1.5 text-left transition-colors hover:bg-bg-card-hover`}
+                  className={`live-rail-card ${styleClass}`}
                 >
-                  {/* Row 1: coin + direction + confidence */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold text-text-primary">{coin}</span>
+                  <div className="live-rail-card__head">
+                    <div className="live-rail-card__asset">
+                      <span className="live-rail-card__coin">{coin}</span>
                       <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+                        className={`live-rail-card__direction ${
                           direction === 'long'
-                            ? 'bg-signal-green/15 text-signal-green'
-                            : 'bg-signal-red/15 text-signal-red'
+                            ? 'live-rail-card__direction--long'
+                            : 'live-rail-card__direction--short'
                         }`}
                       >
                         {direction}
                       </span>
                     </div>
                     <span
-                      className={`text-[10px] font-medium uppercase ${TIER_COLORS[confidenceTier] ?? 'text-text-muted'}`}
+                      className={`live-rail-card__confidence ${TIER_COLORS[confidenceTier] ?? 'text-text-muted'}`}
                     >
                       {confidenceTier}
                     </span>
                   </div>
 
-                  {/* Row 2: Entry / Stop / Target */}
-                  <div className="flex items-center gap-2 text-[10px] text-text-secondary">
+                  <div className="live-rail-card__prices">
                     <span>
                       E <span className="text-text-primary">{formatPrice(entryPrice, coin as TrackedCoin)}</span>
                     </span>
@@ -125,15 +100,12 @@ export function LiveSetupsBanner() {
                     </span>
                   </div>
 
-                  {/* Row 3: P&L + status label */}
-                  <div className="flex items-baseline justify-between">
-                    <span
-                      className={`text-xs font-bold ${isProfit ? 'text-signal-green' : 'text-signal-red'}`}
-                    >
+                  <div className="live-rail-card__pnl-row">
+                    <span className={`live-rail-card__pnl ${isProfit ? 'text-signal-green' : 'text-signal-red'}`}>
                       {formatPercent(s.unrealizedPct)}
                     </span>
                     <span
-                      className={`text-[10px] font-semibold uppercase ${
+                      className={`live-rail-card__status ${
                         isProfit
                           ? s.heatTier === 'on-fire'
                             ? 'text-signal-green'
@@ -147,18 +119,16 @@ export function LiveSetupsBanner() {
                     </span>
                   </div>
 
-                  {/* Row 4: Progress bar */}
-                  <div className="h-1 w-full overflow-hidden rounded-full bg-border-subtle/40">
+                  <div className="live-rail-card__progress-track">
                     <div
-                      className={`h-full rounded-full transition-[width] duration-700 ${
+                      className={`live-rail-card__progress-fill ${
                         isProfit ? 'bg-signal-green' : 'bg-signal-red'
                       }`}
                       style={{ width: `${s.progressPct}%`, opacity: 0.5 + s.progressPct / 200 }}
                     />
                   </div>
 
-                  {/* Row 5: Progress label + time */}
-                  <div className="flex items-center justify-between text-[10px] text-text-muted">
+                  <div className="live-rail-card__foot">
                     <span>
                       {isProfit
                         ? `${Math.round(s.progressPct)}% to target`
@@ -171,9 +141,8 @@ export function LiveSetupsBanner() {
             })}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Setup Autopsy drawer — opens when a card is clicked */}
       <SignalDrawer
         coin={reviewSetup?.setup.coin ?? 'BTC'}
         signalKind={reviewSetup ? 'setup' : null}

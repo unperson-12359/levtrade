@@ -57,12 +57,21 @@ export function DashboardLayout() {
 
       <LiveSetupsBanner />
 
-      <main className="dashboard-shell">
-        <aside className="dashboard-decision">
+      <main className="dashboard-shell has-bottom-rail-padding">
+        <section className="dashboard-decision dashboard-decision--full">
           <DecisionHero />
-        </aside>
+        </section>
 
-        <section className="workspace-stack dashboard-main">
+        <section className="workflow-row-top">
+          <SignalSection />
+        </section>
+
+        <section className="workflow-row-main">
+          <aside className="workflow-col-left">
+            <MarketRail />
+          </aside>
+
+          <section className="workflow-col-center">
           <div className="panel-shell panel-shell--chart">
             <div className="chart-header-row">
               <div className="panel-kicker">Price map</div>
@@ -80,16 +89,12 @@ export function DashboardLayout() {
             </div>
             <PriceChart coin={coin} embedded showHeader={false} />
           </div>
+          </section>
+
+          <aside className="workflow-col-right">
+            <RiskSection />
+          </aside>
         </section>
-
-        <aside className="dashboard-risk">
-          <RiskSection />
-        </aside>
-
-        <div className="steps-row">
-          <MarketRail />
-          <SignalSection />
-        </div>
       </main>
     </div>
   )

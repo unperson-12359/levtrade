@@ -236,14 +236,208 @@ button {
               inset 0 0 0 1px rgba(59, 130, 246, 0.12);
 }
 
+.live-rail-shell {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-subtle) 68%, transparent);
+  background: color-mix(in srgb, var(--color-bg-secondary) 92%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.live-rail-inner {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0.28rem 0.6rem calc(0.45rem + env(safe-area-inset-bottom));
+}
+
+.live-rail-header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.3rem;
+}
+
+.live-rail-title {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.live-rail-pill {
+  border-radius: 999px;
+  padding: 0.1rem 0.34rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.live-rail-pill--green {
+  color: var(--color-signal-green);
+  background: color-mix(in srgb, var(--color-signal-green) 16%, transparent);
+}
+
+.live-rail-pill--red {
+  color: var(--color-signal-red);
+  background: color-mix(in srgb, var(--color-signal-red) 16%, transparent);
+}
+
+.live-rail-track {
+  display: flex;
+  gap: 0.38rem;
+  overflow-x: auto;
+  padding-bottom: 0.05rem;
+}
+
+.live-rail-card {
+  min-width: 148px;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-subtle) 70%, transparent);
+  background: color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  padding: 0.34rem 0.45rem;
+  text-align: left;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.live-rail-card:hover {
+  background: var(--color-bg-card-hover);
+}
+
+.live-rail-card--warm {
+  border-color: color-mix(in srgb, var(--color-signal-green) 24%, transparent);
+  background: color-mix(in srgb, var(--color-signal-green) 7%, var(--color-bg-card));
+}
+
+.live-rail-card--hot {
+  border-color: color-mix(in srgb, var(--color-signal-green) 34%, transparent);
+  background: color-mix(in srgb, var(--color-signal-green) 12%, var(--color-bg-card));
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.12);
+}
+
+.live-rail-card--on-fire {
+  border-color: color-mix(in srgb, var(--color-signal-green) 48%, transparent);
+  background: color-mix(in srgb, var(--color-signal-green) 16%, var(--color-bg-card));
+}
+
+.live-rail-card--underwater {
+  border-color: color-mix(in srgb, var(--color-signal-red) 28%, transparent);
+  background: color-mix(in srgb, var(--color-signal-red) 7%, var(--color-bg-card));
+}
+
+.live-rail-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+
+.live-rail-card__asset {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.live-rail-card__coin {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.live-rail-card__direction {
+  border-radius: 0.2rem;
+  padding: 0.05rem 0.22rem;
+  font-size: 0.54rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.live-rail-card__direction--long {
+  background: color-mix(in srgb, var(--color-signal-green) 18%, transparent);
+  color: var(--color-signal-green);
+}
+
+.live-rail-card__direction--short {
+  background: color-mix(in srgb, var(--color-signal-red) 18%, transparent);
+  color: var(--color-signal-red);
+}
+
+.live-rail-card__confidence {
+  font-size: 0.54rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.live-rail-card__prices {
+  margin-top: 0.18rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.58rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.live-rail-card__pnl-row {
+  margin-top: 0.14rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.live-rail-card__pnl {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.live-rail-card__status {
+  font-size: 0.54rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.live-rail-card__progress-track {
+  margin-top: 0.18rem;
+  height: 0.16rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border-subtle) 55%, transparent);
+}
+
+.live-rail-card__progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 700ms ease;
+}
+
+.live-rail-card__foot {
+  margin-top: 0.18rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+  font-size: 0.54rem;
+  color: var(--color-text-muted);
+}
+
 .dashboard-shell {
   max-width: 1600px;
   margin: 0 auto;
   padding: 0.5rem;
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 340px;
-  gap: 0.5rem;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  align-items: stretch;
+}
+
+.has-bottom-rail-padding {
+  padding-bottom: clamp(5.25rem, 13vh, 7.75rem);
 }
 
 .workspace-stack,
@@ -290,75 +484,34 @@ button {
   min-width: 0;
 }
 
-.steps-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-column: 1 / 3;
-  gap: 0.6rem;
+.dashboard-decision {
   min-width: 0;
+}
+
+.dashboard-decision--full .workflow-summary-grid--hero {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workflow-row-top {
+  min-width: 0;
+}
+
+.workflow-row-main {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 340px;
+  gap: 0.55rem;
   align-items: start;
 }
 
-.steps-row .panel-shell {
-  padding: 0.6rem;
-}
-
-.steps-row .panel-title {
-  font-size: 0.88rem;
-}
-
-.steps-row .panel-copy {
-  font-size: 0.82rem;
-  margin-top: 0.3rem;
-}
-
-.steps-row .market-rail-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.steps-row .market-rail-grid__primary {
-  grid-column: span 2;
-}
-
-.steps-row .breakdown-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.steps-row .stat-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.steps-row .setup-card__prices {
-  gap: 0.5rem;
-}
-
-.dashboard-secondary {
+.workflow-col-left,
+.workflow-col-center,
+.workflow-col-right {
   min-width: 0;
 }
 
-.dashboard-decision {
-  min-width: 0;
-  align-self: start;
-  grid-column: 1;
-}
-
-.dashboard-decision .workflow-summary-grid--hero {
-  grid-template-columns: 1fr;
-}
-
-.dashboard-main {
-  min-width: 0;
-  grid-column: 2;
-}
-
-.dashboard-risk {
-  min-width: 0;
-  grid-column: 3;
-  grid-row: 1 / 3;
-}
-
-.dashboard-rail {
-  min-width: 0;
+.workflow-col-center {
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-shell {
@@ -2487,8 +2640,8 @@ button {
 }
 
 @media (max-width: 1280px) {
-  .dashboard-shell {
-    grid-template-columns: 260px minmax(0, 1fr) 320px;
+  .workflow-row-main {
+    grid-template-columns: 250px minmax(0, 1fr) 320px;
   }
 
   .market-rail-grid {
@@ -2505,24 +2658,24 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-shell {
+  .workflow-row-main {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-decision .workflow-summary-grid--hero {
+  .dashboard-decision--full .workflow-summary-grid--hero {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dashboard-decision,
-  .dashboard-main,
-  .dashboard-risk {
-    grid-column: auto;
-    grid-row: auto;
+  .workflow-col-center {
+    order: 1;
   }
 
-  .steps-row {
-    grid-template-columns: 1fr;
-    grid-column: auto;
+  .workflow-col-left {
+    order: 2;
+  }
+
+  .workflow-col-right {
+    order: 3;
   }
 
   .market-rail-grid,
@@ -2597,6 +2750,23 @@ button {
 @media (max-width: 640px) {
   .dashboard-shell {
     padding: 0.55rem;
+  }
+
+  .has-bottom-rail-padding {
+    padding-bottom: clamp(5.1rem, 14vh, 7.4rem);
+  }
+
+  .live-rail-inner {
+    padding: 0.26rem 0.45rem calc(0.35rem + env(safe-area-inset-bottom));
+  }
+
+  .live-rail-track {
+    gap: 0.28rem;
+  }
+
+  .live-rail-card {
+    min-width: 134px;
+    padding: 0.32rem 0.38rem;
   }
 
   .signal-drawer {
@@ -2678,6 +2848,40 @@ button {
   .dashboard-shell {
     padding: 0.4rem;
     gap: 0.5rem;
+  }
+
+  .has-bottom-rail-padding {
+    padding-bottom: clamp(4.8rem, 14vh, 6.2rem);
+  }
+
+  .live-rail-header {
+    margin-bottom: 0.22rem;
+  }
+
+  .live-rail-title {
+    font-size: 0.56rem;
+    letter-spacing: 0.12em;
+  }
+
+  .live-rail-pill {
+    font-size: 0.56rem;
+    padding: 0.08rem 0.28rem;
+  }
+
+  .live-rail-card {
+    min-width: 124px;
+    padding: 0.3rem 0.34rem;
+  }
+
+  .live-rail-card__coin,
+  .live-rail-card__pnl {
+    font-size: 0.66rem;
+  }
+
+  .live-rail-card__prices,
+  .live-rail-card__status,
+  .live-rail-card__foot {
+    font-size: 0.5rem;
   }
 
   .panel-shell,

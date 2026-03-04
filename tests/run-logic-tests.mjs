@@ -26,6 +26,7 @@ runSuggestedPositionCompositionTest()
 runIncrementalRefreshSourceCheck()
 runWorkflowTerminologyCheck()
 runWorkflowStateSourceCheck()
+runDashboardLayoutReflowCheck()
 runTrackerRiskSourceCheck()
 runBundleDriftCheck()
 
@@ -318,6 +319,27 @@ function runWorkflowStateSourceCheck() {
   assert.match(cssSource, /\.workflow-card--pulse/)
   assert.match(cssSource, /\.methodology-step__detail--next/)
   assert.match(cssSource, /prefers-reduced-motion: reduce/)
+}
+
+function runDashboardLayoutReflowCheck() {
+  const layoutSource = readFileSync(join(__dirname, '../src/components/layout/DashboardLayout.tsx'), 'utf8')
+  const liveRailSource = readFileSync(join(__dirname, '../src/components/predictions/HotPredictionsBanner.tsx'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+
+  assert.match(layoutSource, /className="dashboard-shell has-bottom-rail-padding"/)
+  assert.match(layoutSource, /className="workflow-row-top"/)
+  assert.match(layoutSource, /<SignalSection \/>/)
+  assert.match(layoutSource, /className="workflow-row-main"/)
+  assert.match(layoutSource, /className="workflow-col-left"/)
+  assert.match(layoutSource, /className="workflow-col-center"/)
+  assert.match(layoutSource, /className="workflow-col-right"/)
+  assert.match(layoutSource, /<MarketRail \/>/)
+  assert.match(layoutSource, /<RiskSection \/>/)
+  assert.match(layoutSource, /<PriceChart coin=\{coin\} embedded showHeader=\{false\} \/>/)
+  assert.match(liveRailSource, /className="live-rail-shell"/)
+  assert.match(liveRailSource, /className="live-rail-track scrollbar-hide"/)
+  assert.match(cssSource, /\.live-rail-shell \{\s*position: fixed;/)
+  assert.match(cssSource, /\.workflow-row-main \{/)
 }
 
 function runTrackerRiskSourceCheck() {

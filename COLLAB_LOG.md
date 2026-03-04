@@ -2457,3 +2457,35 @@ Add a sharper visual state system to the three main workflow cards so Step 1, St
 ### Remaining risks / follow-up
 - This pass validates compile/runtime correctness, but the new card treatment still deserves manual browser QA to tune visual intensity on desktop and mobile
 - The main Vite client chunk remains above the warning threshold; this is performance-only and unrelated to the workflow-state feature
+
+---
+
+## 2026-03-04 16:18 - Codex - Workflow Reflow and Bottom Sticky Live Rail
+
+### Goal
+Rework dashboard layout so Step 2 sits above the chart horizontally, Step 1 is on the left, Step 3 is on the right, and the live/trending setup carousel is reduced and moved to a fixed bottom rail without changing trading logic.
+
+### Files changed
+- `src/components/layout/DashboardLayout.tsx`
+- `src/components/predictions/HotPredictionsBanner.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Replaced the previous mixed grid/steps-row layout with a strict workflow structure:
+  - Decision hero at the top of the workspace
+  - Step 2 (`SignalSection`) in a horizontal row above chart
+  - Main row with Step 1 left (`MarketRail`), chart center, Step 3 right (`RiskSection`)
+- Converted `LiveSetupsBanner` into a compact fixed bottom carousel rail with reduced card density while preserving click-to-open setup autopsy behavior
+- Added explicit content bottom padding so the fixed rail does not overlap core workspace content
+- Added responsive ordering so the layout collapses cleanly on mobile while keeping Step 2 above chart
+- Added regression checks that assert the new layout structure and fixed-bottom rail hooks in source
+
+### Verification
+- `npm run test:logic`: PASS
+- `npm run build`: PASS
+
+### Remaining risks / follow-up
+- Manual browser QA is still needed to tune fixed-rail visual density on very small phones and ensure no perceived overlap with drawers during rapid interaction
+- Main Vite client chunk still exceeds warning threshold; unchanged from previous releases and unrelated to this layout refactor
