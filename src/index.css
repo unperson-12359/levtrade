@@ -1190,6 +1190,40 @@ button {
   letter-spacing: 0.04em;
 }
 
+.entry-readiness-rail__confidence {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.32rem;
+}
+
+.entry-readiness-rail__confidence-label {
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.entry-readiness-rail__confidence-value {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.entry-readiness-rail__confidence-value--low {
+  color: color-mix(in srgb, var(--color-signal-red) 84%, var(--color-text-secondary));
+}
+
+.entry-readiness-rail__confidence-value--medium {
+  color: color-mix(in srgb, var(--color-signal-yellow) 84%, var(--color-text-secondary));
+}
+
+.entry-readiness-rail__confidence-value--high {
+  color: color-mix(in srgb, var(--color-signal-green) 84%, var(--color-text-secondary));
+}
+
 .subpanel-shell,
 .chart-shell {
   border-radius: 0.55rem;
@@ -3703,6 +3737,14 @@ button {
     max-width: 210px;
   }
 
+  .entry-readiness-rail__confidence-label {
+    font-size: 0.48rem;
+  }
+
+  .entry-readiness-rail__confidence-value {
+    font-size: 0.56rem;
+  }
+
   .methodology-steps {
     grid-template-columns: 1fr;
   }
@@ -3964,6 +4006,14 @@ button {
 
   .entry-readiness-rail__meter {
     max-width: 190px;
+  }
+
+  .entry-readiness-rail__confidence-label {
+    font-size: 0.44rem;
+  }
+
+  .entry-readiness-rail__confidence-value {
+    font-size: 0.52rem;
   }
 
   .methodology-banner {

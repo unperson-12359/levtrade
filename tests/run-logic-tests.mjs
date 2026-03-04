@@ -373,10 +373,17 @@ function runEntryReadinessRailSourceCheck() {
   assert.match(railSource, /entry-readiness-light--\$\{light\.state\}/)
   assert.match(railSource, /role="progressbar"/)
   assert.match(railSource, /entry-readiness-gauge__needle/)
-  assert.match(railSource, /entry-readiness-rail__pct--\$\{readiness\.band\}/)
+  assert.match(railSource, /entry-readiness-rail__pct--\$\{readiness\.primaryBand\}/)
+  assert.match(railSource, /entry-readiness-rail__confidence/)
+  assert.match(railSource, /readiness\.weightedConfidencePct/)
+  assert.match(railSource, /entry-readiness-rail__confidence-value--\$\{readiness\.confidenceBand\}/)
+  assert.match(railSource, /readiness\.triggerProgressPct/)
 
   assert.match(hookSource, /computeSetupMetrics/)
-  assert.match(hookSource, /probabilityPct/)
+  assert.match(hookSource, /triggerProgressPct/)
+  assert.match(hookSource, /weightedConfidencePct/)
+  assert.match(hookSource, /primaryBand/)
+  assert.match(hookSource, /confidenceBand/)
   assert.match(hookSource, /Data Fresh/)
   assert.match(hookSource, /Warmup/)
   assert.match(hookSource, /Regime/)
@@ -391,6 +398,8 @@ function runEntryReadinessRailSourceCheck() {
   assert.match(cssSource, /\.entry-readiness-light--on \{/)
   assert.match(cssSource, /\.entry-readiness-progress__fill--high \{/)
   assert.match(cssSource, /\.entry-readiness-gauge__needle \{/)
+  assert.match(cssSource, /\.entry-readiness-rail__confidence \{/)
+  assert.match(cssSource, /\.entry-readiness-rail__confidence-value--high \{/)
 }
 
 function runStep2KpiLayoutCheck() {

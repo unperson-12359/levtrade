@@ -19,8 +19,10 @@ export interface EntryReadinessModel {
   lights: EntryReadinessLight[]
   activeCount: number
   totalCount: number
-  probabilityPct: number
-  band: EntryReadinessBand
+  triggerProgressPct: number
+  weightedConfidencePct: number
+  primaryBand: EntryReadinessBand
+  confidenceBand: EntryReadinessBand
 }
 
 const LIGHT_WEIGHTS = {
@@ -52,8 +54,10 @@ export function useEntryReadiness(coin: TrackedCoin): EntryReadinessModel {
         ],
         activeCount: 0,
         totalCount: 8,
-        probabilityPct: 0,
-        band: 'low',
+        triggerProgressPct: 0,
+        weightedConfidencePct: 0,
+        primaryBand: 'low',
+        confidenceBand: 'low',
       }
     }
 
@@ -198,15 +202,18 @@ export function useEntryReadiness(coin: TrackedCoin): EntryReadinessModel {
     if (!warmupComplete) probability = Math.min(probability, 0.58)
     if (regimeBlocked) probability = Math.min(probability, 0.46)
 
-    const probabilityPct = Math.round(clamp(probability, 0, 1) * 100)
+    const weightedConfidencePct = Math.round(clamp(probability, 0, 1) * 100)
     const activeCount = lights.filter((light) => light.state === 'on').length
+    const triggerProgressPct = Math.round((activeCount / lights.length) * 100)
 
     return {
       lights,
       activeCount,
       totalCount: lights.length,
-      probabilityPct,
-      band: probabilityPct >= 70 ? 'high' : probabilityPct >= 40 ? 'medium' : 'low',
+      triggerProgressPct,
+      weightedConfidencePct,
+      primaryBand: bandFromPct(triggerProgressPct),
+      confidenceBand: bandFromPct(weightedConfidencePct),
     }
   }, [signals])
 }
@@ -238,4 +245,10 @@ function qualityToScore(entryQuality: EntryQuality): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
+}
+
+function bandFromPct(pct: number): EntryReadinessBand {
+  if (pct >= 70) return 'high'
+  if (pct >= 40) return 'medium'
+  return 'low'
 }

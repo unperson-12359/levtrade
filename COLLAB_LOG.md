@@ -2905,3 +2905,37 @@ Execute a comprehensive end-to-end review of site workflow wiring (signals -> en
 ### Remaining risks / follow-up
 - Vite still reports a >500kB main chunk warning; this is not a functional bug but should be addressed with chunking/code-split strategy.
 - The readiness rail percentage remains a weighted confidence visualization, not a guaranteed outcome probability.
+
+---
+
+## 2026-03-04 22:34 - Codex - Readiness Meter Truth Fix (Lights vs Percent)
+
+### Goal
+Fix the mismatch where light-hit count and readiness percentage could diverge confusingly (e.g. `4/8 lights` shown with `4%`), by splitting trigger progress from weighted confidence.
+
+### Files changed
+- `src/hooks/useEntryReadiness.ts`
+- `src/components/chart/EntryReadinessRail.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Updated readiness model output to expose two explicit metrics:
+  - `triggerProgressPct` (primary): computed from ON lights ratio (`activeCount / totalCount`)
+  - `weightedConfidencePct` (secondary): weighted score with penalties (existing confidence logic)
+- Added separate visual bands:
+  - `primaryBand` for trigger progress
+  - `confidenceBand` for weighted confidence
+- Rewired rail UI so the **main gauge + bar + large %** use `triggerProgressPct` (truthful to light hits).
+- Kept weighted model visible as a **secondary confidence readout** (`Confidence xx%`) to preserve nuance.
+- Added CSS hooks for secondary confidence display and responsive sizing.
+- Updated regression checks to assert the split-metric wiring and new confidence UI hooks.
+
+### Verification
+- `npm.cmd run typecheck:api`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- The confidence number is still a weighted model (not a guaranteed win probability), now explicitly presented as secondary to avoid interpretation drift.
