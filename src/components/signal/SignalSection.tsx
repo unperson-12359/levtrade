@@ -8,7 +8,6 @@ import type { SignalSeriesKind } from '../../utils/provenance'
 import { getEntryWorkflowGuidance, getMarketWorkflowGuidance, getWorkflowStepStates } from '../../utils/workflowGuidance'
 import { EntryGeometryPanel } from '../entry/EntryGeometryPanel'
 import { StepLabel } from '../methodology/StepLabel'
-import { ExpandableSection } from '../shared/ExpandableSection'
 import { JargonTerm } from '../shared/JargonTerm'
 import { SignalDrawer } from '../shared/SignalDrawer'
 import { SetupCard } from '../setup/SetupCard'
@@ -79,13 +78,13 @@ export function SignalSection() {
 
       <SetupCard coin={coin} />
 
-      <ExpandableSection sectionId="step2-advanced" title="advanced signal details">
-        <div className="breakdown-grid">
+      <div className="step2-kpi-shell">
+        <div className="step2-kpi-row">
           {signals.composite.signalBreakdown.map((signal) => (
-            <div key={signal.name} className="stat-card">
-              <div className="stat-label">{signal.name}</div>
+            <div key={signal.name} className="step2-kpi-card">
+              <div className="step2-kpi-card__label">{signal.name}</div>
               <div
-                className={`stat-value ${
+                className={`step2-kpi-card__value ${
                   signal.agrees
                     ? 'text-signal-green'
                     : signal.direction === 'neutral'
@@ -95,28 +94,27 @@ export function SignalSection() {
               >
                 {signal.direction.toUpperCase()}
               </div>
-              <div className="text-sm text-text-secondary">
+              <div className="step2-kpi-card__hint">
                 {signal.agrees
-                  ? 'Aligned with the setup'
+                  ? 'Aligned'
                   : signal.direction === 'neutral'
-                    ? 'Not active'
-                    : 'Working against the setup'}
+                    ? 'Inactive'
+                    : 'Against'}
               </div>
             </div>
           ))}
-        </div>
 
-        <div>
           <Metric
             label={<JargonTerm term="Z-Score">Price stretch</JargonTerm>}
             value={`${signals.zScore.value.toFixed(2)}\u03C3`}
             tone={signals.zScore.color}
             onActivate={() => setDrawerKind('zScore')}
+            compact
           />
         </div>
 
-        <EntryGeometryPanel embedded />
-      </ExpandableSection>
+        <EntryGeometryPanel embedded mode="compactKpi" />
+      </div>
 
       <SignalDrawer coin={coin} signalKind={drawerKind} onClose={() => setDrawerKind(null)} />
     </section>
@@ -128,12 +126,15 @@ interface MetricProps {
   value: string
   tone: 'green' | 'yellow' | 'red'
   onActivate?: () => void
+  compact?: boolean
 }
 
-function Metric({ label, value, tone, onActivate }: MetricProps) {
+function Metric({ label, value, tone, onActivate, compact = false }: MetricProps) {
+  const baseClass = compact ? 'step2-kpi-card' : 'stat-card'
+  const clickableClass = compact ? 'step2-kpi-card--clickable' : 'stat-card--clickable'
   const interactiveProps = onActivate
     ? {
-        className: 'stat-card stat-card--clickable',
+        className: `${baseClass} ${clickableClass}`,
         role: 'button' as const,
         tabIndex: 0,
         onClick: onActivate,
@@ -145,13 +146,14 @@ function Metric({ label, value, tone, onActivate }: MetricProps) {
         },
       }
     : {
-        className: 'stat-card',
+        className: baseClass,
       }
 
   return (
     <div {...interactiveProps}>
-      <div className="stat-label">{label}</div>
-      <div className={`stat-value ${toneClasses[tone]}`}>{value}</div>
+      <div className={compact ? 'step2-kpi-card__label' : 'stat-label'}>{label}</div>
+      <div className={`${compact ? 'step2-kpi-card__value' : 'stat-value'} ${toneClasses[tone]}`}>{value}</div>
+      {compact && <div className="step2-kpi-card__hint">Tap for chart</div>}
     </div>
   )
 }

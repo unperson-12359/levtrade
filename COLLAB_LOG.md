@@ -2489,3 +2489,43 @@ Rework dashboard layout so Step 2 sits above the chart horizontally, Step 1 is o
 ### Remaining risks / follow-up
 - Manual browser QA is still needed to tune fixed-rail visual density on very small phones and ensure no perceived overlap with drawers during rapid interaction
 - Main Vite client chunk still exceeds warning threshold; unchanged from previous releases and unrelated to this layout refactor
+
+---
+
+## 2026-03-04 16:41 - Codex - Step 2 Always-On Horizontal KPI Strip
+
+### Goal
+Remove the Step 2 collapsible advanced-details block and use the wider horizontal space by rendering compact signal/entry KPIs inline without changing signal logic.
+
+### Files changed
+- `src/components/signal/SignalSection.tsx`
+- `src/components/entry/EntryGeometryPanel.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Removed `ExpandableSection` usage from Step 2 (`step2-advanced`) so advanced KPI content is always visible
+- Replaced the previous larger advanced cards with a compact horizontal KPI strip:
+  - composite signal breakdown cards
+  - compact z-score/stretch card
+  - compact entry geometry cards (distance, stretch, ATR dislocation, bias)
+- Added `mode?: 'default' | 'compactKpi'` to `EntryGeometryPanel` and implemented `compactKpi` rendering for Step 2-only dense KPIs
+- Preserved chart-drawer interaction on clickable KPI cards (`Tap for chart`)
+- Added CSS classes for compact Step 2 KPI layout and responsive behavior:
+  - `step2-kpi-shell`
+  - `step2-kpi-row`
+  - `step2-kpi-card`
+  - `step2-kpi-card--clickable`
+- Expanded regression checks to assert:
+  - no Step 2 collapsible section remains
+  - compact KPI mode is wired
+  - new CSS hooks exist
+
+### Verification
+- `npm run test:logic`: PASS
+- `npm run build`: PASS
+
+### Remaining risks / follow-up
+- Visual tuning may still be needed for exact compact density preferences on ultra-small screens, but functionality and logic paths are unchanged
+- Main Vite client chunk warning remains above 500k; unchanged and unrelated to this Step 2 UI refactor

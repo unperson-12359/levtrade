@@ -27,6 +27,7 @@ runIncrementalRefreshSourceCheck()
 runWorkflowTerminologyCheck()
 runWorkflowStateSourceCheck()
 runDashboardLayoutReflowCheck()
+runStep2KpiLayoutCheck()
 runTrackerRiskSourceCheck()
 runBundleDriftCheck()
 
@@ -340,6 +341,23 @@ function runDashboardLayoutReflowCheck() {
   assert.match(liveRailSource, /className="live-rail-track scrollbar-hide"/)
   assert.match(cssSource, /\.live-rail-shell \{\s*position: fixed;/)
   assert.match(cssSource, /\.workflow-row-main \{/)
+}
+
+function runStep2KpiLayoutCheck() {
+  const signalSource = readFileSync(join(__dirname, '../src/components/signal/SignalSection.tsx'), 'utf8')
+  const geometrySource = readFileSync(join(__dirname, '../src/components/entry/EntryGeometryPanel.tsx'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+
+  assert.doesNotMatch(signalSource, /sectionId="step2-advanced"/)
+  assert.doesNotMatch(signalSource, /ExpandableSection/)
+  assert.match(signalSource, /className="step2-kpi-shell"/)
+  assert.match(signalSource, /className="step2-kpi-row"/)
+  assert.match(signalSource, /<EntryGeometryPanel embedded mode="compactKpi" \/>/)
+  assert.match(geometrySource, /mode\?: 'default' \| 'compactKpi'/)
+  assert.match(geometrySource, /if \(mode === 'compactKpi'\)/)
+  assert.match(cssSource, /\.step2-kpi-shell \{/)
+  assert.match(cssSource, /\.step2-kpi-row \{/)
+  assert.match(cssSource, /\.step2-kpi-card--clickable/)
 }
 
 function runTrackerRiskSourceCheck() {

@@ -20,9 +20,10 @@ const textToneClasses = {
 
 interface EntryGeometryPanelProps {
   embedded?: boolean
+  mode?: 'default' | 'compactKpi'
 }
 
-export function EntryGeometryPanel({ embedded = false }: EntryGeometryPanelProps) {
+export function EntryGeometryPanel({ embedded = false, mode = 'default' }: EntryGeometryPanelProps) {
   const coin = useStore((s) => s.selectedCoin)
   const { signals } = useSignals(coin)
   const [drawerKind, setDrawerKind] = useState<SignalSeriesKind | null>(null)
@@ -37,6 +38,38 @@ export function EntryGeometryPanel({ embedded = false }: EntryGeometryPanelProps
   }
 
   const entry = signals.entryGeometry
+
+  if (mode === 'compactKpi') {
+    return (
+      <>
+        <div className="step2-kpi-row step2-kpi-row--geometry">
+          <Stat
+            label="Distance"
+            value={`${entry.distanceFromMeanPct.toFixed(2)}%`}
+            tone={entry.color}
+            onActivate={() => setDrawerKind('distanceFromMean')}
+            compact
+          />
+          <Stat
+            label={<JargonTerm term="Stretch" />}
+            value={`${entry.stretchZEquivalent.toFixed(2)}\u03C3`}
+            tone={entry.color}
+            onActivate={() => setDrawerKind('stretchZ')}
+            compact
+          />
+          <Stat
+            label={<JargonTerm term="ATR">ATR Dislocation</JargonTerm>}
+            value={`${entry.atrDislocation.toFixed(2)}x`}
+            tone={entry.color}
+            onActivate={() => setDrawerKind('atr')}
+            compact
+          />
+          <Stat label="Bias" value={entry.directionBias.toUpperCase()} tone={entry.color} compact />
+        </div>
+        <SignalDrawer coin={coin} signalKind={drawerKind} onClose={() => setDrawerKind(null)} />
+      </>
+    )
+  }
 
   return (
     <section className={embedded ? 'subpanel-shell' : 'panel-shell'}>
@@ -104,12 +137,15 @@ interface StatProps {
   value: string
   tone: 'green' | 'yellow' | 'red'
   onActivate?: () => void
+  compact?: boolean
 }
 
-function Stat({ label, value, tone, onActivate }: StatProps) {
+function Stat({ label, value, tone, onActivate, compact = false }: StatProps) {
+  const baseClass = compact ? 'step2-kpi-card' : 'stat-card'
+  const clickableClass = compact ? 'step2-kpi-card--clickable' : 'stat-card--clickable'
   const interactiveProps = onActivate
     ? {
-        className: 'stat-card stat-card--clickable',
+        className: `${baseClass} ${clickableClass}`,
         role: 'button' as const,
         tabIndex: 0,
         onClick: onActivate,
@@ -121,13 +157,18 @@ function Stat({ label, value, tone, onActivate }: StatProps) {
         },
       }
     : {
-        className: 'stat-card',
+        className: baseClass,
       }
 
   return (
     <div {...interactiveProps}>
-      <div className="stat-label">{label}</div>
-      <div className={`stat-value ${textToneClasses[tone]}`}>{value}</div>
+      <div className={compact ? 'step2-kpi-card__label' : 'stat-label'}>{label}</div>
+      <div className={`${compact ? 'step2-kpi-card__value' : 'stat-value'} ${textToneClasses[tone]}`}>{value}</div>
+      {compact && (
+        <div className="step2-kpi-card__hint">
+          {onActivate ? 'Tap for chart' : 'Live geometry'}
+        </div>
+      )}
     </div>
   )
 }
