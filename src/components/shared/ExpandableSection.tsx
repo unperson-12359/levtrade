@@ -13,7 +13,7 @@ export function ExpandableSection({ sectionId, title, children }: ExpandableSect
   const contentId = `${sectionId}-content`
 
   return (
-    <section className="expandable-section">
+    <section className="expandable-section" data-section-id={sectionId}>
       <button
         type="button"
         className="expandable-section__toggle"

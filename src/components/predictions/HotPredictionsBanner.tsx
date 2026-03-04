@@ -1,28 +1,21 @@
 import { useState } from 'react'
 import { useLiveSetups, type HeatTier } from '../../hooks/useHotPredictions'
-import { formatPercent, formatPrice, timeAgo } from '../../utils/format'
-import type { TrackedCoin } from '../../types/market'
+import { formatPercent, timeAgo } from '../../utils/format'
 import type { TrackedSetup } from '../../types/setup'
 import { SignalDrawer } from '../shared/SignalDrawer'
 
 const PROFIT_CLASSES: Record<HeatTier, string> = {
-  warm: 'live-rail-card--warm',
-  hot: 'live-rail-card--hot',
-  'on-fire': 'live-rail-card--on-fire live-setup-card--on-fire',
+  warm: 'live-rail-item--warm',
+  hot: 'live-rail-item--hot',
+  'on-fire': 'live-rail-item--on-fire live-setup-card--on-fire',
 }
 
-const UNDERWATER_CLASS = 'live-rail-card--underwater'
+const UNDERWATER_CLASS = 'live-rail-item--underwater'
 
 const HEAT_LABELS: Record<HeatTier, string> = {
-  warm: 'Warm',
-  hot: 'Hot',
-  'on-fire': 'On Fire',
-}
-
-const TIER_COLORS: Record<string, string> = {
-  high: 'text-signal-green',
-  medium: 'text-signal-yellow',
-  low: 'text-text-muted',
+  warm: 'WARM',
+  hot: 'HOT',
+  'on-fire': 'ON FIRE',
 }
 
 export function LiveSetupsBanner() {
@@ -56,7 +49,7 @@ export function LiveSetupsBanner() {
             {liveSetups.map((s) => {
               const isProfit = s.status === 'profit'
               const styleClass = isProfit ? PROFIT_CLASSES[s.heatTier] : UNDERWATER_CLASS
-              const { coin, direction, confidenceTier, entryPrice, stopPrice, targetPrice, generatedAt } =
+              const { coin, direction, generatedAt } =
                 s.tracked.setup
 
               return (
@@ -64,78 +57,35 @@ export function LiveSetupsBanner() {
                   key={s.tracked.id}
                   type="button"
                   onClick={() => setReviewSetup(s.tracked)}
-                  className={`live-rail-card ${styleClass}`}
+                  className={`live-rail-item ${styleClass}`}
                 >
-                  <div className="live-rail-card__head">
-                    <div className="live-rail-card__asset">
-                      <span className="live-rail-card__coin">{coin}</span>
-                      <span
-                        className={`live-rail-card__direction ${
-                          direction === 'long'
-                            ? 'live-rail-card__direction--long'
-                            : 'live-rail-card__direction--short'
-                        }`}
-                      >
-                        {direction}
-                      </span>
-                    </div>
-                    <span
-                      className={`live-rail-card__confidence ${TIER_COLORS[confidenceTier] ?? 'text-text-muted'}`}
-                    >
-                      {confidenceTier}
-                    </span>
-                  </div>
-
-                  <div className="live-rail-card__prices">
-                    <span>
-                      E <span className="text-text-primary">{formatPrice(entryPrice, coin as TrackedCoin)}</span>
-                    </span>
-                    <span className="text-text-muted">/</span>
-                    <span>
-                      S <span className="text-signal-red">{formatPrice(stopPrice, coin as TrackedCoin)}</span>
-                    </span>
-                    <span className="text-text-muted">/</span>
-                    <span>
-                      T <span className="text-signal-green">{formatPrice(targetPrice, coin as TrackedCoin)}</span>
-                    </span>
-                  </div>
-
-                  <div className="live-rail-card__pnl-row">
-                    <span className={`live-rail-card__pnl ${isProfit ? 'text-signal-green' : 'text-signal-red'}`}>
-                      {formatPercent(s.unrealizedPct)}
-                    </span>
-                    <span
-                      className={`live-rail-card__status ${
-                        isProfit
-                          ? s.heatTier === 'on-fire'
-                            ? 'text-signal-green'
-                            : s.heatTier === 'hot'
-                              ? 'text-signal-green/70'
-                              : 'text-text-muted'
-                          : 'text-signal-red/70'
-                      }`}
-                    >
-                      {isProfit ? HEAT_LABELS[s.heatTier] : 'Underwater'}
-                    </span>
-                  </div>
-
-                  <div className="live-rail-card__progress-track">
-                    <div
-                      className={`live-rail-card__progress-fill ${
-                        isProfit ? 'bg-signal-green' : 'bg-signal-red'
-                      }`}
-                      style={{ width: `${s.progressPct}%`, opacity: 0.5 + s.progressPct / 200 }}
-                    />
-                  </div>
-
-                  <div className="live-rail-card__foot">
-                    <span>
-                      {isProfit
-                        ? `${Math.round(s.progressPct)}% to target`
-                        : `${Math.round(s.progressPct)}% to stop`}
-                    </span>
-                    <span>{timeAgo(generatedAt)}</span>
-                  </div>
+                  <span className="live-rail-item__coin">{coin}</span>
+                  <span
+                    className={`live-rail-item__direction ${
+                      direction === 'long'
+                        ? 'live-rail-item__direction--long'
+                        : 'live-rail-item__direction--short'
+                    }`}
+                  >
+                    {direction === 'long' ? 'L' : 'S'}
+                  </span>
+                  <span className={`live-rail-item__pnl ${isProfit ? 'text-signal-green' : 'text-signal-red'}`}>
+                    {formatPercent(s.unrealizedPct)}
+                  </span>
+                  <span
+                    className={`live-rail-item__status ${
+                      isProfit
+                        ? s.heatTier === 'on-fire'
+                          ? 'text-signal-green'
+                          : s.heatTier === 'hot'
+                            ? 'text-signal-green/70'
+                            : 'text-text-muted'
+                        : 'text-signal-red/80'
+                    }`}
+                  >
+                    {isProfit ? HEAT_LABELS[s.heatTier] : 'UW'}
+                  </span>
+                  <span className="live-rail-item__age">{timeAgo(generatedAt)}</span>
                 </button>
               )
             })}

@@ -2642,3 +2642,42 @@ Implement the new Step 2 layout direction so Suggested Setup and the 8 Step 2 KP
 ### Remaining risks / follow-up
 - Step 2 remains intentionally dense on large desktop; visual micro-tuning may still be requested after live UI review.
 - SonarX documentation confirms product direction and free-beta status, but integration still depends on concrete account access and operational data delivery setup.
+
+---
+
+## 2026-03-04 18:34 - Codex - Step 1 Compact Grid + Ultra-Thin Position Ticker
+
+### Goal
+Optimize Step 1 card density to use space better and convert the sticky bottom open-positions rail into a thinner ticker-style strip, without touching strategy logic.
+
+### Files changed
+- `src/components/market/MarketRail.tsx`
+- `src/components/predictions/HotPredictionsBanner.tsx`
+- `src/components/shared/ExpandableSection.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Reworked Step 1 advanced area into compact tiles:
+  - switched the regime block to the shared compact `MiniPanel` structure
+  - applied compact grid hooks (`step1-compact-grid`) for both market-detail and external-context sections
+  - reduced panel density via clamped explanatory copy and tighter metric/action spacing
+- Added Step 1 specific compact toggle treatment by exposing section id on `ExpandableSection` via `data-section-id`.
+- Rebuilt the bottom sticky rail into an ultra-thin ticker model:
+  - replaced multi-row setup cards with one-line ticker items (`coin`, `L/S`, `PnL`, status, age)
+  - preserved click-to-open setup autopsy behavior
+  - kept winning/underwater summary counts in a thinner header
+- Reduced bottom reserved layout padding (`has-bottom-rail-padding`) to match the thinner rail.
+- Added regression checks for:
+  - Step 1 compact grid/tile hooks
+  - Step 1 expandable section id hook
+  - ticker item hooks and removal of legacy `live-rail-card__*` structure
+
+### Verification
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- Compact Step 1 tiles intentionally de-emphasize long explanatory prose; if users want more narrative, that copy may need a small on-demand details affordance.
+- Legacy `live-rail-card*` CSS rules still exist but are now unused by the ticker markup; cleanup can be done in a follow-up style pass.

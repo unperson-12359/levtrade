@@ -87,33 +87,25 @@ export function MarketRail() {
         </div>
       )}
       <ExpandableSection sectionId="step1-advanced" title="advanced market details">
-        <div className="market-rail-grid">
-          <section className="subpanel-shell">
-            <div className="panel-kicker">Regime details</div>
-            <div className={`mini-panel-title ${toneClasses[signals.hurst.color]}`}>
-              {signals.hurst.regime.toUpperCase()}
-            </div>
-            <div className="rail-rows">
-              <div className="rail-row">
-                <span><JargonTerm term="Hurst" /></span>
-                <span className="font-mono text-text-primary">{signals.hurst.value.toFixed(3)}</span>
-              </div>
-              <div className="rail-row">
-                <span>Confidence</span>
-                <span className="font-mono text-text-primary">{(signals.hurst.confidence * 100).toFixed(0)}%</span>
-              </div>
-            </div>
-            <p className="panel-copy">{signals.hurst.explanation}</p>
-            <button type="button" className="signal-link-button" onClick={() => setDrawerKind('hurst')}>
-              See chart -&gt;
-            </button>
-          </section>
+        <div className="market-rail-grid step1-compact-grid">
+          <MiniPanel
+            kicker="Regime"
+            title={signals.hurst.regime.toUpperCase()}
+            tone={signals.hurst.color}
+            rows={[
+              { label: <JargonTerm term="Hurst" />, value: signals.hurst.value.toFixed(3) },
+              { label: 'Confidence', value: `${(signals.hurst.confidence * 100).toFixed(0)}%` },
+            ]}
+            copy={signals.hurst.explanation}
+            chartKind="hurst"
+            onOpenChart={setDrawerKind}
+          />
 
           <MiniPanel
             kicker="Volatility"
             title={signals.volatility.level.toUpperCase()}
             tone={signals.volatility.color}
-          rows={[
+            rows={[
               { label: 'Realized Vol', value: `${signals.volatility.realizedVol.toFixed(1)}%` },
               { label: <JargonTerm term="ATR" />, value: signals.volatility.atr.toFixed(2) },
             ]}
@@ -197,9 +189,9 @@ function ContextPanels({ fearGreed, cryptoMacro, binanceContext, coin }: Context
   const binanceFooter = `Binance Futures | ${formatContextFreshness(binanceContext.timestamp, 5 * 60 * 1000)}`
 
   return (
-    <div className="context-panels">
+    <div className="context-panels context-panels--compact">
       <div className="context-panels__label">External Context</div>
-      <div className="market-rail-grid">
+      <div className="market-rail-grid step1-compact-grid">
         <MiniPanel
           kicker="Sentiment"
           title={fg.label}
@@ -267,7 +259,7 @@ interface MiniPanelProps {
 
 function MiniPanel({ kicker, title, tone, rows, copy, chartKind, onOpenChart, footerNote }: MiniPanelProps) {
   return (
-    <section className="subpanel-shell">
+    <section className="subpanel-shell step1-compact-tile" title={copy}>
       <div className="panel-kicker">{kicker}</div>
       <div className={`mini-panel-title ${toneClasses[tone]}`}>{title}</div>
       <div className="rail-rows">
@@ -278,18 +270,20 @@ function MiniPanel({ kicker, title, tone, rows, copy, chartKind, onOpenChart, fo
           </div>
         ))}
       </div>
-      <p className="panel-copy">{copy}</p>
-      {chartKind && onOpenChart ? (
-        <button
-          type="button"
-          className="signal-link-button"
-          onClick={() => onOpenChart(chartKind)}
-        >
-          See chart -&gt;
-        </button>
-      ) : footerNote ? (
-        <div className="signal-link-note">{footerNote}</div>
-      ) : null}
+      <div className="step1-compact-copy">{copy}</div>
+      <div className="step1-compact-actions">
+        {chartKind && onOpenChart ? (
+          <button
+            type="button"
+            className="signal-link-button"
+            onClick={() => onOpenChart(chartKind)}
+          >
+            Chart -&gt;
+          </button>
+        ) : footerNote ? (
+          <div className="signal-link-note">{footerNote}</div>
+        ) : null}
+      </div>
     </section>
   )
 }

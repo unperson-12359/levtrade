@@ -29,6 +29,8 @@ runWorkflowStateSourceCheck()
 runDashboardLayoutReflowCheck()
 runStep2KpiLayoutCheck()
 runSuggestedSetupKpiLayoutCheck()
+runStep1CompactDensityCheck()
+runLiveTickerTapeCheck()
 runHeroPairCompressionCheck()
 runTrackerRiskSourceCheck()
 runBundleDriftCheck()
@@ -379,6 +381,36 @@ function runSuggestedSetupKpiLayoutCheck() {
   assert.match(cssSource, /\.setup-card__kpi-row \{/)
   assert.match(cssSource, /grid-template-columns: repeat\(9, minmax\(0, 1fr\)\);/)
   assert.match(cssSource, /\.setup-kpi-card \{/)
+}
+
+function runStep1CompactDensityCheck() {
+  const marketSource = readFileSync(join(__dirname, '../src/components/market/MarketRail.tsx'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+  const expandableSource = readFileSync(join(__dirname, '../src/components/shared/ExpandableSection.tsx'), 'utf8')
+
+  assert.match(marketSource, /className="market-rail-grid step1-compact-grid"/)
+  assert.match(marketSource, /className="context-panels context-panels--compact"/)
+  assert.match(marketSource, /className="subpanel-shell step1-compact-tile"/)
+  assert.match(marketSource, /className="step1-compact-copy"/)
+  assert.match(cssSource, /\.step1-compact-grid \{/)
+  assert.match(cssSource, /\.step1-compact-tile \{/)
+  assert.match(cssSource, /\.step1-compact-copy \{/)
+  assert.match(cssSource, /expandable-section\[data-section-id="step1-advanced"\]/)
+  assert.match(expandableSource, /data-section-id=\{sectionId\}/)
+}
+
+function runLiveTickerTapeCheck() {
+  const liveRailSource = readFileSync(join(__dirname, '../src/components/predictions/HotPredictionsBanner.tsx'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+
+  assert.match(liveRailSource, /className=\{\`live-rail-item/)
+  assert.match(liveRailSource, /live-rail-item__coin/)
+  assert.match(liveRailSource, /live-rail-item__direction/)
+  assert.match(liveRailSource, /live-rail-item__status/)
+  assert.doesNotMatch(liveRailSource, /live-rail-card__/)
+  assert.match(cssSource, /\.live-rail-item \{/)
+  assert.match(cssSource, /\.live-rail-item__coin \{/)
+  assert.match(cssSource, /\.live-rail-item__status \{/)
 }
 
 function runHeroPairCompressionCheck() {
