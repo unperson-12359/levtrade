@@ -2865,3 +2865,43 @@ Add a visual entry-readiness cluster above the main chart (next to timeframe con
 
 ### Remaining risks / follow-up
 - The readiness score is intentionally a weighted confidence visualization, not an exact outcome probability; copy/tooltips may be tuned further if users want stricter wording.
+
+---
+
+## 2026-03-04 22:06 - Codex - End-to-End Wiring Audit + Production Parity Hardening
+
+### Goal
+Execute a comprehensive end-to-end review of site workflow wiring (signals -> entries -> tracking -> settlement -> server sync -> deployment path), then fix the concrete production parity issues discovered during the audit.
+
+### Files changed
+- `api/upload-setups.ts`
+- `src/store/trackerSlice.ts`
+- `package.json`
+- `tsconfig.api.json` (new)
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### Findings and fixes applied
+- **Finding 1 (High): Local build parity gap vs Vercel API diagnostics**
+  - Root cause: local `build` only typechecked `src` + `vite.config`, not `api/**`, so Vercel repeatedly surfaced `api/upload-setups.ts` type errors despite local green builds.
+  - Fix:
+    - Added `tsconfig.api.json` for strict API typechecking.
+    - Added `typecheck:api` script and wired it into `npm run build`.
+    - Tightened `api/upload-setups.ts` literal-union validation typing (`stringFromAllowedSet<T>` + typed allowed sets).
+    - Normalized `source` parsing (`null` -> `undefined`) to satisfy `SuggestedSetup['source']`.
+
+- **Finding 2 (Medium): Tracker outcome resolution depended on display candles**
+  - Root cause: `resolveFuturePrice` used `state.candles` only; on non-1h display intervals this can miss hourly bucket resolution and keep tracker outcomes pending longer than needed.
+  - Fix:
+    - Updated tracker resolution to prefer `state.resolutionCandles` (1h) with fallback to display candles.
+    - Added conservative fallback lookup (exact bucket, then latest prior candle, then earliest after) to avoid unresolved dead zones.
+    - Added regression source checks for new tracker resolution path.
+
+### Verification
+- `npm.cmd run typecheck:api`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- Vite still reports a >500kB main chunk warning; this is not a functional bug but should be addressed with chunking/code-split strategy.
+- The readiness rail percentage remains a weighted confidence visualization, not a guaranteed outcome probability.

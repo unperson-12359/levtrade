@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && npm run build:signals && npm run build:api-collector",
+    "build": "tsc -b && npm run typecheck:api && vite build && npm run build:signals && npm run build:api-collector",
+    "typecheck:api": "tsc -p tsconfig.api.json --pretty false",
     "build:signals": "npx esbuild src/signals/api-entry.ts --bundle --format=esm --platform=node --outfile=api/_signals.mjs",
     "build:api-collector": "npx esbuild src/server/collector/runCollector.ts --bundle --format=esm --platform=node --outfile=api/_collector.mjs",
     "build:collector": "npx esbuild scripts/run-collector.ts --bundle --format=esm --platform=node --outfile=dist-server/run-collector.mjs && npx esbuild scripts/collector-loop.ts --bundle --format=esm --platform=node --outfile=dist-server/collector-loop.mjs && npx esbuild scripts/recompute-server-outcomes.ts --bundle --format=esm --platform=node --outfile=dist-server/recompute-server-outcomes.mjs",

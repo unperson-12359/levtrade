@@ -516,6 +516,8 @@ function runTrackerRiskSourceCheck() {
   const trackerSource = readFileSync(join(__dirname, '../src/store/trackerSlice.ts'), 'utf8')
   assert.match(trackerSource, /computeSuggestedPositionComposition/)
   assert.doesNotMatch(trackerSource, /computeRisk\(state\.riskInputs/)
+  assert.match(trackerSource, /state\.resolutionCandles\[coin\]/)
+  assert.match(trackerSource, /preferredCandles/)
 }
 
 function candle(time, open, high, low, close) {

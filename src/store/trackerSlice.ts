@@ -239,10 +239,31 @@ export const createTrackerSlice: StateCreator<AppStore, [], [], TrackerSlice> = 
 
 function resolveFuturePrice(state: AppStore, coin: TrackedCoin, targetTime: number): number | null {
   const bucketTime = floorToHour(targetTime)
-  const matchingCandle = state.candles[coin].find((candle) => candle.time === bucketTime)
-  if (matchingCandle) {
-    return matchingCandle.close
+  const preferredCandles = state.resolutionCandles[coin].length > 0
+    ? state.resolutionCandles[coin]
+    : state.candles[coin]
+
+  if (preferredCandles.length === 0) {
+    return null
   }
+
+  const exactCandle = preferredCandles.find((candle) => candle.time === bucketTime)
+  if (exactCandle) {
+    return exactCandle.close
+  }
+
+  for (let index = preferredCandles.length - 1; index >= 0; index -= 1) {
+    const candle = preferredCandles[index]
+    if (candle && candle.time < bucketTime) {
+      return candle.close
+    }
+  }
+
+  const firstAfter = preferredCandles.find((candle) => candle.time > bucketTime)
+  if (firstAfter) {
+    return firstAfter.close
+  }
+
   return null
 }
 

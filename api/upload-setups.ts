@@ -37,14 +37,14 @@ const MAX_SETUP_AGE_MS = 90 * 24 * 60 * 60 * 1000
 const MAX_FUTURE_SKEW_MS = 10 * 60 * 1000
 const PAGE_SIZE = 1000
 
-const ALLOWED_COINS = new Set(['BTC', 'ETH', 'SOL', 'HYPE'])
-const ALLOWED_DIRECTIONS = new Set(['long', 'short'])
-const ALLOWED_SIGNAL_COLORS = new Set(['green', 'yellow', 'red'])
-const ALLOWED_CONFIDENCE_TIERS = new Set(['high', 'medium', 'low'])
-const ALLOWED_ENTRY_QUALITIES = new Set(['ideal', 'early', 'extended', 'chasing', 'no-edge'])
-const ALLOWED_REGIMES = new Set(['trending', 'mean-reverting', 'choppy'])
-const ALLOWED_TIMEFRAMES = new Set(['4-12h', '4-24h', '24-72h', 'wait'])
-const ALLOWED_SOURCES = new Set(['live', 'backfill'])
+const ALLOWED_COINS: ReadonlySet<SuggestedSetup['coin']> = new Set(['BTC', 'ETH', 'SOL', 'HYPE'])
+const ALLOWED_DIRECTIONS: ReadonlySet<SuggestedSetup['direction']> = new Set(['long', 'short'])
+const ALLOWED_SIGNAL_COLORS: ReadonlySet<SuggestedSetup['tradeGrade']> = new Set(['green', 'yellow', 'red'])
+const ALLOWED_CONFIDENCE_TIERS: ReadonlySet<SuggestedSetup['confidenceTier']> = new Set(['high', 'medium', 'low'])
+const ALLOWED_ENTRY_QUALITIES: ReadonlySet<SuggestedSetup['entryQuality']> = new Set(['ideal', 'early', 'extended', 'chasing', 'no-edge'])
+const ALLOWED_REGIMES: ReadonlySet<SuggestedSetup['regime']> = new Set(['trending', 'mean-reverting', 'choppy'])
+const ALLOWED_TIMEFRAMES: ReadonlySet<SuggestedSetup['timeframe']> = new Set(['4-12h', '4-24h', '24-72h', 'wait'])
+const ALLOWED_SOURCES: ReadonlySet<NonNullable<SuggestedSetup['source']>> = new Set(['live', 'backfill', 'server'])
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -251,11 +251,11 @@ function validateIncomingSetup(input: IncomingSetup): ValidatedIncomingSetup | n
   if (stopPrice === entryPrice || targetPrice === entryPrice) return null
   if (generatedAt < now - MAX_SETUP_AGE_MS || generatedAt > now + MAX_FUTURE_SKEW_MS) return null
 
-  const source =
-    setup.source === undefined
-      ? undefined
-      : stringFromAllowedSet(setup.source, ALLOWED_SOURCES)
-  if (setup.source !== undefined && !source) return null
+  const parsedSource = setup.source === undefined
+    ? undefined
+    : stringFromAllowedSet(setup.source, ALLOWED_SOURCES)
+  if (setup.source !== undefined && parsedSource === null) return null
+  const source = parsedSource ?? undefined
 
   return {
     id: input.id.trim(),
@@ -344,8 +344,11 @@ async function fetchExistingServerSetupKeys(setups: ValidatedIncomingSetup[]): P
   return { ids, keys }
 }
 
-function stringFromAllowedSet(value: unknown, allowed: Set<string>): string | null {
-  return typeof value === 'string' && allowed.has(value) ? value : null
+function stringFromAllowedSet<T extends string>(value: unknown, allowed: ReadonlySet<T>): T | null {
+  if (typeof value !== 'string') {
+    return null
+  }
+  return allowed.has(value as T) ? (value as T) : null
 }
 
 function finiteNumber(value: unknown): number | null {
