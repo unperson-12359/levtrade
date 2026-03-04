@@ -349,8 +349,11 @@ function runDashboardLayoutReflowCheck() {
   assert.match(liveRailSource, /className="live-rail-track scrollbar-hide"/)
   assert.match(cssSource, /\.live-rail-shell \{\s*position: fixed;/)
   assert.match(cssSource, /\.workflow-row-top--split \{/)
+  assert.match(cssSource, /align-items: stretch;/)
   assert.match(cssSource, /\.workflow-row-top__decision,/)
   assert.match(cssSource, /\.workflow-row-top__signal \{/)
+  assert.match(cssSource, /\.workflow-row-top__decision \.decision-hero,/)
+  assert.match(cssSource, /\.workflow-row-top__signal \.workflow-card \{/)
   assert.match(cssSource, /\.workflow-row-main \{/)
 }
 
@@ -365,7 +368,8 @@ function runStep2KpiLayoutCheck() {
   assert.match(signalSource, /className="step2-parallel-shell__setup"/)
   assert.match(signalSource, /className="step2-parallel-shell__kpis"/)
   assert.match(signalSource, /className="step2-kpi-shell"/)
-  assert.match(signalSource, /className="step2-kpi-row step2-kpi-row--single"/)
+  assert.match(signalSource, /className="step2-kpi-row step2-kpi-row--double"/)
+  assert.doesNotMatch(signalSource, /step2-kpi-row--single/)
   assert.match(signalSource, /<EntryGeometryPanel embedded mode="compactKpi" \/>/)
   assert.match(geometrySource, /mode\?: 'default' \| 'compactKpi'/)
   assert.match(geometrySource, /if \(mode === 'compactKpi'\)/)
@@ -374,7 +378,8 @@ function runStep2KpiLayoutCheck() {
   assert.match(cssSource, /\.step2-parallel-shell__setup \.setup-card \{/)
   assert.match(cssSource, /\.step2-kpi-shell \{/)
   assert.match(cssSource, /\.step2-kpi-row \{/)
-  assert.match(cssSource, /\.step2-kpi-row--single \{/)
+  assert.match(cssSource, /\.step2-kpi-row--double \{/)
+  assert.doesNotMatch(cssSource, /\.step2-kpi-row--single \{/)
   assert.match(cssSource, /\.step2-kpi-card--clickable/)
 }
 

@@ -2753,3 +2753,37 @@ Implement the planned top-row reflow so `Begin Here` (Decision Hero) and Step 2 
 
 ### Remaining risks / follow-up
 - This pass is layout-only and compile/test-verified; visual QA on the live page is still recommended to fine-tune relative card heights at wide desktop widths.
+
+---
+
+## 2026-03-04 20:11 - Codex - Step 2 Equal-Height Panel + 4x2 KPI Grid
+
+### Goal
+Make the right Step 2 card match the left `Begin Here` card height in the split top row, and reflow Step 2 KPIs into two rows of four for better vertical balance.
+
+### Files changed
+- `src/components/signal/SignalSection.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Switched Step 2 KPI row class from `step2-kpi-row--single` to `step2-kpi-row--double`.
+- Updated desktop KPI grid to `repeat(4, minmax(0, 1fr))`, producing an 8-card 4x2 layout.
+- Kept existing responsive fallback behavior below desktop:
+  - at `max-width: 1280px`, Step 2 KPI grid reverts to adaptive auto-fit.
+- Updated split top-row CSS to stretch both cards to equal height:
+  - `workflow-row-top--split` now uses `align-items: stretch`
+  - wrappers (`workflow-row-top__decision`, `workflow-row-top__signal`) now fill height and use flex
+  - child cards (`.decision-hero`, `.workflow-card`) now fill wrapper height.
+- Updated regression checks to enforce:
+  - new `step2-kpi-row--double` hook presence
+  - absence of legacy `step2-kpi-row--single`
+  - equal-height related CSS hooks.
+
+### Verification
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- This pass is presentation-only and preserves logic paths, but a live visual pass is still recommended to confirm exact density preferences across ultrawide and small desktop widths.

@@ -82,7 +82,7 @@ export function SignalSection() {
         </div>
         <div className="step2-parallel-shell__kpis">
           <div className="step2-kpi-shell">
-            <div className="step2-kpi-row step2-kpi-row--single">
+            <div className="step2-kpi-row step2-kpi-row--double">
               {signals.composite.signalBreakdown.map((signal) => (
                 <div key={signal.name} className="step2-kpi-card">
                   <div className="step2-kpi-card__label">{signal.name}</div>
