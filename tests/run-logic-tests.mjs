@@ -31,6 +31,7 @@ runStep2KpiLayoutCheck()
 runSuggestedSetupKpiLayoutCheck()
 runStep1CompactDensityCheck()
 runLiveTickerTapeCheck()
+runStep3CompactDensityCheck()
 runHeroPairCompressionCheck()
 runTrackerRiskSourceCheck()
 runBundleDriftCheck()
@@ -411,6 +412,28 @@ function runLiveTickerTapeCheck() {
   assert.match(cssSource, /\.live-rail-item \{/)
   assert.match(cssSource, /\.live-rail-item__coin \{/)
   assert.match(cssSource, /\.live-rail-item__status \{/)
+}
+
+function runStep3CompactDensityCheck() {
+  const riskSectionSource = readFileSync(join(__dirname, '../src/components/risk/RiskSection.tsx'), 'utf8')
+  const riskFormSource = readFileSync(join(__dirname, '../src/components/risk/RiskForm.tsx'), 'utf8')
+  const riskResultsSource = readFileSync(join(__dirname, '../src/components/risk/RiskResults.tsx'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+
+  assert.match(riskSectionSource, /risk-stack--compact/)
+  assert.match(riskSectionSource, /risk-section--compact/)
+  assert.match(riskSectionSource, /risk-section__detail/)
+  assert.match(riskFormSource, /risk-form--compact/)
+  assert.match(riskFormSource, /risk-form__capital-row/)
+  assert.match(riskFormSource, /risk-info-grid--compact/)
+  assert.match(riskResultsSource, /risk-results--compact/)
+  assert.match(riskResultsSource, /risk-kpi-grid--compact/)
+  assert.match(riskResultsSource, /sectionId="step3-advanced"/)
+  assert.match(riskResultsSource, /risk-stat-card/)
+  assert.match(cssSource, /\.risk-section--compact \{/)
+  assert.match(cssSource, /\.risk-form__capital-row \{/)
+  assert.match(cssSource, /\.risk-kpi-grid--compact \{/)
+  assert.match(cssSource, /expandable-section\[data-section-id="step3-advanced"\]/)
 }
 
 function runHeroPairCompressionCheck() {

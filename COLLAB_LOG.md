@@ -2681,3 +2681,42 @@ Optimize Step 1 card density to use space better and convert the sticky bottom o
 ### Remaining risks / follow-up
 - Compact Step 1 tiles intentionally de-emphasize long explanatory prose; if users want more narrative, that copy may need a small on-demand details affordance.
 - Legacy `live-rail-card*` CSS rules still exist but are now unused by the ticker markup; cleanup can be done in a follow-up style pass.
+
+---
+
+## 2026-03-04 18:58 - Codex - Step 3 Balanced Compact Condensation
+
+### Goal
+Make Step 3 (`Position composition`) smaller, less intrusive, and more intuitive while preserving all composition/risk logic.
+
+### Files changed
+- `src/components/risk/RiskSection.tsx`
+- `src/components/risk/RiskForm.tsx`
+- `src/components/risk/RiskResults.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Scoped Step 3 compact shell treatment:
+  - added `risk-stack--compact` / `risk-section--compact` wrappers
+  - tightened title/detail spacing and clamped detail copy footprint
+- Reworked Step 3 form into compact, intuitive default controls:
+  - compact mode row with concise helper note
+  - account capital input plus preset buttons in a tighter inline cluster
+  - compact setup info tiles (`risk-info-card`) with single-line helper truncation
+- Simplified Step 3 results default view:
+  - compact verdict strip treatment
+  - reduced default KPI set to primary execution metrics (capital used, leverage, R:R, stop hit %, liquidation safety)
+  - moved secondary metrics to the existing advanced section
+  - kept setup/capital geometry in advanced view with compact grids
+- Added Step 3-specific compact advanced-toggle sizing via `data-section-id="step3-advanced"`.
+- Added regression checks asserting new Step 3 compact hooks in section/form/results/CSS and advanced section wiring.
+
+### Verification
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- Legacy `stat-grid` styles still coexist with new Step 3 compact grids; further style cleanup could reduce CSS surface area.
+- Additional visual tuning may still be requested after live review on very narrow devices, but logic/outputs are unchanged.

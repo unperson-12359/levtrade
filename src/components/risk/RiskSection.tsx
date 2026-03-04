@@ -17,11 +17,12 @@ export function RiskSection() {
   const [, , step3] = getWorkflowStepStates(signals, decision, outputs, riskStatus, composition)
 
   return (
-    <aside className="risk-stack">
+    <aside className="risk-stack risk-stack--compact">
       <section
         className={[
           'panel-shell',
           'workflow-card',
+          'risk-section--compact',
           `workflow-card--${step3.tone}`,
           `workflow-card--${step3.state}`,
           `workflow-card--${step3.access}`,
@@ -38,11 +39,11 @@ export function RiskSection() {
         <div className="panel-header">
           <div>
             <div className="panel-kicker">Step 3</div>
-            <h2 className="panel-title" style={{ marginTop: '0.25rem' }}>Position composition</h2>
+            <h2 className="panel-title risk-section__title">Position composition</h2>
           </div>
           <span className={`status-pill status-pill--${step3.tone}`}>{step3.label}</span>
         </div>
-        <p className="panel-copy">{step3.detail}</p>
+        <p className="panel-copy risk-section__detail" title={step3.detail}>{step3.detail}</p>
         <RiskForm />
         <RiskResults />
       </section>
