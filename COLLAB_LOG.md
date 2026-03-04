@@ -2939,3 +2939,50 @@ Fix the mismatch where light-hit count and readiness percentage could diverge co
 
 ### Remaining risks / follow-up
 - The confidence number is still a weighted model (not a guaranteed win probability), now explicitly presented as secondary to avoid interpretation drift.
+
+---
+
+## 2026-03-04 18:28 - Codex - Step-Gated Readiness Meter + Directional Center-Out Bar
+
+### Goal
+Enforce strict workflow truth in the readiness rail so the meter cannot look "active" when Step 1 is not green, and make directional progress visually move left/right from center.
+
+### Files changed
+- `src/hooks/useEntryReadiness.ts`
+- `src/components/chart/EntryReadinessRail.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Reworked readiness model to align with workflow engine states (`getWorkflowStepStates`) instead of raw ungated light aggregation.
+- Adopted 2/4/2 light mapping:
+  1. Step 1: Data Fresh, Regime
+  2. Step 2: Price Position, Crowd Positioning, Money Flow, Entry Geometry
+  3. Step 3: Composite Output, Risk Gate
+- Added step-lock behavior:
+  - If Step 1 is not pass, Step 2 and Step 3 lights are forced locked/off.
+  - If Step 2 is not pass, Step 3 lights are forced locked/off.
+- Added hard-lock progress cap when Step 1 is not pass (`triggerProgressPct <= 12`) to prevent false high readiness.
+- Added explicit rail metadata to support truthful rendering:
+  - `direction`, `step1Passed`, `step2Passed`, `lockedByStep`
+  - per-light `step` and `locked` flags
+- Updated meter bar to center-out directional motion:
+  - LONG fills right from center
+  - SHORT fills left from center
+  - neutral remains centered
+- Updated gauge needle to directional signed movement.
+- Added lock-state copy (`Locked by Step 1`, `Step 3 locked until Step 2 passes`) and muted confidence styling while locked.
+- Updated regression source checks for:
+  - workflow-gated readiness fields
+  - locked-light classes
+  - centerline + directional center-out fill classes
+  - lock messaging hooks.
+
+### Verification
+- `npm.cmd run typecheck:api`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- This is a logic/UI correctness fix; a live visual pass should still confirm final readability of lock copy and center-out bar at all responsive breakpoints.
