@@ -107,14 +107,19 @@ export function useEntryReadiness(coin: TrackedCoin): EntryReadinessModel {
     const compositeDirectional = signals.composite.direction !== 'neutral'
     const compositeStrongEnough = signals.composite.strength !== 'weak'
 
+    const dataPipelineReady = !stale && warmupComplete
     const dataFreshLight: EntryReadinessLight = {
       key: 'data-fresh',
       label: 'Data Fresh',
       step: 1,
-      state: stale ? 'off' : 'on',
+      state: dataPipelineReady ? 'on' : 'off',
       locked: false,
-      score: stale ? 0 : 1,
-      detail: stale ? 'Feed stale, entry confidence capped' : 'Live feed fresh',
+      score: stale ? 0 : warmupComplete ? 1 : clamp(warmupProgress * 0.75, 0, 0.75),
+      detail: stale
+        ? 'Feed stale, entry confidence capped'
+        : warmupComplete
+          ? 'Live feed fresh'
+          : `Warmup ${Math.round(warmupProgress * 100)}%`,
     }
 
     const regimeScore = regimeBlocked
@@ -275,11 +280,7 @@ export function useEntryReadiness(coin: TrackedCoin): EntryReadinessModel {
 
     const weightedConfidencePct = Math.round(clamp(probability, 0, 1) * 100)
     const activeCount = lights.filter((light) => light.state === 'on' && !light.locked).length
-    let triggerProgressPct = Math.round((activeCount / lights.length) * 100)
-
-    if (!step1Passed) {
-      triggerProgressPct = Math.min(triggerProgressPct, 12)
-    }
+    const triggerProgressPct = Math.round((activeCount / lights.length) * 100)
 
     const direction: EntryReadinessDirection = step1Passed
       ? signals.composite.direction

@@ -2986,3 +2986,29 @@ Enforce strict workflow truth in the readiness rail so the meter cannot look "ac
 
 ### Remaining risks / follow-up
 - This is a logic/UI correctness fix; a live visual pass should still confirm final readability of lock copy and center-out bar at all responsive breakpoints.
+
+---
+
+## 2026-03-04 18:41 - Codex - Readiness Percent/Light Parity Finalization
+
+### Goal
+Eliminate the remaining readiness mismatch edge case where displayed light count and primary percentage could diverge under Step 1 lock conditions.
+
+### Files changed
+- `src/hooks/useEntryReadiness.ts`
+- `COLLAB_LOG.md`
+
+### What changed
+- Updated Step 1 `Data Fresh` light semantics to represent actual Step 1 data readiness:
+  - light is now ON only when feed is fresh **and** warmup is complete.
+  - warmup progress is reflected in detail text while warming up.
+- Removed the explicit `triggerProgressPct <= 12` hard cap so primary percent is always derived directly from gated ON lights.
+- Result: primary `%` and `x/8 lights` now stay mathematically aligned in locked states as well.
+
+### Verification
+- `npm.cmd run typecheck:api`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- No new functional risks identified from this parity adjustment.
