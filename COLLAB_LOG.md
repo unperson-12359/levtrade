@@ -2820,3 +2820,48 @@ Reduce empty space in the left `Begin Here` card and smooth vertical balance wit
 
 ### Remaining risks / follow-up
 - This pass aggressively optimizes density at large desktop widths; one live visual pass is still recommended to confirm readability preference on ultrawide monitors.
+
+---
+
+## 2026-03-04 21:22 - Codex - Entry Readiness Dashboard Above Chart
+
+### Goal
+Add a visual entry-readiness cluster above the main chart (next to timeframe controls) that shows all entry-driving KPI families in order, lights them up left-to-right, and displays a 0-100 probability gauge based on weighted signal confidence.
+
+### Files changed
+- `src/hooks/useEntryReadiness.ts` (new)
+- `src/components/chart/EntryReadinessRail.tsx` (new)
+- `src/components/layout/DashboardLayout.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added a dedicated `useEntryReadiness` model hook that derives 8 ordered indicator lights from live signal logic:
+  1. Data Fresh
+  2. Warmup
+  3. Regime
+  4. Price Position
+  5. Crowd Positioning
+  6. Money Flow
+  7. Entry Geometry
+  8. Composite Output
+- Implemented weighted readiness scoring plus gate penalties (`stale`, `warming`, regime veto, weak/neutral composite, weak geometry), then mapped to `probabilityPct` and low/medium/high bands.
+- Added `EntryReadinessRail` UI with:
+  - ordered light capsules
+  - progress bar
+  - needle-style gauge
+  - percentage + active-lights counter
+- Wired the new rail into the chart header row in `DashboardLayout`, alongside existing timeframe buttons.
+- Added responsive CSS behavior so the readiness rail wraps/condenses on narrower breakpoints while preserving timeframe usability.
+- Added regression source checks to lock:
+  - new header integration
+  - readiness hook/component wiring
+  - readiness CSS hooks.
+
+### Verification
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- The readiness score is intentionally a weighted confidence visualization, not an exact outcome probability; copy/tooltips may be tuned further if users want stricter wording.

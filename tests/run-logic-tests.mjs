@@ -27,6 +27,7 @@ runIncrementalRefreshSourceCheck()
 runWorkflowTerminologyCheck()
 runWorkflowStateSourceCheck()
 runDashboardLayoutReflowCheck()
+runEntryReadinessRailSourceCheck()
 runStep2KpiLayoutCheck()
 runSuggestedSetupKpiLayoutCheck()
 runStep1CompactDensityCheck()
@@ -355,6 +356,41 @@ function runDashboardLayoutReflowCheck() {
   assert.match(cssSource, /\.workflow-row-top__decision \.decision-hero,/)
   assert.match(cssSource, /\.workflow-row-top__signal \.workflow-card \{/)
   assert.match(cssSource, /\.workflow-row-main \{/)
+}
+
+function runEntryReadinessRailSourceCheck() {
+  const layoutSource = readFileSync(join(__dirname, '../src/components/layout/DashboardLayout.tsx'), 'utf8')
+  const railSource = readFileSync(join(__dirname, '../src/components/chart/EntryReadinessRail.tsx'), 'utf8')
+  const hookSource = readFileSync(join(__dirname, '../src/hooks/useEntryReadiness.ts'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+
+  assert.match(layoutSource, /EntryReadinessRail/)
+  assert.match(layoutSource, /className="chart-header-row chart-header-row--enhanced"/)
+  assert.match(layoutSource, /<EntryReadinessRail coin=\{coin\} \/>/)
+
+  assert.match(railSource, /className="entry-readiness-rail"/)
+  assert.match(railSource, /className="entry-readiness-rail__lights"/)
+  assert.match(railSource, /entry-readiness-light--\$\{light\.state\}/)
+  assert.match(railSource, /role="progressbar"/)
+  assert.match(railSource, /entry-readiness-gauge__needle/)
+  assert.match(railSource, /entry-readiness-rail__pct--\$\{readiness\.band\}/)
+
+  assert.match(hookSource, /computeSetupMetrics/)
+  assert.match(hookSource, /probabilityPct/)
+  assert.match(hookSource, /Data Fresh/)
+  assert.match(hookSource, /Warmup/)
+  assert.match(hookSource, /Regime/)
+  assert.match(hookSource, /Price Position/)
+  assert.match(hookSource, /Crowd Positioning/)
+  assert.match(hookSource, /Money Flow/)
+  assert.match(hookSource, /Entry Geometry/)
+  assert.match(hookSource, /Composite Output/)
+
+  assert.match(cssSource, /\.chart-header-row--enhanced \{/)
+  assert.match(cssSource, /\.entry-readiness-rail \{/)
+  assert.match(cssSource, /\.entry-readiness-light--on \{/)
+  assert.match(cssSource, /\.entry-readiness-progress__fill--high \{/)
+  assert.match(cssSource, /\.entry-readiness-gauge__needle \{/)
 }
 
 function runStep2KpiLayoutCheck() {

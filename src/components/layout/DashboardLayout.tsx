@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { useDataManager } from '../../hooks/useDataManager'
 import { useStore } from '../../store'
 import { INTERVALS } from '../../config/intervals'
+import { EntryReadinessRail } from '../chart/EntryReadinessRail'
 import { PriceChart } from '../chart/PriceChart'
 import { DecisionHero } from '../decision/DecisionHero'
 import { MarketRail } from '../market/MarketRail'
@@ -74,8 +75,9 @@ export function DashboardLayout() {
 
           <section className="workflow-col-center">
           <div className="panel-shell panel-shell--chart">
-            <div className="chart-header-row">
+            <div className="chart-header-row chart-header-row--enhanced">
               <div className="panel-kicker">Price map</div>
+              <EntryReadinessRail coin={coin} />
               <div className="topbar-intervals">
                 {INTERVALS.map((tf) => (
                   <button
