@@ -21,7 +21,7 @@ export function DecisionHero() {
         <span className={`status-pill status-pill--${hero.tone}`}>{hero.badge}</span>
       </div>
 
-      <p className="decision-hero__summary">{hero.summary}</p>
+      <p className="decision-hero__summary decision-hero__summary--compact">{hero.summary}</p>
 
       <div className="workflow-summary-grid workflow-summary-grid--hero decision-hero__pair">
         <article className="workflow-summary-card decision-hero__pair-card decision-hero__pair-card--action">
@@ -36,8 +36,8 @@ export function DecisionHero() {
 
       {hero.bullets.length > 0 && (
         <div className="decision-hero__reasons">
-          <div className="workflow-summary-card__kicker">Why the dashboard is saying this</div>
-          <div className="decision-strip__chips">
+          <div className="workflow-summary-card__kicker decision-hero__reasons-label">Why the dashboard is saying this</div>
+          <div className="decision-strip__chips decision-hero__reason-chips">
             {hero.bullets.map((bullet) => (
               <span key={bullet} className="warning-chip warning-chip--blue">
                 {bullet}

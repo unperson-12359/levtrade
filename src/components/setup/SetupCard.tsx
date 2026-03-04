@@ -28,14 +28,14 @@ export function SetupCard({ coin }: SetupCardProps) {
         <div className="panel-header">
           <div>
             <div className="panel-kicker">Suggested setup</div>
-            <h3 className="panel-title">No actionable setup right now</h3>
+            <h3 className="panel-title setup-card__title">No actionable setup right now</h3>
           </div>
           <span className={`status-pill status-pill--${decision.color}`}>{decision.label}</span>
         </div>
-        <p className="panel-copy">
+        <p className="panel-copy setup-card__empty-copy">
           The dashboard is not seeing a clean long or short setup at this time.
         </p>
-        <div className="decision-strip__chips">
+        <div className="decision-strip__chips setup-card__empty-reasons">
           {decision.reasons.map((reason) => (
             <span key={reason} className="warning-chip warning-chip--blue">
               {reason}
@@ -60,7 +60,7 @@ export function SetupCard({ coin }: SetupCardProps) {
       <div className="panel-header">
         <div>
           <div className="panel-kicker">Suggested setup</div>
-          <h3 className="panel-title">Here is the full trade idea the dashboard sees</h3>
+          <h3 className="panel-title setup-card__title">Here is the full trade idea the dashboard sees</h3>
         </div>
         <div className="setup-card__badges">
           <span
@@ -127,7 +127,7 @@ export function SetupCard({ coin }: SetupCardProps) {
         />
       </div>
 
-      <div className="setup-card__summary">
+      <div className="setup-card__summary setup-card__summary--compact">
         {setup.summary}
       </div>
       <SignalDrawer

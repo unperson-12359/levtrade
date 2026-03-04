@@ -389,10 +389,17 @@ function runSuggestedSetupKpiLayoutCheck() {
 
   assert.match(setupSource, /className="setup-card__kpi-row"/)
   assert.match(setupSource, /setup-kpi-card/)
+  assert.match(setupSource, /className="panel-title setup-card__title"/)
+  assert.match(setupSource, /className="panel-copy setup-card__empty-copy"/)
+  assert.match(setupSource, /className="decision-strip__chips setup-card__empty-reasons"/)
+  assert.match(setupSource, /className="setup-card__summary setup-card__summary--compact"/)
   assert.doesNotMatch(setupSource, /setup-card__prices/)
   assert.match(cssSource, /\.setup-card__kpi-row \{/)
   assert.match(cssSource, /grid-template-columns: repeat\(9, minmax\(0, 1fr\)\);/)
   assert.match(cssSource, /\.setup-kpi-card \{/)
+  assert.match(cssSource, /\.step2-parallel-shell__setup \.setup-card__summary--compact \{/)
+  assert.match(cssSource, /\.step2-parallel-shell__setup \.setup-card__empty-copy \{/)
+  assert.match(cssSource, /\.step2-parallel-shell__setup \.setup-card__empty-reasons \{/)
 }
 
 function runStep1CompactDensityCheck() {
@@ -455,10 +462,18 @@ function runHeroPairCompressionCheck() {
   assert.match(heroSource, /decision-hero__pair-card/)
   assert.match(heroSource, /decision-hero__pair-card--action/)
   assert.match(heroSource, /decision-hero__pair-card--wait/)
+  assert.match(heroSource, /decision-hero__summary--compact/)
+  assert.match(heroSource, /decision-hero__reasons-label/)
+  assert.match(heroSource, /decision-hero__reason-chips/)
   assert.match(cssSource, /\.decision-hero__pair \{/)
   assert.match(cssSource, /\.decision-hero__pair-card \{/)
   assert.match(cssSource, /\.decision-hero__pair-card--action \{/)
   assert.match(cssSource, /\.decision-hero__pair-card--wait \{/)
+  assert.match(cssSource, /\.decision-hero__summary--compact \{/)
+  assert.match(cssSource, /\.decision-hero__reasons-label \{/)
+  assert.match(cssSource, /\.decision-hero__reason-chips \{/)
+  assert.match(cssSource, /@media \(min-width: 1281px\)/)
+  assert.match(cssSource, /\.workflow-row-top--split \.workflow-row-top__signal > \.workflow-card > \.panel-copy \{/)
 }
 
 function runTrackerRiskSourceCheck() {

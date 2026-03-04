@@ -2787,3 +2787,36 @@ Make the right Step 2 card match the left `Begin Here` card height in the split 
 
 ### Remaining risks / follow-up
 - This pass is presentation-only and preserves logic paths, but a live visual pass is still recommended to confirm exact density preferences across ultrawide and small desktop widths.
+
+---
+
+## 2026-03-04 20:42 - Codex - Top-Row Dead-Space Reduction and Smoothing
+
+### Goal
+Reduce empty space in the left `Begin Here` card and smooth vertical balance with the right Step 2 card by tightening top-row density without changing any trading logic.
+
+### Files changed
+- `src/components/decision/DecisionHero.tsx`
+- `src/components/setup/SetupCard.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Left card (`DecisionHero`) compacted while preserving all content:
+  - added compact summary hook (`decision-hero__summary--compact`) with line clamp
+  - converted reason area into tighter inline label + chips flow (`decision-hero__reasons-label`, `decision-hero__reason-chips`)
+- Right card (`SignalSection` + `SetupCard`) vertically compressed in desktop split context:
+  - reduced top-row panel spacing, copy margins, and internal gaps
+  - tightened SetupCard title/badge/verify/control spacing
+  - clamped verbose setup/empty-state copy to reduce vertical growth
+  - slightly reduced Step 2 KPI card label/value/hint density for a smoother compact block
+- All compact/smoothing rules are scoped to desktop split layout via `@media (min-width: 1281px)` under `.workflow-row-top--split`, preserving existing tablet/mobile behavior.
+- Expanded source checks to lock in new compact hooks for DecisionHero and SetupCard.
+
+### Verification
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- This pass aggressively optimizes density at large desktop widths; one live visual pass is still recommended to confirm readability preference on ultrawide monitors.
