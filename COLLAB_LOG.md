@@ -2602,3 +2602,43 @@ Compress Step 2 KPI cards into a strict single desktop row (8 cards) and apply t
 ### Remaining risks / follow-up
 - Card density is intentionally aggressive; minor typography tuning may still be needed for smallest devices.
 - Main Vite client chunk warning remains above 500k and is unrelated to this layout change.
+
+---
+
+## 2026-03-04 18:08 - Codex - Step 2 Parallel Reflow + SonarX Feasibility Pack
+
+### Goal
+Implement the new Step 2 layout direction so Suggested Setup and the 8 Step 2 KPIs render in parallel on desktop, and deliver the SonarX data-collection feasibility artifacts from the multi-agent plan.
+
+### Files changed
+- `src/components/signal/SignalSection.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `docs/sonarx-feasibility.md`
+- `docs/sonarx-parity-checklist.md`
+- `docs/sonarx-adapter-spec.md`
+- `COLLAB_LOG.md`
+
+### What changed
+- Reworked Step 2 content structure into a parallel shell:
+  - left column: `SetupCard`
+  - right column: compact Step 2 KPI strip
+- Kept KPI composition unchanged (3 composite + 1 z-score + 4 geometry), and preserved all chart-drawer interactions.
+- Added dedicated Step 2 parallel layout CSS hooks:
+  - `step2-parallel-shell`
+  - `step2-parallel-shell__setup`
+  - `step2-parallel-shell__kpis`
+- Added responsive fallback so Step 2 automatically stacks below `1280px` while keeping existing compact KPI behavior.
+- Extended logic regression checks to assert the new Step 2 parallel structure/CSS hooks.
+- Added SonarX review docs:
+  - feasibility verdict (not a drop-in candle API; usable via adapter layer)
+  - production parity checklist for Supabase/Vercel/Oracle
+  - adapter spec for shadow-mode integration
+
+### Verification
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- Step 2 remains intentionally dense on large desktop; visual micro-tuning may still be requested after live UI review.
+- SonarX documentation confirms product direction and free-beta status, but integration still depends on concrete account access and operational data delivery setup.

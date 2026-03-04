@@ -76,42 +76,47 @@ export function SignalSection() {
 
       <p className="panel-copy">{guidance.summary}</p>
 
-      <SetupCard coin={coin} />
+      <div className="step2-parallel-shell">
+        <div className="step2-parallel-shell__setup">
+          <SetupCard coin={coin} />
+        </div>
+        <div className="step2-parallel-shell__kpis">
+          <div className="step2-kpi-shell">
+            <div className="step2-kpi-row step2-kpi-row--single">
+              {signals.composite.signalBreakdown.map((signal) => (
+                <div key={signal.name} className="step2-kpi-card">
+                  <div className="step2-kpi-card__label">{signal.name}</div>
+                  <div
+                    className={`step2-kpi-card__value ${
+                      signal.agrees
+                        ? 'text-signal-green'
+                        : signal.direction === 'neutral'
+                          ? 'text-text-muted'
+                          : 'text-signal-red'
+                    }`}
+                  >
+                    {signal.direction.toUpperCase()}
+                  </div>
+                  <div className="step2-kpi-card__hint">
+                    {signal.agrees
+                      ? 'Aligned'
+                      : signal.direction === 'neutral'
+                        ? 'Inactive'
+                        : 'Against'}
+                  </div>
+                </div>
+              ))}
 
-      <div className="step2-kpi-shell">
-        <div className="step2-kpi-row step2-kpi-row--single">
-          {signals.composite.signalBreakdown.map((signal) => (
-            <div key={signal.name} className="step2-kpi-card">
-              <div className="step2-kpi-card__label">{signal.name}</div>
-              <div
-                className={`step2-kpi-card__value ${
-                  signal.agrees
-                    ? 'text-signal-green'
-                    : signal.direction === 'neutral'
-                      ? 'text-text-muted'
-                      : 'text-signal-red'
-                }`}
-              >
-                {signal.direction.toUpperCase()}
-              </div>
-              <div className="step2-kpi-card__hint">
-                {signal.agrees
-                  ? 'Aligned'
-                  : signal.direction === 'neutral'
-                    ? 'Inactive'
-                    : 'Against'}
-              </div>
+              <Metric
+                label={<JargonTerm term="Z-Score">Price stretch</JargonTerm>}
+                value={`${signals.zScore.value.toFixed(2)}\u03C3`}
+                tone={signals.zScore.color}
+                onActivate={() => setDrawerKind('zScore')}
+                compact
+              />
+              <EntryGeometryPanel embedded mode="compactKpi" />
             </div>
-          ))}
-
-          <Metric
-            label={<JargonTerm term="Z-Score">Price stretch</JargonTerm>}
-            value={`${signals.zScore.value.toFixed(2)}\u03C3`}
-            tone={signals.zScore.color}
-            onActivate={() => setDrawerKind('zScore')}
-            compact
-          />
-          <EntryGeometryPanel embedded mode="compactKpi" />
+          </div>
         </div>
       </div>
 
