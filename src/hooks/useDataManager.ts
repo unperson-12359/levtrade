@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { DataManager } from '../services/dataManager'
 import { useStore } from '../store'
+import { TRACKED_COINS } from '../types/market'
 
 export function useDataManager() {
   const managerRef = useRef<DataManager | null>(null)
   const interval = useStore((s) => s.selectedInterval)
+  const selectedCoin = useStore((s) => s.selectedCoin)
 
   useEffect(() => {
     // Prevent double initialization in StrictMode
@@ -31,14 +33,27 @@ export function useDataManager() {
     const manager = managerRef.current
     if (!manager) return
 
-    manager.fetchAllCandles().then(() => {
+    manager.fetchAllCandles([selectedCoin]).then(() => {
       useStore.getState().computeAllSignals()
       useStore.getState().trackAllDecisionSnapshots()
       useStore.getState().resolveSetupOutcomes()
       useStore.getState().resolveTrackedOutcomes()
       useStore.getState().pruneTrackerHistory()
+
+      const remainingCoins = TRACKED_COINS.filter((coin) => coin !== selectedCoin)
+      if (remainingCoins.length > 0) {
+        void manager.fetchAllCandles(remainingCoins).then(() => {
+          useStore.getState().computeAllSignals()
+          useStore.getState().trackAllDecisionSnapshots()
+          useStore.getState().resolveSetupOutcomes()
+          useStore.getState().resolveTrackedOutcomes()
+          useStore.getState().pruneTrackerHistory()
+        }).catch(() => {
+          // Errors handled inside DataManager
+        })
+      }
     }).catch(() => {
       // Errors handled inside DataManager
     })
-  }, [interval])
+  }, [interval, selectedCoin])
 }

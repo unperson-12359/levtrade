@@ -36,6 +36,7 @@ runLiveTickerTapeCheck()
 runStep3CompactDensityCheck()
 runHeroPairCompressionCheck()
 runTrackerRiskSourceCheck()
+runRuntimeStabilitySourceCheck()
 runBundleDriftCheck()
 
 console.log('Logic regression checks passed')
@@ -577,6 +578,37 @@ function runTrackerRiskSourceCheck() {
   assert.doesNotMatch(trackerSource, /computeRisk\(state\.riskInputs/)
   assert.match(trackerSource, /state\.resolutionCandles\[coin\]/)
   assert.match(trackerSource, /preferredCandles/)
+}
+
+function runRuntimeStabilitySourceCheck() {
+  const appSource = readFileSync(join(__dirname, '../src/App.tsx'), 'utf8')
+  const mainSource = readFileSync(join(__dirname, '../src/main.tsx'), 'utf8')
+  const uiSliceSource = readFileSync(join(__dirname, '../src/store/uiSlice.ts'), 'utf8')
+  const storeSource = readFileSync(join(__dirname, '../src/store/index.ts'), 'utf8')
+  const managerSource = readFileSync(join(__dirname, '../src/services/dataManager.ts'), 'utf8')
+  const layoutSource = readFileSync(join(__dirname, '../src/components/layout/DashboardLayout.tsx'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+
+  assert.match(appSource, /AppErrorBoundary/)
+  assert.match(appSource, /<AppErrorBoundary>/)
+  assert.match(mainSource, /window\.addEventListener\('error'/)
+  assert.match(mainSource, /window\.addEventListener\('unhandledrejection'/)
+  assert.match(mainSource, /__levtradeRuntimeHooksInstalled/)
+  assert.match(uiSliceSource, /runtimeDiagnostics/)
+  assert.match(uiSliceSource, /pushRuntimeDiagnostic/)
+  assert.match(storeSource, /delete merged\.expandedSections\['menu'\]/)
+  assert.match(storeSource, /merged\.runtimeDiagnostics = \[\]/)
+  assert.match(managerSource, /pollInFlight/)
+  assert.match(managerSource, /scheduleNextPoll/)
+  assert.match(managerSource, /runPollingCycle/)
+  assert.match(managerSource, /executePollingCycle/)
+  assert.match(managerSource, /this\.pollStopped = true/)
+  assert.match(layoutSource, /runtimeDiagnostics/)
+  assert.match(layoutSource, /runtime-diagnostic-strip/)
+  assert.match(layoutSource, /density-ultra/)
+  assert.match(cssSource, /\.runtime-diagnostic-strip \{/)
+  assert.match(cssSource, /\.app-crash-shell \{/)
+  assert.match(cssSource, /\.density-ultra \.panel-shell \{/)
 }
 
 function candle(time, open, high, low, close) {

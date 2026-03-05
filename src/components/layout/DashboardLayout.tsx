@@ -23,8 +23,10 @@ export function DashboardLayout() {
   const setInterval = useStore((s) => s.setInterval)
   const errors = useStore((s) => s.errors)
   const clearErrors = useStore((s) => s.clearErrors)
+  const runtimeDiagnostics = useStore((s) => s.runtimeDiagnostics)
+  const clearRuntimeDiagnostics = useStore((s) => s.clearRuntimeDiagnostics)
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary">
+    <div className="min-h-screen bg-bg-primary text-text-primary app-shell density-ultra">
       {errors.length > 0 && (
         <div className="border-b border-signal-red/20 bg-signal-red/10 px-4 py-3 sm:px-6">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4">
@@ -43,6 +45,24 @@ export function DashboardLayout() {
                 Dismiss
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {runtimeDiagnostics.length > 0 && (
+        <div className="runtime-diagnostic-strip">
+          <div className="runtime-diagnostic-strip__inner">
+            <span className="runtime-diagnostic-strip__tag">Runtime event</span>
+            <span className="runtime-diagnostic-strip__message" title={runtimeDiagnostics[runtimeDiagnostics.length - 1]?.message}>
+              {runtimeDiagnostics[runtimeDiagnostics.length - 1]?.message}
+            </span>
+            <button
+              type="button"
+              className="runtime-diagnostic-strip__clear"
+              onClick={clearRuntimeDiagnostics}
+            >
+              Clear
+            </button>
           </div>
         </div>
       )}

@@ -97,6 +97,7 @@ export const useStore = create<AppStore>()(
           merged.expandedSections = { ...merged.expandedSections }
           delete merged.expandedSections['analytics']
           delete merged.expandedSections['how-it-works']
+          delete merged.expandedSections['menu']
         }
         // Migrate legacy trackedSetups → localTrackedSetups
         if (persisted.trackedSetups && Array.isArray(persisted.trackedSetups) && persisted.trackedSetups.length > 0) {
@@ -104,6 +105,7 @@ export const useStore = create<AppStore>()(
         }
         // Server setups are never persisted — always start empty, hydrated from server
         merged.serverTrackedSetups = []
+        merged.runtimeDiagnostics = []
         return merged as AppStore
       },
     },

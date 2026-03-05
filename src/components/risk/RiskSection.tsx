@@ -15,6 +15,7 @@ export function RiskSection() {
   const { outputs, riskStatus } = usePositionRisk()
   const composition = useSuggestedPosition(coin)
   const [, , step3] = getWorkflowStepStates(signals, decision, outputs, riskStatus, composition)
+  const compactDetail = compactText(step3.detail, 110)
 
   return (
     <aside className="risk-stack risk-stack--compact">
@@ -43,10 +44,16 @@ export function RiskSection() {
           </div>
           <span className={`status-pill status-pill--${step3.tone}`}>{step3.label}</span>
         </div>
-        <p className="panel-copy risk-section__detail" title={step3.detail}>{step3.detail}</p>
+        <p className="panel-copy risk-section__detail" title={step3.detail}>{compactDetail}</p>
         <RiskForm />
         <RiskResults />
       </section>
     </aside>
   )
+}
+
+function compactText(value: string, maxLength: number): string {
+  const normalized = value.trim().replace(/\s+/g, ' ')
+  if (normalized.length <= maxLength) return normalized
+  return `${normalized.slice(0, maxLength - 1)}…`
 }

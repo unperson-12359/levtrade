@@ -366,11 +366,24 @@ async function fetchWithTimeout(
     })
     return res
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    if (isAbortError(error)) {
       throw new Error(`Request timed out after ${timeoutMs}ms`)
     }
     throw error
   } finally {
     clearTimeout(timeout)
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
+    return error.name === 'AbortError'
+  }
+
+  if (error && typeof error === 'object') {
+    const candidate = error as { name?: unknown }
+    return candidate.name === 'AbortError'
+  }
+
+  return false
 }

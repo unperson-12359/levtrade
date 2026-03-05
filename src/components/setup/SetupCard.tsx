@@ -28,13 +28,11 @@ export function SetupCard({ coin }: SetupCardProps) {
         <div className="panel-header">
           <div>
             <div className="panel-kicker">Suggested setup</div>
-            <h3 className="panel-title setup-card__title">No actionable setup right now</h3>
+            <h3 className="panel-title setup-card__title">No setup right now</h3>
           </div>
           <span className={`status-pill status-pill--${decision.color}`}>{decision.label}</span>
         </div>
-        <p className="panel-copy setup-card__empty-copy">
-          The dashboard is not seeing a clean long or short setup at this time.
-        </p>
+        <p className="panel-copy setup-card__empty-copy">No clean long/short setup is active.</p>
         <div className="decision-strip__chips setup-card__empty-reasons">
           {decision.reasons.map((reason) => (
             <span key={reason} className="warning-chip warning-chip--blue">
@@ -50,6 +48,7 @@ export function SetupCard({ coin }: SetupCardProps) {
   const stopPct = ((setup.stopPrice - setup.entryPrice) / setup.entryPrice) * 100
   const targetPct = ((setup.targetPrice - setup.entryPrice) / setup.entryPrice) * 100
   const meanPct = ((setup.meanReversionTarget - setup.entryPrice) / setup.entryPrice) * 100
+  const compactSummary = compactText(setup.summary, 122)
   const priceMarkers = useMemo(
     () => buildRangeMarkers(setup.entryPrice, setup.stopPrice, setup.targetPrice),
     [setup.entryPrice, setup.stopPrice, setup.targetPrice],
@@ -60,7 +59,7 @@ export function SetupCard({ coin }: SetupCardProps) {
       <div className="panel-header">
         <div>
           <div className="panel-kicker">Suggested setup</div>
-          <h3 className="panel-title setup-card__title">Here is the full trade idea the dashboard sees</h3>
+          <h3 className="panel-title setup-card__title">Full trade idea</h3>
         </div>
         <div className="setup-card__badges">
           <span
@@ -127,8 +126,8 @@ export function SetupCard({ coin }: SetupCardProps) {
         />
       </div>
 
-      <div className="setup-card__summary setup-card__summary--compact">
-        {setup.summary}
+      <div className="setup-card__summary setup-card__summary--compact" title={setup.summary}>
+        {compactSummary}
       </div>
       <SignalDrawer
         coin={coin}
@@ -160,6 +159,12 @@ function PriceStat({
       <div className="setup-kpi-card__copy">{helper}</div>
     </div>
   )
+}
+
+function compactText(value: string, maxLength: number): string {
+  const normalized = value.trim().replace(/\s+/g, ' ')
+  if (normalized.length <= maxLength) return normalized
+  return `${normalized.slice(0, maxLength - 1)}…`
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone: SignalColor }) {

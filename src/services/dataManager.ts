@@ -32,7 +32,9 @@ const NETWORK_REQUEST_GAP_MS = 80
 export class DataManager {
   private ws: HyperliquidWS
   private store: StoreApi<AppStore>
-  private pollTimer: ReturnType<typeof setInterval> | null = null
+  private pollTimer: ReturnType<typeof setTimeout> | null = null
+  private pollInFlight = false
+  private pollStopped = false
   private unsubscribers: (() => void)[] = []
   private initialized = false
   private contextRefreshing = false
@@ -77,16 +79,21 @@ export class DataManager {
 
     // Fetch initial data in parallel
     try {
+      const selectedCoin = this.store.getState().selectedCoin
+      const remainingCoins = TRACKED_COINS.filter((coin) => coin !== selectedCoin)
       await Promise.all([
         this.fetchInitialData(),
-        this.fetchAllCandles(),
-        this.fetchAllFundingHistory(),
+        this.fetchAllCandles([selectedCoin]),
+        this.fetchAllFundingHistory([selectedCoin]),
       ])
       this.runCoreSignalPipeline()
       void this.fetchServerSetupHistory()
 
       // Fetch external context (non-blocking — failures don't affect core data)
-      void this.fetchAllExternalContext()
+      void this.fetchAllExternalContext().catch(() => {
+        // Non-critical
+      })
+      void this.hydrateRemainingCoins(remainingCoins)
       void this.runDeferredStartupBackfills()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch initial data'
@@ -106,6 +113,20 @@ export class DataManager {
     state.pruneSetupHistory()
     state.resolveTrackedOutcomes()
     state.pruneTrackerHistory()
+  }
+
+  private async hydrateRemainingCoins(coins: readonly TrackedCoin[]): Promise<void> {
+    if (coins.length === 0) return
+
+    try {
+      await Promise.all([
+        this.fetchAllCandles(coins),
+        this.fetchAllFundingHistory(coins),
+      ])
+      this.runCoreSignalPipeline()
+    } catch {
+      // Non-critical: selected coin is already live; background hydration can recover on polling.
+    }
   }
 
   private async runDeferredStartupBackfills(): Promise<void> {
@@ -154,12 +175,12 @@ export class DataManager {
     }
   }
 
-  async fetchAllCandles(): Promise<void> {
+  async fetchAllCandles(coins: readonly TrackedCoin[] = TRACKED_COINS): Promise<void> {
     const { ms, candleCount } = this.itvl
     const now = Date.now()
     const startTime = now - candleCount * ms
 
-    await runWithConcurrency(TRACKED_COINS, NETWORK_FETCH_CONCURRENCY, async (coin) => {
+    await runWithConcurrency(coins, NETWORK_FETCH_CONCURRENCY, async (coin) => {
       try {
         const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
         const candles = rawCandles.map(parseCandle)
@@ -178,15 +199,15 @@ export class DataManager {
 
     // When display interval is NOT 1h, separately fetch 1h candles for setup resolution
     if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
-      await this.fetchResolutionCandles()
+      await this.fetchResolutionCandles(coins)
     }
   }
 
-  private async fetchResolutionCandles(): Promise<void> {
+  private async fetchResolutionCandles(coins: readonly TrackedCoin[] = TRACKED_COINS): Promise<void> {
     const now = Date.now()
     const startTime = now - SETUP_RESOLUTION_LOOKBACK_MS
 
-    await runWithConcurrency(TRACKED_COINS, NETWORK_FETCH_CONCURRENCY, async (coin) => {
+    await runWithConcurrency(coins, NETWORK_FETCH_CONCURRENCY, async (coin) => {
       try {
         const rawCandles = await fetchCandles(coin, SETUP_RESOLUTION_INTERVAL, startTime, now)
         const candles = rawCandles.map(parseCandle)
@@ -198,11 +219,11 @@ export class DataManager {
     })
   }
 
-  private async fetchAllFundingHistory(): Promise<void> {
+  private async fetchAllFundingHistory(coins: readonly TrackedCoin[] = TRACKED_COINS): Promise<void> {
     const now = Date.now()
     const startTime = now - this.itvl.fundingLookbackMs
 
-    await runWithConcurrency(TRACKED_COINS, NETWORK_FETCH_CONCURRENCY, async (coin) => {
+    await runWithConcurrency(coins, NETWORK_FETCH_CONCURRENCY, async (coin) => {
       try {
         const history = await fetchFundingHistory(coin, startTime, now)
         for (const entry of history) {
@@ -493,7 +514,7 @@ export class DataManager {
     this.store.getState().setResolutionCandles(coin, candles)
   }
 
-  private startPolling(): void {
+  public startPollingLegacy(): void {
     this.pollTimer = setInterval(async () => {
       try {
         const now = Date.now()
@@ -546,6 +567,89 @@ export class DataManager {
   }
 
   // ── External context fetching ───────────────────────────────────────
+
+  private startPolling(): void {
+    this.pollStopped = false
+    this.scheduleNextPoll(POLL_INTERVAL_MS)
+  }
+
+  private scheduleNextPoll(delayMs: number): void {
+    if (this.pollStopped) return
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer)
+      this.pollTimer = null
+    }
+    this.pollTimer = setTimeout(() => {
+      void this.runPollingCycle()
+    }, Math.max(500, delayMs))
+  }
+
+  private async runPollingCycle(): Promise<void> {
+    if (this.pollStopped) return
+    if (this.pollInFlight) {
+      this.scheduleNextPoll(POLL_INTERVAL_MS)
+      return
+    }
+
+    this.pollInFlight = true
+    const startedAt = Date.now()
+    try {
+      await this.executePollingCycle()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Polling cycle failed'
+      this.store.getState().addError(message)
+    } finally {
+      this.pollInFlight = false
+      const elapsed = Date.now() - startedAt
+      const nextDelay = Math.max(5_000, POLL_INTERVAL_MS - elapsed)
+      this.scheduleNextPoll(nextDelay)
+    }
+  }
+
+  private async executePollingCycle(): Promise<void> {
+    const now = Date.now()
+    const [, [meta, assetCtxs]] = await Promise.all([
+      fetchAllMids().then((mids) => this.store.getState().setPrices(mids)),
+      fetchMetaAndAssetCtxs(),
+    ])
+
+    const universe = meta.universe
+    const assetByCoin = mapAssetContextsByCoin(universe, assetCtxs)
+    await runWithConcurrency(TRACKED_COINS, NETWORK_FETCH_CONCURRENCY, async (coin) => {
+      try {
+        const ctx = assetByCoin[coin]
+        if (ctx) {
+          this.store.getState().setAssetContext(coin, ctx)
+
+          const oi = parseFloat(ctx.openInterest)
+          if (isFinite(oi)) {
+            this.store.getState().appendOI(coin, now, oi)
+          }
+
+          const fr = parseFloat(ctx.funding)
+          if (isFinite(fr)) {
+            this.store.getState().appendFundingRate(coin, now, fr)
+          }
+        }
+
+        await this.refreshCandlesIfNeeded(coin, now)
+        if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
+          await this.refreshResolutionCandlesIfNeeded(coin, now)
+        }
+      } catch {
+        // Per-coin failures should not cancel the full polling cycle.
+      }
+    })
+
+    this.runCoreSignalPipeline()
+
+    void this.refreshServerSetupHistoryIfNeeded(now).catch(() => {
+      // Non-critical
+    })
+    void this.refreshExternalContextIfNeeded().catch(() => {
+      // Non-critical
+    })
+  }
 
   private async fetchFearGreedContext(): Promise<void> {
     try {
@@ -683,8 +787,10 @@ export class DataManager {
     }
     this.unsubscribers = []
     this.ws.disconnect()
+    this.pollStopped = true
+    this.pollInFlight = false
     if (this.pollTimer) {
-      clearInterval(this.pollTimer)
+      clearTimeout(this.pollTimer)
       this.pollTimer = null
     }
     this.initialized = false

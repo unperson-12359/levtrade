@@ -40,6 +40,7 @@ export function SignalSection() {
 
   const marketGuidance = getMarketWorkflowGuidance(signals)
   const guidance = getEntryWorkflowGuidance(signals, decision, marketGuidance)
+  const compactSummary = compactText(guidance.summary, 106)
 
   return (
     <section
@@ -74,7 +75,7 @@ export function SignalSection() {
         </div>
       </div>
 
-      <p className="panel-copy">{guidance.summary}</p>
+      <p className="panel-copy" title={guidance.summary}>{compactSummary}</p>
 
       <div className="step2-parallel-shell">
         <div className="step2-parallel-shell__setup">
@@ -123,6 +124,12 @@ export function SignalSection() {
       <SignalDrawer coin={coin} signalKind={drawerKind} onClose={() => setDrawerKind(null)} />
     </section>
   )
+}
+
+function compactText(value: string, maxLength: number): string {
+  const normalized = value.trim().replace(/\s+/g, ' ')
+  if (normalized.length <= maxLength) return normalized
+  return `${normalized.slice(0, maxLength - 1)}…`
 }
 
 interface MetricProps {

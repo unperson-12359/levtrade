@@ -3096,3 +3096,59 @@ Implement the active plan to reduce slow/buggy loading behavior and compress ove
 ### Remaining risks / follow-up
 - API timeout values are tuned conservatively for responsiveness; if any upstream endpoint is routinely slow in production, we may need per-endpoint timeout adjustments.
 - Deferred startup backfill runs concurrently with live polling; logic remains safe, but a production telemetry pass should confirm there is no transient duplicate UX noise on first load.
+
+---
+
+## 2026-03-05 01:35 - Codex - Stability Guardrails + Ultra-Compact Density Pass
+
+### Goal
+Eliminate the gray-screen/full-app disappearance path, harden runtime polling behavior, and make the full dashboard noticeably more minimal and space-efficient by default.
+
+### Files changed
+- `src/components/system/AppErrorBoundary.tsx` (new)
+- `src/App.tsx`
+- `src/main.tsx`
+- `src/store/uiSlice.ts`
+- `src/store/index.ts`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/services/api.ts`
+- `src/services/dataManager.ts`
+- `src/hooks/useDataManager.ts`
+- `src/components/decision/DecisionHero.tsx`
+- `src/components/signal/SignalSection.tsx`
+- `src/components/risk/RiskSection.tsx`
+- `src/components/market/MarketRail.tsx`
+- `src/components/setup/SetupCard.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Stability and crash handling:
+  - Added a top-level React error boundary fallback (`AppErrorBoundary`) so runtime render failures no longer degrade into an unhandled blank/gray page.
+  - Added global `window.error` and `window.unhandledrejection` listeners in `main.tsx` that push diagnostics into store for post-failure visibility.
+  - Added lightweight runtime diagnostic strip in dashboard layout with clear action.
+  - Reset persisted overlay state for `menu` on load and ensured runtime diagnostics are never persisted.
+- Polling/runtime hardening:
+  - Reworked active polling path to single-flight scheduler (`startPolling` + `scheduleNextPoll` + `runPollingCycle`) so polling cycles cannot overlap under slow network conditions.
+  - Added guarded async refresh calls (`.catch`) for non-blocking server-setup/context refresh inside poll cycle.
+  - Kept prior concurrent fetch and timeout improvements; strengthened timeout abort detection helper for broader runtime compatibility.
+- Startup/perceived performance:
+  - Staged startup to hydrate selected coin first (`fetchAllCandles([selectedCoin])`, `fetchAllFundingHistory([selectedCoin])`), then hydrate remaining coins in background.
+  - Applied same selected-coin-first strategy for interval changes in `useDataManager`.
+- Ultra-compact UI pass:
+  - Added global density mode class (`density-ultra`) on app shell.
+  - Introduced aggressive compact CSS overrides for paddings, gaps, typography, KPI card sizing, and grid packing.
+  - Hard-trimmed verbose copy in key sections by default (kept full text in `title` tooltips), including decision summary/action details, setup summary, risk detail, and market-moment notes.
+  - Further compressed Step 2 KPI and setup card density for single-screen readability.
+- Regression source checks:
+  - Added `runRuntimeStabilitySourceCheck()` to assert boundary wiring, runtime diagnostic plumbing, menu overlay reset, and single-flight polling constructs.
+
+### Verification
+- `npm.cmd run typecheck:api`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- `startPollingLegacy()` remains in `DataManager` as an explicit fallback reference path; active runtime uses new single-flight scheduler only.
+- Live browser soak testing is still required on production to confirm no gray-screen recurrence over a 10+ minute session with intermittent network instability.

@@ -35,6 +35,7 @@ export function MarketRail() {
   const cryptoMacro = useStore((s) => s.cryptoMacro)
   const binanceContext = useStore((s) => s.binanceContext)
   const momentSnapshot = useMarketMoments(coin)
+  const compactSummary = compactText(guidance.summary, 116)
 
   if (!signals) {
     return (
@@ -73,7 +74,7 @@ export function MarketRail() {
         <span className={`status-pill status-pill--${guidance.tone}`}>{guidance.label}</span>
       </div>
 
-      <p className="panel-copy">{guidance.summary}</p>
+      <p className="panel-copy" title={guidance.summary}>{compactSummary}</p>
 
       {(isWarmingUp || signals.isStale) && (
         <div className="decision-strip__chips">
@@ -364,6 +365,7 @@ interface MarketMomentStripProps {
 }
 
 function MarketMomentStrip({ kicker, headline, tone, tags, note, meta }: MarketMomentStripProps) {
+  const compactNote = compactText(note, 112)
   return (
     <section className="market-moment-strip">
       <div className="market-moment-strip__head">
@@ -379,8 +381,14 @@ function MarketMomentStrip({ kicker, headline, tone, tags, note, meta }: MarketM
           </div>
         ))}
       </div>
-      <div className="market-moment-strip__note">{note}</div>
+      <div className="market-moment-strip__note" title={note}>{compactNote}</div>
       <div className="market-moment-strip__meta">{meta}</div>
     </section>
   )
+}
+
+function compactText(value: string, maxLength: number): string {
+  const normalized = value.trim().replace(/\s+/g, ' ')
+  if (normalized.length <= maxLength) return normalized
+  return `${normalized.slice(0, maxLength - 1)}…`
 }
