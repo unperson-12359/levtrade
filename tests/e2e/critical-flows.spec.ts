@@ -12,10 +12,17 @@ test.describe('Observatory critical flows', () => {
     await expect(page.locator('.price-chart')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-detail-panel')).toBeVisible()
+    await expect(page.getByTestId('obs-cluster-candle-price')).toBeVisible()
+    await expect(page.getByTestId('obs-cluster-report-row').first()).toBeVisible()
     await expect(page.getByTestId('obs-cluster-mode-simple')).toHaveClass(/obs-chip--active/)
+
+    await page.locator('.obs-cluster__cell').first().click()
+    await expect(page.getByTestId('obs-cluster-detail-panel')).toBeVisible()
+    await expect(page.getByTestId('obs-cluster-report')).toBeVisible()
 
     await page.getByTestId('obs-cluster-mode-pro').click()
     await expect(page.getByTestId('obs-cluster-mode-pro')).toHaveClass(/obs-chip--active/)
+    await expect(page.getByTestId('obs-cluster-report-row').first()).toBeVisible()
 
     await page.getByTestId('obs-coin-ETH').click()
     await expect(page.getByTestId('obs-coin-ETH')).toHaveClass(/obs-chip--active/)

@@ -21,19 +21,73 @@ interface CanonicalResponse {
   }
 }
 
-function normalizeSnapshotHealth(snapshot: ObservatorySnapshot): ObservatorySnapshot {
+function normalizeSnapshot(snapshot: ObservatorySnapshot): ObservatorySnapshot {
   const anySnapshot = snapshot as ObservatorySnapshot & { health?: ObservatorySnapshot['health'] }
-  if (anySnapshot.health) return snapshot
+  const snapshotWithHealth: ObservatorySnapshot = anySnapshot.health
+    ? snapshot
+    : {
+        ...snapshot,
+        health: {
+          status: snapshot.indicators.length > 0 ? 'warning' : 'healthy',
+          total: snapshot.indicators.length,
+          valid: snapshot.indicators.length,
+          warnings: [],
+        },
+      }
 
-  const total = snapshot.indicators.length
+  const intervalMs = snapshotWithHealth.interval === '4h'
+    ? 4 * 60 * 60 * 1000
+    : snapshotWithHealth.interval === '1d'
+      ? 24 * 60 * 60 * 1000
+      : 60 * 60 * 1000
+
   return {
-    ...snapshot,
-    health: {
-      status: total > 0 ? 'warning' : 'healthy',
-      total,
-      valid: total,
-      warnings: [],
-    },
+    ...snapshotWithHealth,
+    timeline: snapshotWithHealth.timeline.map((cluster) => {
+      const anyCluster = cluster as typeof cluster & {
+        events?: typeof cluster.topHits
+        price?: typeof cluster.price
+      }
+      const events = Array.isArray(anyCluster.events) ? anyCluster.events : cluster.topHits
+      const normalizedEvents = events.map((event) => {
+        const durationBars = Number.isFinite(event.durationBars) && event.durationBars > 0 ? event.durationBars : 1
+        const durationMs = Number.isFinite(event.durationMs) && event.durationMs > 0
+          ? event.durationMs
+          : durationBars * intervalMs
+        return {
+          ...event,
+          durationBars,
+          durationMs,
+        }
+      })
+
+      const laneCounts = { ...cluster.laneCounts }
+      if (Object.keys(laneCounts).length === 0 && normalizedEvents.length > 0) {
+        for (const event of normalizedEvents) {
+          laneCounts[event.category] = (laneCounts[event.category] ?? 0) + 1
+        }
+      }
+
+      const topHits = cluster.topHits.length > 0 ? cluster.topHits : normalizedEvents.slice(0, 3)
+      const totalHits = Math.max(cluster.totalHits, normalizedEvents.length)
+
+      return {
+        ...cluster,
+        price: anyCluster.price ?? {
+          open: 0,
+          high: 0,
+          low: 0,
+          close: 0,
+          changePct: 0,
+          rangePct: 0,
+        },
+        totalHits,
+        events: normalizedEvents,
+        topHits,
+        overflowCount: Math.max(0, totalHits - topHits.length),
+        laneCounts,
+      }
+    }),
   }
 }
 
@@ -109,7 +163,7 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
         const payload = (await response.json()) as CanonicalResponse
         if (!active || payload.ok !== true || !payload.snapshot) return
 
-        setRemoteSnapshot(normalizeSnapshotHealth(payload.snapshot))
+        setRemoteSnapshot(normalizeSnapshot(payload.snapshot))
         setRemotePriceContext(payload.priceContext ?? null)
         setFreshness(payload.meta?.freshness ?? 'fresh')
         setSource('canonical')

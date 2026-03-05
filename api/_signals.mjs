@@ -2177,7 +2177,7 @@ function buildObservatorySnapshot(input) {
   const hydrated = seeds.map((seed) => hydrateMetric(seed, times)).filter((entry) => entry.metric.series.length > 25);
   const indicators = hydrated.map((entry) => entry.metric);
   const edges = computeCorrelationEdges(indicators, 12);
-  const timeline = buildHitTimeline(hydrated, times, 3);
+  const timeline = buildHitTimeline(hydrated, candles, input.interval, 3);
   const health = computeIndicatorHealth(indicators);
   return {
     coin: input.coin,
@@ -2350,6 +2350,11 @@ function intervalToHours(interval) {
   if (interval === "1h") return 1;
   if (interval === "4h") return 4;
   return 24;
+}
+function intervalToMs(interval) {
+  if (interval === "1h") return 60 * 60 * 1e3;
+  if (interval === "4h") return 4 * 60 * 60 * 1e3;
+  return 24 * 60 * 60 * 1e3;
 }
 function wrapNumericSeries(values) {
   return values.map((value) => isFiniteNumber(value) ? value : null);
@@ -2908,7 +2913,15 @@ function toQuantileBucket(value, thresholds) {
   if (value <= thresholds.q80) return "Q4";
   return "Q5";
 }
-function buildHitTimeline(hydratedMetrics, candleTimes, maxHitsPerCandle) {
+function buildHitTimeline(hydratedMetrics, candles, interval, maxHitsPerCandle) {
+  const candleTimes = candles.map((candle) => candle.time);
+  const candleByTime = /* @__PURE__ */ new Map();
+  for (const candle of candles) {
+    if (isFiniteNumber(candle.time)) {
+      candleByTime.set(candle.time, candle);
+    }
+  }
+  const durationMsPerBar = intervalToMs(interval);
   const eventsByTime = /* @__PURE__ */ new Map();
   for (const entry of hydratedMetrics) {
     const indicator = entry.metric;
@@ -2929,6 +2942,7 @@ function buildHitTimeline(hydratedMetrics, candleTimes, maxHitsPerCandle) {
       const current = rawValues[index];
       const previous = rawValues[index - 1];
       const magnitude = computeTransitionMagnitude(current, previous, scale);
+      const durationBars = transitionDurationBars(stateSeries, index, kind, fromState);
       const event = {
         id: `${indicator.id}:${time}:${kind}`,
         time,
@@ -2938,6 +2952,8 @@ function buildHitTimeline(hydratedMetrics, candleTimes, maxHitsPerCandle) {
         kind,
         fromState,
         toState,
+        durationBars,
+        durationMs: durationBars * durationMsPerBar,
         priority: eventPriority(kind, magnitude),
         message: buildEventMessage(indicator.label, kind, fromState, toState)
       };
@@ -2948,21 +2964,44 @@ function buildHitTimeline(hydratedMetrics, candleTimes, maxHitsPerCandle) {
   }
   const timeline = [];
   for (const [time, events] of eventsByTime) {
+    const candle = candleByTime.get(time);
+    if (!candle) continue;
     const ordered = [...events].sort((left, right) => right.priority - left.priority);
     const topHits = ordered.slice(0, maxHitsPerCandle);
     const laneCounts = {};
     for (const event of ordered) {
       laneCounts[event.category] = (laneCounts[event.category] ?? 0) + 1;
     }
+    const base = candle.open === 0 ? Math.abs(candle.close) || 1 : Math.abs(candle.open);
+    const changePct = (candle.close - candle.open) / base * 100;
+    const rangePct = (candle.high - candle.low) / base * 100;
     timeline.push({
       time,
+      price: {
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        changePct,
+        rangePct
+      },
       totalHits: ordered.length,
+      events: ordered,
       topHits,
       overflowCount: Math.max(0, ordered.length - topHits.length),
       laneCounts
     });
   }
   return timeline.sort((left, right) => left.time - right.time);
+}
+function transitionDurationBars(stateSeries, index, kind, fromState) {
+  if (kind === "enter_high" || kind === "enter_low") return 1;
+  if (fromState === "neutral") return 1;
+  let start = index - 1;
+  while (start > 0 && stateSeries[start - 1] === fromState) {
+    start -= 1;
+  }
+  return Math.max(1, index - start);
 }
 function transitionKind(fromState, toState) {
   if (fromState === "neutral" && toState === "high") return "enter_high";

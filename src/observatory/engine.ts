@@ -490,7 +490,7 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
 
   const indicators = hydrated.map((entry) => entry.metric)
   const edges = computeCorrelationEdges(indicators, 12)
-  const timeline = buildHitTimeline(hydrated, times, 3)
+  const timeline = buildHitTimeline(hydrated, candles, input.interval, 3)
   const health = computeIndicatorHealth(indicators)
 
   return {
@@ -703,6 +703,12 @@ function intervalToHours(interval: Interval): number {
   if (interval === '1h') return 1
   if (interval === '4h') return 4
   return 24
+}
+
+function intervalToMs(interval: Interval): number {
+  if (interval === '1h') return 60 * 60 * 1000
+  if (interval === '4h') return 4 * 60 * 60 * 1000
+  return 24 * 60 * 60 * 1000
 }
 
 function wrapNumericSeries(values: number[]): Series {
@@ -1355,9 +1361,18 @@ function toQuantileBucket(value: number, thresholds: QuantileThresholds): Quanti
 
 function buildHitTimeline(
   hydratedMetrics: HydratedMetric[],
-  candleTimes: number[],
+  candles: Candle[],
+  interval: Interval,
   maxHitsPerCandle: number,
 ): CandleHitCluster[] {
+  const candleTimes = candles.map((candle) => candle.time)
+  const candleByTime = new Map<number, Candle>()
+  for (const candle of candles) {
+    if (isFiniteNumber(candle.time)) {
+      candleByTime.set(candle.time, candle)
+    }
+  }
+  const durationMsPerBar = intervalToMs(interval)
   const eventsByTime = new Map<number, IndicatorHitEvent[]>()
 
   for (const entry of hydratedMetrics) {
@@ -1382,6 +1397,7 @@ function buildHitTimeline(
       const current = rawValues[index]
       const previous = rawValues[index - 1]
       const magnitude = computeTransitionMagnitude(current, previous, scale)
+      const durationBars = transitionDurationBars(stateSeries, index, kind, fromState)
 
       const event: IndicatorHitEvent = {
         id: `${indicator.id}:${time}:${kind}`,
@@ -1392,6 +1408,8 @@ function buildHitTimeline(
         kind,
         fromState,
         toState,
+        durationBars,
+        durationMs: durationBars * durationMsPerBar,
         priority: eventPriority(kind, magnitude),
         message: buildEventMessage(indicator.label, kind, fromState, toState),
       }
@@ -1404,15 +1422,29 @@ function buildHitTimeline(
 
   const timeline: CandleHitCluster[] = []
   for (const [time, events] of eventsByTime) {
+    const candle = candleByTime.get(time)
+    if (!candle) continue
     const ordered = [...events].sort((left, right) => right.priority - left.priority)
     const topHits = ordered.slice(0, maxHitsPerCandle)
     const laneCounts: Partial<Record<IndicatorCategory, number>> = {}
     for (const event of ordered) {
       laneCounts[event.category] = (laneCounts[event.category] ?? 0) + 1
     }
+    const base = candle.open === 0 ? Math.abs(candle.close) || 1 : Math.abs(candle.open)
+    const changePct = ((candle.close - candle.open) / base) * 100
+    const rangePct = ((candle.high - candle.low) / base) * 100
     timeline.push({
       time,
+      price: {
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        changePct,
+        rangePct,
+      },
       totalHits: ordered.length,
+      events: ordered,
       topHits,
       overflowCount: Math.max(0, ordered.length - topHits.length),
       laneCounts,
@@ -1420,6 +1452,22 @@ function buildHitTimeline(
   }
 
   return timeline.sort((left, right) => left.time - right.time)
+}
+
+function transitionDurationBars(
+  stateSeries: Array<IndicatorState | null>,
+  index: number,
+  kind: IndicatorHitEvent['kind'],
+  fromState: IndicatorState,
+): number {
+  if (kind === 'enter_high' || kind === 'enter_low') return 1
+  if (fromState === 'neutral') return 1
+
+  let start = index - 1
+  while (start > 0 && stateSeries[start - 1] === fromState) {
+    start -= 1
+  }
+  return Math.max(1, index - start)
 }
 
 function transitionKind(fromState: IndicatorState, toState: IndicatorState): IndicatorHitEvent['kind'] {

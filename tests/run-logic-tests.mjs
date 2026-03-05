@@ -638,6 +638,11 @@ function runObservatoryIndicatorHealthTest() {
   assert.equal(snapshot.health.total, snapshot.indicators.length)
   assert.ok(snapshot.health.valid >= Math.floor(snapshot.indicators.length * 0.8))
   assert.ok(snapshot.timeline.every((cluster) => cluster.topHits.length <= 3))
+  assert.ok(snapshot.timeline.every((cluster) => cluster.events.length === cluster.totalHits))
+  assert.ok(snapshot.timeline.every((cluster) => Number.isFinite(cluster.price.open) && Number.isFinite(cluster.price.close)))
+  assert.ok(snapshot.timeline.every((cluster) => cluster.events.every((event) => event.durationBars >= 1)))
+  assert.ok(snapshot.timeline.every((cluster) => cluster.events.every((event) => event.durationMs === event.durationBars * 4 * 3_600_000)))
+  assert.ok(snapshot.timeline.every((cluster) => cluster.events.every((event) => event.category && event.indicatorLabel)))
 
   const priceChangeOneBar = snapshot.indicators.find((indicator) => indicator.id === 'momentum_price_change_1h')
   assert.ok(priceChangeOneBar)

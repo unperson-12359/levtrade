@@ -78,13 +78,26 @@ export interface IndicatorHitEvent {
   kind: IndicatorHitKind
   fromState: IndicatorState
   toState: IndicatorState
+  durationBars: number
+  durationMs: number
   priority: number
   message: string
 }
 
+export interface CandlePriceContext {
+  open: number
+  high: number
+  low: number
+  close: number
+  changePct: number
+  rangePct: number
+}
+
 export interface CandleHitCluster {
   time: number
+  price: CandlePriceContext
   totalHits: number
+  events: IndicatorHitEvent[]
   topHits: IndicatorHitEvent[]
   overflowCount: number
   laneCounts: Partial<Record<IndicatorCategory, number>>

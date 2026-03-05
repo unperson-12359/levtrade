@@ -3659,3 +3659,45 @@ Deploy commit `4572501` (cluster heatmap + side detail panel + Simple/Pro modes)
 
 ### Remaining risks / follow-up
 - Recommend quick cross-device visual QA for lane readability at 360/390/412 widths and for side panel stacking behavior under `1100px`.
+
+## 2026-03-05 - Codex - Candle Forensics Report (All Fired Events + Duration)
+
+### Goal
+Upgrade timeline click behavior so each selected heatmap cell opens an exact candle-level report with all fired indicator events, category grouping, and timeframe-aware duration.
+
+### Files changed
+- `src/observatory/types.ts`
+- `src/observatory/engine.ts`
+- `src/hooks/useIndicatorObservatory.ts`
+- `src/components/observatory/IndicatorClusterLanes.tsx`
+- `src/index.css`
+- `tests/run-logic-tests.mjs`
+- `tests/e2e/critical-flows.spec.ts`
+- `api/_signals.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Extended observatory event model:
+  - each `IndicatorHitEvent` now carries `durationBars` and `durationMs`.
+  - each timeline cluster now includes full `events[]` (not only top hits) and per-candle `price` context (OHLC + change/range).
+- Reworked hit-timeline engine:
+  - computes transition duration from contiguous prior-state runs.
+  - emits complete event arrays for every candle cluster while preserving `topHits` for compact heatmap summaries.
+- Improved compatibility normalization in `useIndicatorObservatory`:
+  - handles snapshots missing new fields by filling defaults for `events`, `price`, and duration fields.
+- Redesigned cluster detail UI into a true candle report panel:
+  - shows candle timestamp + OHLC summary + candle move/range.
+  - groups all fired events by category.
+  - each row shows indicator, transition, and duration as bars + time.
+- Replaced Simple-mode bin aggregation with real-candle downsampling to keep click selection candle-exact.
+- Updated logic and critical e2e checks for new timeline/report guarantees.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS (elevated due local sandbox `spawn EPERM`)
+- `npm.cmd run gate:release`: PASS (elevated due local sandbox `spawn EPERM`)
+
+### Remaining risks / follow-up
+- Legacy snapshots normalized with fallback price `0` may display neutral candle stats until refreshed canonical payload arrives.
+- Report currently focuses on transition events; if needed, a follow-up can add a secondary section for indicators that remained active without firing.
