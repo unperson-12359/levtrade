@@ -3355,3 +3355,15 @@ Fix immediate post-deploy production API 500s caused by Vercel serverless ESM ru
 
 ### Remaining risks / follow-up
 - None identified from the import-resolution hotfix scope.
+
+### Production verification (post-hotfix deploy)
+- Commit pushed: `708fb96`
+- Deployment: `https://levtrade-kviu79xyl-unperson12359s-projects.vercel.app` (Ready, Production)
+- Production alias + APIs:
+  - `https://levtrade.vercel.app` -> 200
+  - `/api/server-setups` -> 200
+  - `/api/signal-accuracy` -> 200
+  - `/api/collector-heartbeat` -> 200
+  - `/api/events/stream?mode=poll` -> 200
+  - `/api/portfolios/global/snapshot` -> 200
+  - `/api/strategies/mean-reversion-core/backtests` -> 200
