@@ -3602,3 +3602,41 @@ Deploy commit `a783d3d` (ultra-compact command bar + indicator health audit) to 
 
 ### Remaining risks / follow-up
 - Recommend a quick visual pass on 360/390/412 widths to confirm the dense command bar remains legible with all chips active.
+
+## 2026-03-05 - Codex - Cluster Heatmap UX Redesign (Simple/Pro + Side Detail)
+
+### Goal
+Implement the approved presentation redesign for the Indicator Hit Clusters area so it is more user-friendly and visually cleaner: heatmap lanes, right-side detail panel, dual plain+technical labels, and Simple/Pro mode.
+
+### Files changed
+- `src/components/observatory/IndicatorClusterLanes.tsx`
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/index.css`
+- `tests/e2e/critical-flows.spec.ts`
+- `COLLAB_LOG.md`
+
+### What changed
+- Replaced dot-lane renderer with a heatmap-style lane grid:
+  - intensity cells encode hit density per lane/time bin
+  - cleaner scan path with reduced visual clutter
+- Added presentation modes:
+  - `Simple` (binned timeline for readability)
+  - `Pro` (higher temporal resolution)
+- Added right-side persistent detail panel for selected heatmap cell:
+  - timestamp + total hits
+  - top events rendered with dual labels (plain-English title + technical indicator name)
+  - overflow count for non-top events
+- Added timeline-only mode chips in command bar (`Simple`, `Pro`) and wired cluster mode state.
+- Added responsive behavior:
+  - side detail panel collapses below heatmap on narrower viewports.
+- Updated critical E2E checks for new cluster mode toggles and detail panel visibility.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS (elevated execution required due local sandbox `spawn EPERM`)
+- `npm.cmd run gate:release`: PASS (elevated execution required due local sandbox `spawn EPERM`)
+
+### Remaining risks / follow-up
+- Plain-language event titles are currently rule-based by category/transition and can be further tuned with user feedback for domain nuance.
+- If desired, a future pass can add lane-level filtering and keyboard cell navigation shortcuts for power users.

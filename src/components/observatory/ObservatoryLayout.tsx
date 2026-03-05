@@ -5,7 +5,7 @@ import type { IndicatorCategory, IndicatorHealthStatus } from '../../observatory
 import { useStore } from '../../store'
 import { TRACKED_COINS } from '../../types/market'
 import { PriceChart } from '../chart/PriceChart'
-import { IndicatorClusterLanes } from './IndicatorClusterLanes'
+import { IndicatorClusterLanes, type ClusterPresentationMode } from './IndicatorClusterLanes'
 import { PoolMap } from './PoolMap'
 
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Flow', 'Structure']
@@ -30,6 +30,7 @@ export function ObservatoryLayout() {
   const [selectedClusterTime, setSelectedClusterTime] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('basic')
   const [primaryView, setPrimaryView] = useState<PrimaryView>('timeline')
+  const [clusterMode, setClusterMode] = useState<ClusterPresentationMode>('simple')
   const [showRuntimeDetail, setShowRuntimeDetail] = useState(false)
   const [showPolicyDetail, setShowPolicyDetail] = useState(false)
   const [showHealthDetail, setShowHealthDetail] = useState(false)
@@ -189,6 +190,26 @@ export function ObservatoryLayout() {
           >
             Network
           </button>
+          {primaryView === 'timeline' && (
+            <>
+              <button
+                type="button"
+                className={`obs-chip ${clusterMode === 'simple' ? 'obs-chip--active' : ''}`}
+                onClick={() => setClusterMode('simple')}
+                data-testid="obs-cluster-mode-simple"
+              >
+                Simple
+              </button>
+              <button
+                type="button"
+                className={`obs-chip ${clusterMode === 'pro' ? 'obs-chip--active' : ''}`}
+                onClick={() => setClusterMode('pro')}
+                data-testid="obs-cluster-mode-pro"
+              >
+                Pro
+              </button>
+            </>
+          )}
         </div>
 
         <div className="obs-command-bar__metrics" data-testid="obs-price-strip">
@@ -292,6 +313,7 @@ export function ObservatoryLayout() {
             <IndicatorClusterLanes
               timeline={snapshot.timeline}
               timeframe={timeframe}
+              mode={clusterMode}
               selectedTime={selectedClusterTime}
               onSelectTime={setSelectedClusterTime}
             />
