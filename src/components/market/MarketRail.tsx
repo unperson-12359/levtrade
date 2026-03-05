@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../../store'
 import { useEntryDecision } from '../../hooks/useEntryDecision'
+import { useMarketMoments } from '../../hooks/useMarketMoments'
 import { usePositionRisk } from '../../hooks/usePositionRisk'
 import { useSuggestedPosition } from '../../hooks/useSuggestedPosition'
 import { useSignals } from '../../hooks/useSignals'
@@ -8,6 +9,7 @@ import { formatFundingRate, formatPercent, formatCompact, timeAgo } from '../../
 import { getMarketWorkflowGuidance, getWorkflowStepStates } from '../../utils/workflowGuidance'
 import { classifyFearGreed, classifyBtcDominance, classifyFundingDivergence, classifyOiDivergence } from '../../utils/contextGuidance'
 import { formatContextFreshness } from '../../utils/contextFreshness'
+import { formatMomentCountdown, nextMomentTone } from '../../signals/marketMoments'
 import type { SignalSeriesKind } from '../../utils/provenance'
 import { ExpandableSection } from '../shared/ExpandableSection'
 import { JargonTerm } from '../shared/JargonTerm'
@@ -32,6 +34,7 @@ export function MarketRail() {
   const fearGreed = useStore((s) => s.fearGreed)
   const cryptoMacro = useStore((s) => s.cryptoMacro)
   const binanceContext = useStore((s) => s.binanceContext)
+  const momentSnapshot = useMarketMoments(coin)
 
   if (!signals) {
     return (
@@ -159,6 +162,7 @@ export function MarketRail() {
           binanceContext={binanceContext}
           coin={coin}
         />
+        <MarketMomentsPanel snapshot={momentSnapshot} />
       </ExpandableSection>
       <SignalDrawer coin={coin} signalKind={drawerKind} onClose={() => setDrawerKind(null)} />
     </section>
@@ -169,6 +173,7 @@ export function MarketRail() {
 
 import type { FearGreedSnapshot, CryptoMacroSnapshot, BinanceContextSnapshot } from '../../types/context'
 import type { TrackedCoin } from '../../types/market'
+import type { MarketMomentSnapshot } from '../../types/marketMoments'
 
 interface ContextPanelsProps {
   fearGreed: FearGreedSnapshot
@@ -285,5 +290,66 @@ function MiniPanel({ kicker, title, tone, rows, copy, chartKind, onOpenChart, fo
         ) : null}
       </div>
     </section>
+  )
+}
+
+interface MarketMomentsPanelProps {
+  snapshot: MarketMomentSnapshot
+}
+
+function MarketMomentsPanel({ snapshot }: MarketMomentsPanelProps) {
+  const nextMacro = snapshot.nextMoments.find((moment) => moment.category === 'macro') ?? null
+  const nextSession = snapshot.nextMoments.find((moment) => moment.category !== 'macro') ?? null
+  const strongest = snapshot.topMoments[0] ?? null
+  const secondary = snapshot.topMoments[1] ?? null
+
+  const macroTone = nextMomentTone(nextMacro?.secondsUntil ?? null, nextMacro?.importance ?? null)
+  const sessionTone = nextMomentTone(nextSession?.secondsUntil ?? null, nextSession?.importance ?? null)
+
+  return (
+    <div className="context-panels context-panels--compact">
+      <div className="context-panels__label">
+        Market Moments
+        <span className="context-panels__subnote">Context only</span>
+      </div>
+      <div className="market-rail-grid step1-compact-grid">
+        <MiniPanel
+          kicker="Next macro event"
+          title={nextMacro ? nextMacro.label : 'No scheduled macro event'}
+          tone={macroTone}
+          rows={[
+            { label: 'Timing', value: nextMacro ? formatMomentCountdown(nextMacro.secondsUntil) : '--' },
+            { label: 'Priority', value: nextMacro ? nextMacro.importance.toUpperCase() : '--' },
+          ]}
+          copy={nextMacro?.note ?? 'Macro events are maintained in the UTC market moments schedule.'}
+          footerNote={nextMacro ? new Date(nextMacro.eventTime).toUTCString() : 'Schedule maintained in repo'}
+        />
+
+        <MiniPanel
+          kicker="Next global session"
+          title={nextSession ? nextSession.label : 'No upcoming session marker'}
+          tone={sessionTone}
+          rows={[
+            { label: 'Timing', value: nextSession ? formatMomentCountdown(nextSession.secondsUntil) : '--' },
+            { label: 'Priority', value: nextSession ? nextSession.importance.toUpperCase() : '--' },
+          ]}
+          copy={nextSession ? 'Session transitions can change liquidity and short-term volatility.' : 'Session markers are generated from UTC and exchange local time zones.'}
+          footerNote={nextSession ? new Date(nextSession.eventTime).toUTCString() : 'Session markers update hourly'}
+        />
+
+        <MiniPanel
+          kicker="Recent behavior"
+          title={strongest ? strongest.label : 'Insufficient sample'}
+          tone={strongest?.tone ?? 'yellow'}
+          rows={[
+            { label: 'Avg |1h move|', value: strongest ? formatPercent(strongest.avgAbsMovePct1h, 2) : '--' },
+            { label: 'Samples', value: strongest ? String(strongest.sampleCount) : '--' },
+            { label: 'Runner-up', value: secondary ? secondary.label : '--' },
+          ]}
+          copy={strongest?.summary ?? 'Need more 1h candles before ranking high-impact moments for this asset.'}
+          footerNote={`Lookback: ${snapshot.lookbackHours}h | Candles: ${snapshot.candleCount}`}
+        />
+      </div>
+    </div>
   )
 }

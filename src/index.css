@@ -2791,6 +2791,13 @@ button {
   margin-bottom: 0.32rem;
 }
 
+.context-panels__subnote {
+  margin-left: 0.45rem;
+  font-size: 0.54rem;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--color-signal-yellow) 72%, var(--color-text-muted));
+}
+
 .stat-card--clickable {
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease;

@@ -31,6 +31,7 @@ runEntryReadinessRailSourceCheck()
 runStep2KpiLayoutCheck()
 runSuggestedSetupKpiLayoutCheck()
 runStep1CompactDensityCheck()
+runMarketMomentsSourceCheck()
 runLiveTickerTapeCheck()
 runStep3CompactDensityCheck()
 runHeroPairCompressionCheck()
@@ -471,6 +472,45 @@ function runStep1CompactDensityCheck() {
   assert.match(cssSource, /\.step1-compact-copy \{/)
   assert.match(cssSource, /expandable-section\[data-section-id="step1-advanced"\]/)
   assert.match(expandableSource, /data-section-id=\{sectionId\}/)
+}
+
+function runMarketMomentsSourceCheck() {
+  const marketSource = readFileSync(join(__dirname, '../src/components/market/MarketRail.tsx'), 'utf8')
+  const hookSource = readFileSync(join(__dirname, '../src/hooks/useMarketMoments.ts'), 'utf8')
+  const signalSource = readFileSync(join(__dirname, '../src/signals/marketMoments.ts'), 'utf8')
+  const configSource = readFileSync(join(__dirname, '../src/config/marketMoments.ts'), 'utf8')
+  const typeSource = readFileSync(join(__dirname, '../src/types/marketMoments.ts'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+
+  assert.match(marketSource, /useMarketMoments/)
+  assert.match(marketSource, /MarketMomentsPanel/)
+  assert.match(marketSource, /Market Moments/)
+  assert.match(marketSource, /Context only/)
+  assert.match(marketSource, /formatMomentCountdown/)
+  assert.match(marketSource, /nextMomentTone/)
+
+  assert.match(hookSource, /buildMomentSnapshotFromHourlyCandles/)
+  assert.match(hookSource, /resolutionCandles/)
+  assert.match(hookSource, /extendedCandles/)
+
+  assert.match(signalSource, /computeMarketMomentSnapshot/)
+  assert.match(signalSource, /collectMomentInstances/)
+  assert.match(signalSource, /MACRO_EVENT_SCHEDULE_UTC/)
+  assert.match(signalSource, /us_cash_open/)
+  assert.match(signalSource, /month_end/)
+  assert.match(signalSource, /quarter_end/)
+
+  assert.match(configSource, /MARKET_MOMENT_LABELS/)
+  assert.match(configSource, /MACRO_EVENT_SCHEDULE_UTC/)
+  assert.match(configSource, /FOMC Rate Decision/)
+  assert.match(configSource, /US Nonfarm Payrolls/)
+  assert.match(configSource, /US CPI/)
+
+  assert.match(typeSource, /export interface MarketMomentSnapshot/)
+  assert.match(typeSource, /export interface MarketMomentAggregate/)
+  assert.match(typeSource, /export interface UpcomingMarketMoment/)
+
+  assert.match(cssSource, /\.context-panels__subnote \{/)
 }
 
 function runLiveTickerTapeCheck() {

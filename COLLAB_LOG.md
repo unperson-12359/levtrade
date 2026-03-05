@@ -3012,3 +3012,48 @@ Eliminate the remaining readiness mismatch edge case where displayed light count
 
 ### Remaining risks / follow-up
 - No new functional risks identified from this parity adjustment.
+
+---
+
+## 2026-03-04 20:45 - Codex - Market Moments Context Tracking (Step 1)
+
+### Goal
+Add context-only tracking for market-moving moments (session transitions, month/quarter turns, macro events) and surface it in Step 1 without changing entry/decision logic.
+
+### Files changed
+- `src/types/marketMoments.ts` (new)
+- `src/config/marketMoments.ts` (new)
+- `src/signals/marketMoments.ts` (new)
+- `src/hooks/useMarketMoments.ts` (new)
+- `src/components/market/MarketRail.tsx`
+- `src/index.css`
+- `src/types/index.ts`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added a dedicated market-moments model:
+  - session events: US/London/Tokyo open-close markers
+  - turn events: month open/end and quarter open/end
+  - macro events: curated UTC schedule for CPI, NFP, FOMC, and major rate decisions
+- Implemented pure behavior analytics over hourly candles:
+  - computes post-event 1h/4h move behavior
+  - ranks top recent moments by impact score
+  - emits upcoming moments with countdown and importance
+- Added `useMarketMoments(coin)` hook that derives snapshots from merged extended + resolution/display candles.
+- Added new Step 1 panel section in MarketRail:
+  - `Market Moments` (context-only label)
+  - Next macro event card
+  - Next global session card
+  - Recent behavior ranking card
+- Added compact styling for the context-only annotation chip.
+- Added regression source checks for new types/config/hook/signal module and UI wiring.
+
+### Verification
+- `npm.cmd run typecheck:api`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- Macro schedule is curated manually and includes estimated timestamps for some non-FOMC events; update cadence/process should be formalized to keep it current.
+- v1 is intentionally context-only and does not alter Step gating or readiness scoring.

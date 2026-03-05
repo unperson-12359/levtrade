@@ -1,0 +1,62 @@
+import type { MacroMarketEvent, MarketMomentType } from '../types/marketMoments'
+
+export const MARKET_MOMENT_LOOKBACK_HOURS = 120
+export const MARKET_MOMENT_FUTURE_HOURS = 168
+
+export const MARKET_MOMENT_LABELS: Record<MarketMomentType, string> = {
+  us_cash_open: 'US Cash Open',
+  us_cash_close: 'US Cash Close',
+  london_open: 'London Open',
+  london_close: 'London Close',
+  tokyo_open: 'Tokyo Open',
+  tokyo_close: 'Tokyo Close',
+  month_open: 'Month Open',
+  month_end: 'Month End',
+  quarter_open: 'Quarter Open',
+  quarter_end: 'Quarter End',
+  cpi: 'US CPI',
+  nfp: 'US NFP',
+  fomc: 'FOMC Decision',
+  rate_decision: 'Global Rate Decision',
+}
+
+// Maintained manually in UTC for deterministic behavior.
+export const MACRO_EVENT_SCHEDULE_UTC: MacroMarketEvent[] = [
+  { type: 'fomc', label: 'FOMC Rate Decision', timeUtc: '2026-03-18T18:00:00Z', source: 'Federal Reserve', importance: 'high' },
+  { type: 'nfp', label: 'US Nonfarm Payrolls', timeUtc: '2026-04-03T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'cpi', label: 'US CPI', timeUtc: '2026-04-10T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'rate_decision', label: 'ECB Rate Decision', timeUtc: '2026-04-16T12:15:00Z', source: 'ECB', importance: 'high', estimated: true },
+  { type: 'fomc', label: 'FOMC Rate Decision', timeUtc: '2026-04-29T18:00:00Z', source: 'Federal Reserve', importance: 'high' },
+  { type: 'rate_decision', label: 'BoE Rate Decision', timeUtc: '2026-05-07T11:00:00Z', source: 'Bank of England', importance: 'high', estimated: true },
+  { type: 'cpi', label: 'US CPI', timeUtc: '2026-05-12T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'rate_decision', label: 'ECB Rate Decision', timeUtc: '2026-06-04T12:15:00Z', source: 'ECB', importance: 'high', estimated: true },
+  { type: 'nfp', label: 'US Nonfarm Payrolls', timeUtc: '2026-06-05T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'cpi', label: 'US CPI', timeUtc: '2026-06-11T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'fomc', label: 'FOMC Rate Decision', timeUtc: '2026-06-17T18:00:00Z', source: 'Federal Reserve', importance: 'high' },
+  { type: 'rate_decision', label: 'BoJ Rate Decision', timeUtc: '2026-06-18T03:00:00Z', source: 'Bank of Japan', importance: 'medium', estimated: true },
+  { type: 'nfp', label: 'US Nonfarm Payrolls', timeUtc: '2026-07-03T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'cpi', label: 'US CPI', timeUtc: '2026-07-15T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'fomc', label: 'FOMC Rate Decision', timeUtc: '2026-07-29T18:00:00Z', source: 'Federal Reserve', importance: 'high' },
+  { type: 'rate_decision', label: 'BoJ Rate Decision', timeUtc: '2026-07-30T03:00:00Z', source: 'Bank of Japan', importance: 'medium', estimated: true },
+  { type: 'rate_decision', label: 'BoE Rate Decision', timeUtc: '2026-08-06T11:00:00Z', source: 'Bank of England', importance: 'high', estimated: true },
+  { type: 'nfp', label: 'US Nonfarm Payrolls', timeUtc: '2026-08-07T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'cpi', label: 'US CPI', timeUtc: '2026-08-12T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'rate_decision', label: 'ECB Rate Decision', timeUtc: '2026-09-10T12:15:00Z', source: 'ECB', importance: 'high', estimated: true },
+  { type: 'cpi', label: 'US CPI', timeUtc: '2026-09-11T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'fomc', label: 'FOMC Rate Decision', timeUtc: '2026-09-16T18:00:00Z', source: 'Federal Reserve', importance: 'high' },
+  { type: 'rate_decision', label: 'BoE Rate Decision', timeUtc: '2026-09-17T11:00:00Z', source: 'Bank of England', importance: 'high', estimated: true },
+  { type: 'rate_decision', label: 'BoJ Rate Decision', timeUtc: '2026-09-18T03:00:00Z', source: 'Bank of Japan', importance: 'medium', estimated: true },
+  { type: 'nfp', label: 'US Nonfarm Payrolls', timeUtc: '2026-10-02T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'cpi', label: 'US CPI', timeUtc: '2026-10-15T12:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'rate_decision', label: 'ECB Rate Decision', timeUtc: '2026-10-22T12:15:00Z', source: 'ECB', importance: 'high', estimated: true },
+  { type: 'fomc', label: 'FOMC Rate Decision', timeUtc: '2026-10-28T18:00:00Z', source: 'Federal Reserve', importance: 'high' },
+  { type: 'rate_decision', label: 'BoJ Rate Decision', timeUtc: '2026-10-30T03:00:00Z', source: 'Bank of Japan', importance: 'medium', estimated: true },
+  { type: 'rate_decision', label: 'BoE Rate Decision', timeUtc: '2026-11-05T12:00:00Z', source: 'Bank of England', importance: 'high', estimated: true },
+  { type: 'nfp', label: 'US Nonfarm Payrolls', timeUtc: '2026-11-06T13:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'cpi', label: 'US CPI', timeUtc: '2026-11-12T13:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'fomc', label: 'FOMC Rate Decision', timeUtc: '2026-12-09T19:00:00Z', source: 'Federal Reserve', importance: 'high' },
+  { type: 'rate_decision', label: 'ECB Rate Decision', timeUtc: '2026-12-10T13:15:00Z', source: 'ECB', importance: 'high', estimated: true },
+  { type: 'cpi', label: 'US CPI', timeUtc: '2026-12-10T13:30:00Z', source: 'BLS', importance: 'high', estimated: true },
+  { type: 'rate_decision', label: 'BoE Rate Decision', timeUtc: '2026-12-17T12:00:00Z', source: 'Bank of England', importance: 'high', estimated: true },
+  { type: 'rate_decision', label: 'BoJ Rate Decision', timeUtc: '2026-12-18T03:00:00Z', source: 'Bank of Japan', importance: 'medium', estimated: true },
+] as const
