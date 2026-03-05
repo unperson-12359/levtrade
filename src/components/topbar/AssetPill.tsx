@@ -26,6 +26,8 @@ export function AssetPill({ coin, isBest = false }: AssetPillProps) {
     <button
       onClick={() => selectCoin(coin)}
       className={`asset-pill asset-pill--${tone} ${isSelected ? 'asset-pill--active' : ''} ${isBest ? 'asset-pill--best' : ''}`}
+      data-testid={`asset-pill-${coin}`}
+      aria-label={`Select ${coin}`}
     >
       <span className="asset-pill__symbol">{coin}</span>
       <span className="asset-pill__price">{isLoading ? '...' : price ? formatPrice(price, coin) : '--'}</span>

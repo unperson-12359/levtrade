@@ -58,6 +58,19 @@ export class DataManager {
     return this.store.getState().selectedInterval
   }
 
+  private reportRuntimeIssue(source: string, error: unknown, fallbackMessage: string): string {
+    const message = error instanceof Error ? error.message : fallbackMessage
+    const stack = error instanceof Error ? error.stack ?? null : null
+
+    this.store.getState().pushRuntimeDiagnostic({
+      source: `data-manager:${source}`,
+      message,
+      stack,
+    })
+
+    return message
+  }
+
   async initialize(): Promise<void> {
     if (this.initialized) return
     this.initialized = true
@@ -90,13 +103,13 @@ export class DataManager {
       void this.fetchServerSetupHistory()
 
       // Fetch external context (non-blocking — failures don't affect core data)
-      void this.fetchAllExternalContext().catch(() => {
-        // Non-critical
+      void this.fetchAllExternalContext().catch((error) => {
+        this.reportRuntimeIssue('external-context.bootstrap', error, 'Failed to hydrate external context on startup')
       })
       void this.hydrateRemainingCoins(remainingCoins)
       void this.runDeferredStartupBackfills()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to fetch initial data'
+      const msg = this.reportRuntimeIssue('initialize', err, 'Failed to fetch initial data')
       this.store.getState().addError(msg)
     }
 
@@ -124,8 +137,8 @@ export class DataManager {
         this.fetchAllFundingHistory(coins),
       ])
       this.runCoreSignalPipeline()
-    } catch {
-      // Non-critical: selected coin is already live; background hydration can recover on polling.
+    } catch (error) {
+      this.reportRuntimeIssue('hydrate-remaining-coins', error, 'Background coin hydration failed')
     }
   }
 
@@ -137,8 +150,8 @@ export class DataManager {
       await this.backfillMissedSetups()
       await this.backfillCandlesForPendingSetups()
       this.runCoreSignalPipeline()
-    } catch {
-      // Non-critical: app remains live even if extended backfill fails
+    } catch (error) {
+      this.reportRuntimeIssue('startup-backfill', error, 'Deferred startup backfill failed')
     } finally {
       this.bootstrapBackfillInFlight = false
     }
@@ -170,7 +183,7 @@ export class DataManager {
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to fetch market data'
+      const msg = this.reportRuntimeIssue('fetch-initial-data', err, 'Failed to fetch market data')
       this.store.getState().addError(msg)
     }
   }
@@ -191,7 +204,7 @@ export class DataManager {
           this.store.getState().setResolutionCandles(coin, candles)
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : `Failed to fetch candles for ${coin}`
+        const msg = this.reportRuntimeIssue(`fetch-candles:${coin}`, err, `Failed to fetch candles for ${coin}`)
         this.store.getState().addError(msg)
       }
       await sleep(NETWORK_REQUEST_GAP_MS)
@@ -212,8 +225,8 @@ export class DataManager {
         const rawCandles = await fetchCandles(coin, SETUP_RESOLUTION_INTERVAL, startTime, now)
         const candles = rawCandles.map(parseCandle)
         this.store.getState().setResolutionCandles(coin, candles)
-      } catch {
-        // Non-critical: resolution will fall back to display candles
+      } catch (error) {
+        this.reportRuntimeIssue(`fetch-resolution-candles:${coin}`, error, `Failed to fetch 1h resolution candles for ${coin}`)
       }
       await sleep(NETWORK_REQUEST_GAP_MS)
     })
@@ -233,7 +246,7 @@ export class DataManager {
           }
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : `Failed to fetch funding for ${coin}`
+        const msg = this.reportRuntimeIssue(`fetch-funding:${coin}`, err, `Failed to fetch funding for ${coin}`)
         this.store.getState().addError(msg)
       }
       await sleep(NETWORK_REQUEST_GAP_MS)
@@ -264,8 +277,8 @@ export class DataManager {
 
       // Auto-sync: push local-only setups to the server so all devices converge
       void this.syncLocalSetupsToServer()
-    } catch {
-      // Non-critical: the dashboard still works with browser-local fallback history if server hydration fails.
+    } catch (error) {
+      this.reportRuntimeIssue('fetch-server-setups', error, 'Failed to hydrate canonical setup history')
     }
   }
 
@@ -319,8 +332,8 @@ export class DataManager {
           this.store.getState().hydrateServerSetups(fresh.setups)
         }
       }
-    } catch {
-      // Non-critical: sync failure doesn't break the app
+    } catch (error) {
+      this.reportRuntimeIssue('sync-local-setups', error, 'Failed to sync local setups to server')
     } finally {
       this.pendingSetupUploadIds.clear()
       this.setupSyncInFlight = false
@@ -357,8 +370,8 @@ export class DataManager {
           if (candles.length > 0) {
             this.store.getState().setExtendedCandles(coin, candles)
           }
-        } catch {
-          // Non-critical
+        } catch (error) {
+          this.reportRuntimeIssue(`backfill-display-candles:${coin}`, error, `Failed display-candle backfill for ${coin}`)
         }
         await sleep(200)
       }
@@ -377,8 +390,8 @@ export class DataManager {
               const deduped = [...new Map(merged.map((c) => [c.time, c])).values()].sort((a, b) => a.time - b.time)
               this.store.getState().setResolutionCandles(coin, deduped)
             }
-          } catch {
-            // Non-critical
+          } catch (error) {
+            this.reportRuntimeIssue(`backfill-resolution-candles:${coin}`, error, `Failed resolution-candle backfill for ${coin}`)
           }
           await sleep(200)
         }
@@ -458,8 +471,8 @@ export class DataManager {
         const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
         const candles = rawCandles.map(parseCandle)
         this.store.getState().setCandles(coin, candles)
-      } catch {
-        // Non-critical: backfill will use whatever candles are available
+      } catch (error) {
+        this.reportRuntimeIssue(`extended-candles-backfill:${coin}`, error, `Failed extended candle backfill for ${coin}`)
       }
       await sleep(200)
     }
@@ -475,8 +488,8 @@ export class DataManager {
             this.store.getState().appendFundingRate(coin, entry.time, rate)
           }
         }
-      } catch {
-        // Non-critical: backfill will use neutral funding fallback
+      } catch (error) {
+        this.reportRuntimeIssue(`extended-funding-backfill:${coin}`, error, `Failed funding backfill for ${coin}`)
       }
       await sleep(200)
     }
@@ -514,58 +527,6 @@ export class DataManager {
     this.store.getState().setResolutionCandles(coin, candles)
   }
 
-  public startPollingLegacy(): void {
-    this.pollTimer = setInterval(async () => {
-      try {
-        const now = Date.now()
-        const [, [meta, assetCtxs]] = await Promise.all([
-          fetchAllMids().then((mids) => this.store.getState().setPrices(mids)),
-          fetchMetaAndAssetCtxs(),
-        ])
-
-        const universe = meta.universe
-        const assetByCoin = mapAssetContextsByCoin(universe, assetCtxs)
-        await runWithConcurrency(TRACKED_COINS, NETWORK_FETCH_CONCURRENCY, async (coin) => {
-          try {
-            const ctx = assetByCoin[coin]
-            if (ctx) {
-              this.store.getState().setAssetContext(coin, ctx)
-
-              // Append OI snapshot
-              const oi = parseFloat(ctx.openInterest)
-              if (isFinite(oi)) {
-                this.store.getState().appendOI(coin, now, oi)
-              }
-
-              // Append funding rate snapshot
-              const fr = parseFloat(ctx.funding)
-              if (isFinite(fr)) {
-                this.store.getState().appendFundingRate(coin, now, fr)
-              }
-            }
-
-            await this.refreshCandlesIfNeeded(coin, now)
-            if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
-              await this.refreshResolutionCandlesIfNeeded(coin, now)
-            }
-          } catch {
-            // Per-coin failures should not cancel the full polling cycle.
-          }
-        })
-
-        // Trigger signal recomputation, generate setups for all coins, and resolve outcomes
-        this.runCoreSignalPipeline()
-
-        void this.refreshServerSetupHistoryIfNeeded(now)
-
-        // Refresh external context at independent cadences
-        this.refreshExternalContextIfNeeded()
-      } catch {
-        // Polling errors are non-fatal — next poll will try again
-      }
-    }, POLL_INTERVAL_MS)
-  }
-
   // ── External context fetching ───────────────────────────────────────
 
   private startPolling(): void {
@@ -596,7 +557,7 @@ export class DataManager {
     try {
       await this.executePollingCycle()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Polling cycle failed'
+      const message = this.reportRuntimeIssue('polling-cycle', error, 'Polling cycle failed')
       this.store.getState().addError(message)
     } finally {
       this.pollInFlight = false
@@ -636,18 +597,18 @@ export class DataManager {
         if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
           await this.refreshResolutionCandlesIfNeeded(coin, now)
         }
-      } catch {
-        // Per-coin failures should not cancel the full polling cycle.
+      } catch (error) {
+        this.reportRuntimeIssue(`polling-coin-refresh:${coin}`, error, `Polling refresh failed for ${coin}`)
       }
     })
 
     this.runCoreSignalPipeline()
 
-    void this.refreshServerSetupHistoryIfNeeded(now).catch(() => {
-      // Non-critical
+    void this.refreshServerSetupHistoryIfNeeded(now).catch((error) => {
+      this.reportRuntimeIssue('polling-refresh-server-setups', error, 'Failed incremental canonical setup refresh')
     })
-    void this.refreshExternalContextIfNeeded().catch(() => {
-      // Non-critical
+    void this.refreshExternalContextIfNeeded().catch((error) => {
+      this.reportRuntimeIssue('polling-refresh-external-context', error, 'Failed periodic external context refresh')
     })
   }
 
@@ -660,8 +621,8 @@ export class DataManager {
         timestamp: Date.now(),
         source: 'alternative-me',
       })
-    } catch {
-      // Non-critical: sentiment panel will show unknown state
+    } catch (error) {
+      this.reportRuntimeIssue('external-context-fear-greed', error, 'Failed Fear & Greed context fetch')
     }
   }
 
@@ -684,8 +645,8 @@ export class DataManager {
         timestamp: Date.now(),
         source: 'coingecko',
       })
-    } catch {
-      // Non-critical: macro panel will show unknown state
+    } catch (error) {
+      this.reportRuntimeIssue('external-context-crypto-macro', error, 'Failed CoinGecko context fetch')
     }
   }
 
@@ -738,8 +699,8 @@ export class DataManager {
         timestamp: Date.now(),
         source: 'binance',
       })
-    } catch {
-      // Non-critical: Binance panel will show unknown state
+    } catch (error) {
+      this.reportRuntimeIssue('external-context-binance', error, 'Failed Binance context fetch')
     }
   }
 

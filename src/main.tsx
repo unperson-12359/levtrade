@@ -7,6 +7,7 @@ import { useStore } from './store'
 declare global {
   interface Window {
     __levtradeRuntimeHooksInstalled?: boolean
+    __LEVTRADE_STORE__?: typeof useStore
   }
 }
 
@@ -43,6 +44,10 @@ if (typeof window !== 'undefined' && !window.__levtradeRuntimeHooksInstalled) {
   })
 
   window.__levtradeRuntimeHooksInstalled = true
+}
+
+if (typeof window !== 'undefined' && import.meta.env.VITE_E2E_MOCK === '1') {
+  window.__LEVTRADE_STORE__ = useStore
 }
 
 createRoot(document.getElementById('root')!).render(

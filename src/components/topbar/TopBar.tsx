@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
 import { TRACKED_COINS, type TrackedCoin } from '../../types/market'
 import { useStore } from '../../store'
+import { useSystemHealth } from '../../hooks/useSystemHealth'
 import { AssetPill } from './AssetPill'
 import { ConnectionIndicator } from './ConnectionIndicator'
 
 export function TopBar() {
   const toggle = useStore((s) => s.toggleSection)
   const signals = useStore((s) => s.signals)
+  const health = useSystemHealth()
 
   const bestCoin = useMemo(() => {
     let best: TrackedCoin | null = null
@@ -33,6 +35,7 @@ export function TopBar() {
           className="topbar-hamburger"
           onClick={() => toggle('menu')}
           aria-label="Open menu"
+          data-testid="open-menu-button"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
             <line x1="3" y1="6" x2="21" y2="6" />
@@ -50,6 +53,13 @@ export function TopBar() {
         </div>
 
         <ConnectionIndicator />
+        <span
+          className={`status-pill status-pill--${health.tone}`}
+          title={health.summary}
+          data-testid="system-health-pill"
+        >
+          {health.label}
+        </span>
         <span className="topbar-sync-dot topbar-sync-dot--green" title="History: server-backed collector + local browser cache" />
       </div>
     </header>

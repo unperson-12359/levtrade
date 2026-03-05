@@ -14,6 +14,9 @@
     "collector:start": "node dist-server/collector-loop.mjs",
     "repair:server-outcomes": "node dist-server/recompute-server-outcomes.mjs",
     "test:logic": "npm run build:signals && node tests/run-logic-tests.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:critical": "playwright test --grep @critical",
+    "gate:release": "node scripts/release-gate.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -26,6 +29,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

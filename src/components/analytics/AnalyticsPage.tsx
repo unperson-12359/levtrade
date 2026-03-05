@@ -14,7 +14,7 @@ export function AnalyticsPage() {
       <div className={`guide-page ${open ? 'guide-page--open' : ''}`}>
         <div className="guide-page__header">
           <h1 className="guide-page__title">Analytics</h1>
-          <button onClick={close} className="guide-page__close" aria-label="Close analytics">
+          <button onClick={close} className="guide-page__close" aria-label="Close analytics" data-testid="close-analytics-button">
             X
           </button>
         </div>

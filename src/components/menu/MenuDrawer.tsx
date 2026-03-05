@@ -68,6 +68,7 @@ export function MenuDrawer() {
               toggle('analytics')
               close()
             }}
+            data-testid="open-analytics-button"
           >
             Analytics <span className="menu-drawer__muted">-&gt;</span>
           </button>
@@ -78,6 +79,7 @@ export function MenuDrawer() {
               toggle('how-it-works')
               close()
             }}
+            data-testid="open-how-it-works-button"
           >
             How LevTrade Works <span className="menu-drawer__muted">-&gt;</span>
           </button>

@@ -104,6 +104,7 @@ export function DashboardLayout() {
                     key={tf}
                     onClick={() => setInterval(tf)}
                     className={`topbar-interval-chip ${selectedInterval === tf ? 'topbar-interval-chip--active' : ''}`}
+                    data-testid={`interval-chip-${tf}`}
                   >
                     {tf}
                   </button>

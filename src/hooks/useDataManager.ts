@@ -7,8 +7,11 @@ export function useDataManager() {
   const managerRef = useRef<DataManager | null>(null)
   const interval = useStore((s) => s.selectedInterval)
   const selectedCoin = useStore((s) => s.selectedCoin)
+  const enabled = import.meta.env.VITE_E2E_MOCK !== '1'
 
   useEffect(() => {
+    if (!enabled) return
+
     // Prevent double initialization in StrictMode
     if (managerRef.current) return
 
@@ -23,11 +26,12 @@ export function useDataManager() {
       manager.destroy()
       managerRef.current = null
     }
-  }, [])
+  }, [enabled])
 
   // Refetch candles when timeframe changes
   const prevInterval = useRef(interval)
   useEffect(() => {
+    if (!enabled) return
     if (interval === prevInterval.current) return
     prevInterval.current = interval
     const manager = managerRef.current
@@ -55,5 +59,5 @@ export function useDataManager() {
     }).catch(() => {
       // Errors handled inside DataManager
     })
-  }, [interval, selectedCoin])
+  }, [enabled, interval, selectedCoin])
 }

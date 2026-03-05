@@ -68,16 +68,20 @@ export function EntryReadinessRail({ coin }: EntryReadinessRailProps) {
           <div className="entry-readiness-gauge__hub" />
         </div>
         <div className="entry-readiness-rail__score">
-          <span className={`entry-readiness-rail__pct entry-readiness-rail__pct--${readiness.primaryBand}`}>
+          <span
+            className={`entry-readiness-rail__pct entry-readiness-rail__pct--${readiness.primaryBand}`}
+            data-testid="readiness-primary-pct"
+          >
             {readiness.triggerProgressPct}%
           </span>
-          <span className="entry-readiness-rail__meta">
+          <span className="entry-readiness-rail__meta" data-testid="readiness-light-count">
             {readiness.activeCount}/{readiness.totalCount} lights
           </span>
         </div>
         <div
           className={`entry-readiness-rail__lock${readiness.lockedByStep !== 0 ? ' entry-readiness-rail__lock--active' : ''}`}
           title={lockTitle}
+          data-testid="readiness-lock-state"
         >
           {lockText}
         </div>

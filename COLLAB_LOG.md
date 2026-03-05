@@ -3152,3 +3152,63 @@ Eliminate the gray-screen/full-app disappearance path, harden runtime polling be
 ### Remaining risks / follow-up
 - `startPollingLegacy()` remains in `DataManager` as an explicit fallback reference path; active runtime uses new single-flight scheduler only.
 - Live browser soak testing is still required on production to confirm no gray-screen recurrence over a 10+ minute session with intermittent network instability.
+
+## 2026-03-05 - Codex - Stabilization Reset Implementation (Release Gates + Critical E2E + Runtime Hardening)
+
+### Goal
+Implement the stabilization reset plan end-to-end: enforce release gates, add critical interactive coverage, harden runtime diagnostics, reduce bundle-risk noise, and add explicit system health visibility.
+
+### Files changed
+- `.gitignore`
+- `package.json`
+- `package-lock.json`
+- `playwright.config.ts` (new)
+- `tests/e2e/critical-flows.spec.ts` (new)
+- `scripts/release-gate.mjs` (new)
+- `docs/release-gate.md` (new)
+- `docs/release-signoff.md` (new)
+- `src/hooks/useSystemHealth.ts` (new)
+- `src/hooks/useDataManager.ts`
+- `src/main.tsx`
+- `src/services/dataManager.ts`
+- `src/components/topbar/TopBar.tsx`
+- `src/components/topbar/AssetPill.tsx`
+- `src/components/menu/MenuDrawer.tsx`
+- `src/components/analytics/AnalyticsPage.tsx`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/components/chart/EntryReadinessRail.tsx`
+- `vite.config.ts`
+
+### What changed
+- Release gate + policy wiring:
+  - Added `npm run gate:release` to enforce build + logic + critical E2E + manual signoff verification.
+  - Added `scripts/release-gate.mjs` with strict signoff checks (`Status: PASS` + required automated/manual check lines).
+  - Added `docs/release-gate.md` usage contract and `docs/release-signoff.md` template.
+- Critical interactive E2E coverage:
+  - Added Playwright setup and `@critical` suite for:
+    - load/coin switch/interval switch/chart render
+    - readiness lock state + `%`/lights parity
+    - canonical vs fallback history messaging
+    - analytics drawer tab interactions
+    - runtime diagnostic-strip resilience
+  - Added stable test selectors (`data-testid`) on key controls and readiness fields.
+  - Added e2e mock mode to disable live DataManager in browser tests (`VITE_E2E_MOCK=1`) and exposed store hooks under guarded test mode.
+- Runtime hardening:
+  - Removed legacy polling path (`startPollingLegacy`) from `DataManager`.
+  - Replaced silent swallow paths in critical DataManager branches with explicit runtime diagnostics (`pushRuntimeDiagnostic`) and retained user-facing error surfacing where appropriate.
+- Health-model surfacing:
+  - Added `useSystemHealth()` derived model (`market`, `canonical`, `runtime`) and surfaced a top-bar health pill with a clear summary tooltip.
+- Performance baseline:
+  - Added Vite `manualChunks` vendor split (`react`, `charts`, `state`, `vendor`) to reduce oversized main chunk pressure.
+  - Main app chunk dropped below prior warning threshold (see verification).
+
+### Verification
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:e2e:critical`: PASS (6/6)
+- `npm.cmd run gate:release -- --verify-only`: EXPECTED FAIL (template signoff intentionally incomplete until manual QA/soak is executed)
+
+### Remaining risks / follow-up
+- Manual release signoff is intentionally still pending in `docs/release-signoff.md`; freeze-exit requires a real filled PASS signoff.
+- `gate:release` will continue to fail until manual responsive + soak + trust verification checkboxes are completed.
+- E2E currently runs in mock-state mode for deterministic critical-flow checks; production soak remains mandatory for live-network behavior.
