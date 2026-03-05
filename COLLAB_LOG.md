@@ -3640,3 +3640,22 @@ Implement the approved presentation redesign for the Indicator Hit Clusters area
 ### Remaining risks / follow-up
 - Plain-language event titles are currently rule-based by category/transition and can be further tuned with user feedback for domain nuance.
 - If desired, a future pass can add lane-level filtering and keyboard cell navigation shortcuts for power users.
+
+## 2026-03-05 - Codex - Cluster Heatmap Production Deployment
+
+### Goal
+Deploy commit `4572501` (cluster heatmap + side detail panel + Simple/Pro modes) to production and verify live availability.
+
+### Files changed
+- `COLLAB_LOG.md`
+
+### Deployment
+- Production deployment URL: `https://levtrade-5hlb4o5r5-unperson12359s-projects.vercel.app`
+- Production alias: `https://levtrade.vercel.app`
+- Inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/Eski4iX4dZpfKVc3dWAEYXwKHVZo`
+
+### Verification
+- `https://levtrade.vercel.app` returned HTTP `200` after alias update.
+
+### Remaining risks / follow-up
+- Recommend quick cross-device visual QA for lane readability at 360/390/412 widths and for side panel stacking behavior under `1100px`.
