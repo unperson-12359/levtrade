@@ -28,22 +28,24 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
   const oiHistory = useStore((state) => state.oiHistory[coin])
   const livePrice = useStore((state) => state.prices[coin])
 
+  const canonicalInterval = interval === '1d' ? '1d' : '4h'
+
   const localSnapshot = useMemo(
     () =>
       buildObservatorySnapshot({
         coin,
-        interval,
+        interval: canonicalInterval,
         candles,
         fundingHistory,
         oiHistory,
       }),
-    [candles, coin, fundingHistory, interval, oiHistory],
+    [candles, coin, fundingHistory, canonicalInterval, oiHistory],
   )
 
   const localPriceContext = useMemo(() => {
     const latestClose = candles[candles.length - 1]?.close ?? null
     const lastPrice = livePrice ?? latestClose ?? null
-    const barsFor24h = interval === '1h' ? 24 : interval === '4h' ? 6 : 1
+    const barsFor24h = canonicalInterval === '4h' ? 6 : 1
     const close24hAgo = candles[Math.max(0, candles.length - 1 - barsFor24h)]?.close ?? null
     const closePrevious = candles[Math.max(0, candles.length - 2)]?.close ?? null
 
@@ -59,7 +61,7 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
           : null,
       updatedAt: new Date().toISOString(),
     }
-  }, [candles, interval, livePrice])
+  }, [candles, canonicalInterval, livePrice])
 
   const [remoteSnapshot, setRemoteSnapshot] = useState<ObservatorySnapshot | null>(null)
   const [remotePriceContext, setRemotePriceContext] = useState<PriceContext | null>(null)
@@ -84,7 +86,7 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
     const pull = async () => {
       setLoading(true)
       try {
-        const response = await fetch(`/api/observatory-snapshot?coin=${coin}&interval=${interval}`, {
+        const response = await fetch(`/api/observatory-snapshot?coin=${coin}&interval=${canonicalInterval}`, {
           signal: controller.signal,
         })
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -115,7 +117,7 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
       controller.abort()
       if (timer) clearTimeout(timer)
     }
-  }, [coin, interval])
+  }, [coin, canonicalInterval])
 
   return {
     snapshot: remoteSnapshot ?? localSnapshot,

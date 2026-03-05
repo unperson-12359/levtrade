@@ -1,31 +1,36 @@
 import { expect, test, type Page } from '@playwright/test'
 
 test.describe('Observatory critical flows', () => {
-  test('@critical load, coin switch, interval switch, and pool map render', async ({ page }) => {
+  test('@critical load, coin switch, interval switch, and chart-cluster render', async ({ page }) => {
     await page.goto('/')
     await seedObservatoryState(page)
 
     await expect(page.getByTestId('obs-shell')).toBeVisible()
     await expect(page.getByTestId('obs-price-strip')).toBeVisible()
-    await expect(page.getByTestId('obs-map-legend')).toBeVisible()
-    await expect(page.getByTestId('obs-pool-map')).toBeVisible()
+    await expect(page.locator('.price-chart')).toBeVisible()
+    await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 
     await page.getByTestId('obs-coin-ETH').click()
     await expect(page.getByTestId('obs-coin-ETH')).toHaveClass(/obs-chip--active/)
 
-    await page.getByTestId('obs-interval-4h').click()
-    await expect(page.getByTestId('obs-interval-4h')).toHaveClass(/obs-chip--active/)
-    await expect(page.getByTestId('obs-pool-map')).toBeVisible()
+    await page.getByTestId('obs-interval-1d').click()
+    await expect(page.getByTestId('obs-interval-1d')).toHaveClass(/obs-chip--active/)
+    await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 
     await page.getByTestId('obs-mode-advanced').click()
     await expect(page.getByTestId('obs-mode-advanced')).toHaveClass(/obs-chip--active/)
     await page.getByTestId('obs-mode-basic').click()
     await expect(page.getByTestId('obs-mode-basic')).toHaveClass(/obs-chip--active/)
+
+    await page.getByTestId('obs-view-network').click()
+    await expect(page.getByTestId('obs-map-legend')).toBeVisible()
+    await expect(page.getByTestId('obs-pool-map')).toBeVisible()
   })
 
   test('@critical indicator selection updates drilldown', async ({ page }) => {
     await page.goto('/')
     await seedObservatoryState(page)
+    await page.getByTestId('obs-view-network').click()
 
     await page.getByTestId('obs-indicator-row-momentum_rsi14').click()
     await expect(page.getByTestId('obs-detail-title')).toContainText('RSI 14')
@@ -37,7 +42,7 @@ test.describe('Observatory critical flows', () => {
   test('@critical strict no-recommendation copy is visible', async ({ page }) => {
     await page.goto('/')
     await seedObservatoryState(page)
-    await expect(page.getByTestId('obs-no-reco-copy')).toContainText('does not produce long/short calls')
+    await expect(page.getByTestId('obs-no-reco-copy')).toContainText('it does not output trading calls')
   })
 
   test('@critical runtime diagnostics keep app visible under failure signals', async ({ page }) => {
@@ -87,7 +92,7 @@ async function seedObservatoryState(page: Page) {
     if (!store) throw new Error('E2E store hook not installed')
     const actions = store.getState()
     actions.selectCoin('BTC')
-    actions.setInterval('1h')
+    actions.setInterval('4h')
     actions.setConnectionStatus('connected')
     actions.setPrices(prices)
     actions.clearErrors()

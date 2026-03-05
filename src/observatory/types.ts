@@ -51,6 +51,29 @@ export interface CorrelationEdge {
   strength: number
 }
 
+export type IndicatorHitKind = 'enter_high' | 'enter_low' | 'exit_to_neutral' | 'flip'
+
+export interface IndicatorHitEvent {
+  id: string
+  time: number
+  indicatorId: string
+  indicatorLabel: string
+  category: IndicatorCategory
+  kind: IndicatorHitKind
+  fromState: IndicatorState
+  toState: IndicatorState
+  priority: number
+  message: string
+}
+
+export interface CandleHitCluster {
+  time: number
+  totalHits: number
+  topHits: IndicatorHitEvent[]
+  overflowCount: number
+  laneCounts: Partial<Record<IndicatorCategory, number>>
+}
+
 export interface ObservatorySnapshot {
   coin: TrackedCoin
   interval: '1h' | '4h' | '1d'
@@ -58,4 +81,5 @@ export interface ObservatorySnapshot {
   candleCount: number
   indicators: IndicatorMetric[]
   edges: CorrelationEdge[]
+  timeline: CandleHitCluster[]
 }

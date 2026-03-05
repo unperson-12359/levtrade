@@ -1,6 +1,8 @@
 import type { Candle, FundingSnapshot, OISnapshot, TrackedCoin } from '../types/market'
 import type {
+  CandleHitCluster,
   CorrelationEdge,
+  IndicatorHitEvent,
   IndicatorCategory,
   IndicatorMetric,
   IndicatorSeriesPoint,
@@ -30,6 +32,11 @@ interface MetricSeed {
   classify: (value: number) => IndicatorState
 }
 
+interface HydratedMetric {
+  metric: IndicatorMetric
+  stateSeries: Array<IndicatorState | null>
+}
+
 export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot {
   const candles = input.candles
   if (candles.length === 0) {
@@ -40,6 +47,7 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
       candleCount: 0,
       indicators: [],
       edges: [],
+      timeline: [],
     }
   }
 
@@ -454,11 +462,13 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
     ),
   ]
 
-  const indicators = seeds
+  const hydrated = seeds
     .map((seed) => hydrateMetric(seed, times))
-    .filter((metric) => metric.series.length > 25)
+    .filter((entry) => entry.metric.series.length > 25)
 
+  const indicators = hydrated.map((entry) => entry.metric)
   const edges = computeCorrelationEdges(indicators, 12)
+  const timeline = buildHitTimeline(hydrated, times, 3)
 
   return {
     coin: input.coin,
@@ -467,16 +477,20 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
     candleCount: candles.length,
     indicators,
     edges,
+    timeline,
   }
 }
 
-function hydrateMetric(seed: MetricSeed, times: number[]): IndicatorMetric {
+function hydrateMetric(seed: MetricSeed, times: number[]): HydratedMetric {
   const series: IndicatorSeriesPoint[] = []
+  const stateSeries: Array<IndicatorState | null> = Array(seed.values.length).fill(null)
+
   for (let index = 0; index < seed.values.length; index += 1) {
     const value = seed.values[index]
     if (!isFiniteNumber(value)) continue
     const time = times[index]
     if (typeof time !== 'number') continue
+    stateSeries[index] = seed.classify(value)
     series.push({ time, value })
   }
 
@@ -486,18 +500,21 @@ function hydrateMetric(seed: MetricSeed, times: number[]): IndicatorMetric {
   const frequency = computeFrequency(seed.values, quantiles.thresholds, seed.classify)
 
   return {
-    id: seed.id,
-    label: seed.label,
-    category: seed.category,
-    unit: seed.unit,
-    description: seed.description,
-    currentValue,
-    currentState,
-    quantileRank: quantiles.currentRank,
-    quantileBucket: quantiles.currentBucket,
-    series,
-    rawValues: seed.values,
-    frequency,
+    metric: {
+      id: seed.id,
+      label: seed.label,
+      category: seed.category,
+      unit: seed.unit,
+      description: seed.description,
+      currentValue,
+      currentState,
+      quantileRank: quantiles.currentRank,
+      quantileBucket: quantiles.currentBucket,
+      series,
+      rawValues: seed.values,
+      frequency,
+    },
+    stateSeries,
   }
 }
 
@@ -1227,6 +1244,129 @@ function toQuantileBucket(value: number, thresholds: QuantileThresholds): Quanti
   if (value <= thresholds.q60) return 'Q3'
   if (value <= thresholds.q80) return 'Q4'
   return 'Q5'
+}
+
+function buildHitTimeline(
+  hydratedMetrics: HydratedMetric[],
+  candleTimes: number[],
+  maxHitsPerCandle: number,
+): CandleHitCluster[] {
+  const eventsByTime = new Map<number, IndicatorHitEvent[]>()
+
+  for (const entry of hydratedMetrics) {
+    const indicator = entry.metric
+    const rawValues = indicator.rawValues ?? []
+    if (rawValues.length < 2) continue
+
+    const stateSeries = entry.stateSeries
+    const upperBound = Math.min(Math.min(rawValues.length, stateSeries.length), candleTimes.length)
+    if (upperBound < 2) continue
+
+    const scale = computeSeriesScale(rawValues)
+    for (let index = 1; index < upperBound; index += 1) {
+      const fromState = stateSeries[index - 1]
+      const toState = stateSeries[index]
+      if (!fromState || !toState) continue
+      if (fromState === toState) continue
+
+      const kind = transitionKind(fromState, toState)
+      const time = candleTimes[index]
+      if (!isFiniteNumber(time)) continue
+      const current = rawValues[index]
+      const previous = rawValues[index - 1]
+      const magnitude = computeTransitionMagnitude(current, previous, scale)
+
+      const event: IndicatorHitEvent = {
+        id: `${indicator.id}:${time}:${kind}`,
+        time,
+        indicatorId: indicator.id,
+        indicatorLabel: indicator.label,
+        category: indicator.category,
+        kind,
+        fromState,
+        toState,
+        priority: eventPriority(kind, magnitude),
+        message: buildEventMessage(indicator.label, kind, fromState, toState),
+      }
+
+      const bucket = eventsByTime.get(time) ?? []
+      bucket.push(event)
+      eventsByTime.set(time, bucket)
+    }
+  }
+
+  const timeline: CandleHitCluster[] = []
+  for (const [time, events] of eventsByTime) {
+    const ordered = [...events].sort((left, right) => right.priority - left.priority)
+    const topHits = ordered.slice(0, maxHitsPerCandle)
+    const laneCounts: Partial<Record<IndicatorCategory, number>> = {}
+    for (const event of ordered) {
+      laneCounts[event.category] = (laneCounts[event.category] ?? 0) + 1
+    }
+    timeline.push({
+      time,
+      totalHits: ordered.length,
+      topHits,
+      overflowCount: Math.max(0, ordered.length - topHits.length),
+      laneCounts,
+    })
+  }
+
+  return timeline.sort((left, right) => left.time - right.time)
+}
+
+function transitionKind(fromState: IndicatorState, toState: IndicatorState): IndicatorHitEvent['kind'] {
+  if (fromState === 'neutral' && toState === 'high') return 'enter_high'
+  if (fromState === 'neutral' && toState === 'low') return 'enter_low'
+  if ((fromState === 'high' || fromState === 'low') && toState === 'neutral') return 'exit_to_neutral'
+  return 'flip'
+}
+
+function computeSeriesScale(values: Series): number {
+  const finite = values.filter((value): value is number => isFiniteNumber(value))
+  if (finite.length < 2) return 1
+
+  let sum = 0
+  for (const value of finite) sum += value
+  const mean = sum / finite.length
+
+  let sumSquares = 0
+  for (const value of finite) {
+    const delta = value - mean
+    sumSquares += delta * delta
+  }
+  const variance = sumSquares / finite.length
+  const std = Math.sqrt(Math.max(variance, 0))
+  return std > 1e-9 ? std : Math.max(Math.abs(mean), 1)
+}
+
+function computeTransitionMagnitude(
+  current: number | null | undefined,
+  previous: number | null | undefined,
+  scale: number,
+): number {
+  if (!isFiniteNumber(current) || !isFiniteNumber(previous)) return 0.25
+  const normalizedScale = Math.max(scale, 1e-9)
+  const delta = Math.abs(current - previous) / normalizedScale
+  const level = Math.abs(current) / normalizedScale
+  return Math.min(3, delta * 0.8 + level * 0.2)
+}
+
+function eventPriority(kind: IndicatorHitEvent['kind'], magnitude: number): number {
+  const base = kind === 'flip' ? 1.2 : kind === 'enter_high' || kind === 'enter_low' ? 0.9 : 0.6
+  return base + Math.min(Math.max(magnitude, 0), 3)
+}
+
+function buildEventMessage(
+  label: string,
+  kind: IndicatorHitEvent['kind'],
+  fromState: IndicatorState,
+  toState: IndicatorState,
+): string {
+  if (kind === 'enter_high') return `${label} entered high from ${fromState}.`
+  if (kind === 'enter_low') return `${label} entered low from ${fromState}.`
+  if (kind === 'exit_to_neutral') return `${label} returned to neutral behavior.`
+  return `${label} flipped from ${fromState} to ${toState}.`
 }
 
 function pairSeries(a: Series, b: Series, minSamples: number): { x: number[]; y: number[] } | null {

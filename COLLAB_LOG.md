@@ -3475,3 +3475,45 @@ Address user confusion by making token price explicit, making line semantics obv
 ### Follow-up risks / next steps
 - Canonical route currently uses funding + candle history from Hyperliquid and does not yet hydrate full OI historical depth from a canonical database source.
 - For larger symbol universes, add persistent precompute/storage and scheduled snapshot materialization beyond in-function cache.
+
+## 2026-03-05 - Codex - Chart-First Hit Cluster Timeline (4h/1d) + Transition Logic Hardening
+
+### Goal
+Complete the chart-first observatory implementation requested in prior planning: keep a strict non-predictive workflow, show indicator hit clusters directly under the asset chart, constrain active analysis to 4h/1d, and harden event semantics for robustness/scalability.
+
+### Files changed
+- `api/observatory-snapshot.ts`
+- `src/hooks/useIndicatorObservatory.ts`
+- `src/observatory/types.ts`
+- `src/observatory/engine.ts`
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/components/observatory/IndicatorClusterLanes.tsx` (new)
+- `src/index.css`
+- `tests/e2e/critical-flows.spec.ts`
+- `COLLAB_LOG.md`
+
+### What changed
+- Shipped chart-first observatory surface with two explicit views:
+  - `Timeline`: asset chart on top + indicator hit cluster lanes below.
+  - `Network`: retained indicator pool map + drilldown for relationship exploration.
+- Added `IndicatorClusterLanes` component:
+  - Per-candle hit markers grouped by category lanes (Trend/Momentum/Volatility/Volume/Flow/Structure).
+  - Clickable candle detail panel with top hits + overflow count.
+- Added timeline data to observatory contracts:
+  - `IndicatorHitEvent`, `CandleHitCluster`, and `timeline` on `ObservatorySnapshot`.
+- Hardened hit-event generation logic:
+  - Replaced quantile-transition proxy with true indicator state transitions derived from each metric’s own classifier (`high/neutral/low`).
+  - Added normalized transition magnitude scoring to prioritize meaningful events and keep top-N per candle deterministic.
+- Enforced canonical timeframe operation (`4h`/`1d`) in UI, API route, and observatory hook fetches.
+- Refined policy copy to reinforce strict non-recommendation behavior.
+- Updated critical E2E coverage for chart-cluster flow, view toggles, and latest no-recommendation copy.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS (required elevated execution due local sandbox `spawn EPERM`)
+- `npm.cmd run gate:release`: PASS (required elevated execution due local sandbox `spawn EPERM`)
+
+### Remaining risks / follow-up
+- Timeline hit semantics are now classifier-consistent, but per-indicator threshold tuning remains heuristic and can be calibrated further with production telemetry.
+- Canonical observatory snapshots are computed on-demand; for larger symbol/timeframe expansion, scheduled precomputation + durable storage is the next scaling step.

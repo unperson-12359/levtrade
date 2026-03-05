@@ -13,7 +13,7 @@ interface VercelResponse {
   json: (body: unknown) => void
 }
 
-type Interval = '1h' | '4h' | '1d'
+type Interval = '4h' | '1d'
 
 const HYPERLIQUID_API = 'https://api.hyperliquid.xyz/info'
 const CACHE_TTL_MS = 60_000
@@ -111,7 +111,7 @@ function buildPriceContext(
   const midPrice = typeof midPriceRaw === 'string' ? parseFloat(midPriceRaw) : Number.NaN
   const lastPrice = Number.isFinite(midPrice) ? midPrice : latestClose
 
-  const barsFor24h = interval === '1h' ? 24 : interval === '4h' ? 6 : 1
+  const barsFor24h = interval === '4h' ? 6 : 1
   const barsForIntervalReturn = 1
   const close24hAgo = candles[Math.max(0, candles.length - 1 - barsFor24h)]?.close ?? null
   const closePrevious = candles[Math.max(0, candles.length - 1 - barsForIntervalReturn)]?.close ?? null
@@ -184,6 +184,6 @@ function resolveCoin(raw: string | string[] | undefined): TrackedCoin {
 
 function resolveInterval(raw: string | string[] | undefined): Interval {
   const value = Array.isArray(raw) ? raw[0] : raw
-  if (value === '1h' || value === '4h' || value === '1d') return value
-  return '1h'
+  if (value === '4h' || value === '1d') return value
+  return '4h'
 }
