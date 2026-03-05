@@ -312,44 +312,75 @@ function MarketMomentsPanel({ snapshot }: MarketMomentsPanelProps) {
         Market Moments
         <span className="context-panels__subnote">Context only</span>
       </div>
-      <div className="market-rail-grid step1-compact-grid">
-        <MiniPanel
-          kicker="Next macro event"
-          title={nextMacro ? nextMacro.label : 'No scheduled macro event'}
+      <div className="market-moments-strip-grid">
+        <MarketMomentStrip
+          kicker="Next macro"
+          headline={nextMacro ? nextMacro.label : 'No scheduled macro event'}
           tone={macroTone}
-          rows={[
+          tags={[
             { label: 'Timing', value: nextMacro ? formatMomentCountdown(nextMacro.secondsUntil) : '--' },
             { label: 'Priority', value: nextMacro ? nextMacro.importance.toUpperCase() : '--' },
           ]}
-          copy={nextMacro?.note ?? 'Macro events are maintained in the UTC market moments schedule.'}
-          footerNote={nextMacro ? new Date(nextMacro.eventTime).toUTCString() : 'Schedule maintained in repo'}
+          note={nextMacro?.note ?? 'Macro schedule is maintained in UTC in-repo.'}
+          meta={nextMacro ? new Date(nextMacro.eventTime).toUTCString() : 'Schedule maintained in repo'}
         />
 
-        <MiniPanel
-          kicker="Next global session"
-          title={nextSession ? nextSession.label : 'No upcoming session marker'}
+        <MarketMomentStrip
+          kicker="Next session"
+          headline={nextSession ? nextSession.label : 'No upcoming session marker'}
           tone={sessionTone}
-          rows={[
+          tags={[
             { label: 'Timing', value: nextSession ? formatMomentCountdown(nextSession.secondsUntil) : '--' },
             { label: 'Priority', value: nextSession ? nextSession.importance.toUpperCase() : '--' },
           ]}
-          copy={nextSession ? 'Session transitions can change liquidity and short-term volatility.' : 'Session markers are generated from UTC and exchange local time zones.'}
-          footerNote={nextSession ? new Date(nextSession.eventTime).toUTCString() : 'Session markers update hourly'}
+          note={nextSession ? 'Session transitions can shift liquidity and intraday volatility.' : 'Session markers are generated from UTC and exchange local time zones.'}
+          meta={nextSession ? new Date(nextSession.eventTime).toUTCString() : 'Session markers update hourly'}
         />
 
-        <MiniPanel
+        <MarketMomentStrip
           kicker="Recent behavior"
-          title={strongest ? strongest.label : 'Insufficient sample'}
+          headline={strongest ? strongest.label : 'Insufficient sample'}
           tone={strongest?.tone ?? 'yellow'}
-          rows={[
+          tags={[
             { label: 'Avg |1h move|', value: strongest ? formatPercent(strongest.avgAbsMovePct1h, 2) : '--' },
             { label: 'Samples', value: strongest ? String(strongest.sampleCount) : '--' },
             { label: 'Runner-up', value: secondary ? secondary.label : '--' },
           ]}
-          copy={strongest?.summary ?? 'Need more 1h candles before ranking high-impact moments for this asset.'}
-          footerNote={`Lookback: ${snapshot.lookbackHours}h | Candles: ${snapshot.candleCount}`}
+          note={strongest?.summary ?? 'Need more 1h candles before ranking high-impact moments for this asset.'}
+          meta={`Lookback: ${snapshot.lookbackHours}h | Candles: ${snapshot.candleCount}`}
         />
       </div>
     </div>
+  )
+}
+
+interface MarketMomentStripProps {
+  kicker: string
+  headline: string
+  tone: 'green' | 'yellow' | 'red'
+  tags: Array<{ label: string; value: string }>
+  note: string
+  meta: string
+}
+
+function MarketMomentStrip({ kicker, headline, tone, tags, note, meta }: MarketMomentStripProps) {
+  return (
+    <section className="market-moment-strip">
+      <div className="market-moment-strip__head">
+        <span className="panel-kicker">{kicker}</span>
+        <span className={`market-moment-strip__tone ${toneClasses[tone]}`}>{tone.toUpperCase()}</span>
+      </div>
+      <div className="market-moment-strip__headline">{headline}</div>
+      <div className="market-moment-strip__tags">
+        {tags.map((tag) => (
+          <div key={`${kicker}-${tag.label}`} className="market-moment-strip__tag">
+            <span>{tag.label}</span>
+            <span className="font-mono text-text-primary">{tag.value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="market-moment-strip__note">{note}</div>
+      <div className="market-moment-strip__meta">{meta}</div>
+    </section>
   )
 }

@@ -4,6 +4,9 @@ import type { CollectorHeartbeat } from '../types/collector'
 import type { TrackerStats } from '../types/tracker'
 
 const API_URL = 'https://api.hyperliquid.xyz/info'
+const CORE_API_TIMEOUT_MS = 9_000
+const EXTERNAL_API_TIMEOUT_MS = 6_000
+const INTERNAL_API_TIMEOUT_MS = 8_000
 
 // Binance perpetual symbol mapping — HYPE is not listed on Binance
 const BINANCE_SYMBOL_MAP: Record<TrackedCoin, string | null> = {
@@ -14,11 +17,11 @@ const BINANCE_SYMBOL_MAP: Record<TrackedCoin, string | null> = {
 }
 
 async function postInfo<T>(body: Record<string, unknown>): Promise<T> {
-  const res = await fetch(API_URL, {
+  const res = await fetchWithTimeout(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  })
+  }, CORE_API_TIMEOUT_MS)
   if (!res.ok) {
     throw new Error(`Hyperliquid API error: ${res.status} ${res.statusText}`)
   }
@@ -67,7 +70,7 @@ export async function fetchFearGreed(): Promise<{
   classification: string
   timestamp: number
 }> {
-  const res = await fetch('https://api.alternative.me/fng/?limit=1')
+  const res = await fetchWithTimeout('https://api.alternative.me/fng/?limit=1', undefined, EXTERNAL_API_TIMEOUT_MS)
   if (!res.ok) throw new Error(`Fear & Greed API error: ${res.status}`)
   const json = (await res.json()) as { data?: Array<{ value: string; value_classification: string; timestamp: string }> }
   const entry = json.data?.[0]
@@ -86,7 +89,7 @@ export async function fetchCoinGeckoGlobal(): Promise<{
   totalVolumeUsd: number | null
   marketCapChange24h: number | null
 }> {
-  const res = await fetch('https://api.coingecko.com/api/v3/global')
+  const res = await fetchWithTimeout('https://api.coingecko.com/api/v3/global', undefined, EXTERNAL_API_TIMEOUT_MS)
   if (!res.ok) throw new Error(`CoinGecko API error: ${res.status}`)
   const json = (await res.json()) as {
     data?: {
@@ -113,7 +116,11 @@ export async function fetchCoinGeckoGlobal(): Promise<{
 export async function fetchBinanceFundingRate(coin: TrackedCoin): Promise<number | null> {
   const symbol = BINANCE_SYMBOL_MAP[coin]
   if (!symbol) return null
-  const res = await fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${symbol}`)
+  const res = await fetchWithTimeout(
+    `https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${symbol}`,
+    undefined,
+    EXTERNAL_API_TIMEOUT_MS,
+  )
   if (!res.ok) return null
   const json = (await res.json()) as { lastFundingRate?: string }
   const rate = parseFloat(json.lastFundingRate ?? '')
@@ -124,14 +131,22 @@ export async function fetchBinanceFundingRate(coin: TrackedCoin): Promise<number
 export async function fetchBinanceOpenInterest(coin: TrackedCoin): Promise<number | null> {
   const symbol = BINANCE_SYMBOL_MAP[coin]
   if (!symbol) return null
-  const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`)
+  const res = await fetchWithTimeout(
+    `https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`,
+    undefined,
+    EXTERNAL_API_TIMEOUT_MS,
+  )
   if (!res.ok) return null
   const json = (await res.json()) as { openInterest?: string }
   const oi = parseFloat(json.openInterest ?? '')
   if (!isFinite(oi)) return null
 
   // Convert from coin units to USD using mark price — return null if conversion fails
-  const priceRes = await fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${symbol}`)
+  const priceRes = await fetchWithTimeout(
+    `https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${symbol}`,
+    undefined,
+    EXTERNAL_API_TIMEOUT_MS,
+  )
   if (!priceRes.ok) return null
   const priceJson = (await priceRes.json()) as { markPrice?: string }
   const markPrice = parseFloat(priceJson.markPrice ?? '')
@@ -159,7 +174,11 @@ export async function fetchServerSetups(options?: {
       params.set('updatedSince', options.updatedSince)
     }
 
-    const res = await fetch(`/api/server-setups${params.size > 0 ? `?${params.toString()}` : ''}`)
+    const res = await fetchWithTimeout(
+      `/api/server-setups${params.size > 0 ? `?${params.toString()}` : ''}`,
+      undefined,
+      INTERNAL_API_TIMEOUT_MS,
+    )
     if (!res.ok) {
       return {
         setups: [],
@@ -215,14 +234,14 @@ export async function uploadLocalSetups(
   }
 
   try {
-    const res = await fetch('/api/upload-setups', {
+    const res = await fetchWithTimeout('/api/upload-setups', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-levtrade-upload-secret': uploadSecret,
       },
       body: JSON.stringify({ setups }),
-    })
+    }, INTERNAL_API_TIMEOUT_MS)
     if (!res.ok) {
       const reason = res.status === 401 || res.status === 403 ? 'unauthorized' : 'failed'
       return { synced: 0, skipped: setups.length, rejected: 0, disabled: false, reason }
@@ -258,7 +277,7 @@ export async function uploadLocalSetups(
 
 export async function fetchCollectorHeartbeat(): Promise<(CollectorHeartbeat & { status: string }) | null> {
   try {
-    const res = await fetch('/api/collector-heartbeat')
+    const res = await fetchWithTimeout('/api/collector-heartbeat', undefined, INTERNAL_API_TIMEOUT_MS)
     if (!res.ok) return null
 
     const payload = (await res.json()) as { ok?: boolean; heartbeat?: (CollectorHeartbeat & { status: string }) | null }
@@ -282,7 +301,7 @@ export async function fetchSignalAccuracy(days?: number): Promise<SignalAccuracy
     const params = new URLSearchParams()
     if (days) params.set('days', String(days))
     const url = `/api/signal-accuracy${params.size > 0 ? `?${params.toString()}` : ''}`
-    const res = await fetch(url)
+    const res = await fetchWithTimeout(url, undefined, INTERNAL_API_TIMEOUT_MS)
     if (!res.ok) {
       return {
         stats: null,
@@ -329,5 +348,29 @@ export async function fetchSignalAccuracy(days?: number): Promise<SignalAccuracy
       windowDays: days ?? 90,
       computedAt: null,
     }
+  }
+}
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  timeoutMs: number = CORE_API_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const res = await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    })
+    return res
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeoutMs}ms`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
   }
 }

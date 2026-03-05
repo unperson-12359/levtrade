@@ -1,4 +1,4 @@
-import { TRACKED_COINS, parseCandle } from '../types/market'
+import { TRACKED_COINS, parseCandle, type AssetContext } from '../types/market'
 import {
   fetchAllMids,
   fetchMetaAndAssetCtxs,
@@ -26,6 +26,8 @@ const FEAR_GREED_REFRESH_MS = 15 * 60 * 1000
 const CRYPTO_MACRO_REFRESH_MS = 5 * 60 * 1000
 const BINANCE_CONTEXT_REFRESH_MS = 2 * 60 * 1000
 const SERVER_SETUP_REFRESH_MS = 5 * 60 * 1000
+const NETWORK_FETCH_CONCURRENCY = 2
+const NETWORK_REQUEST_GAP_MS = 80
 
 export class DataManager {
   private ws: HyperliquidWS
@@ -39,6 +41,7 @@ export class DataManager {
   private pendingSetupUploadIds = new Set<string>()
   private lastServerSetupFetchAt: string | null = null
   private lastServerSetupRefreshAttemptAt = 0
+  private bootstrapBackfillInFlight = false
 
   constructor(store: StoreApi<AppStore>) {
     this.store = store
@@ -79,17 +82,12 @@ export class DataManager {
         this.fetchAllCandles(),
         this.fetchAllFundingHistory(),
       ])
-      await this.backfillMissedSetups()
-      await this.backfillCandlesForPendingSetups()
-      this.store.getState().computeAllSignals()
-      this.store.getState().generateAllSetups()
-      this.store.getState().trackAllDecisionSnapshots()
-      this.store.getState().resolveTrackedOutcomes()
-      this.store.getState().pruneTrackerHistory()
+      this.runCoreSignalPipeline()
       void this.fetchServerSetupHistory()
 
       // Fetch external context (non-blocking — failures don't affect core data)
       void this.fetchAllExternalContext()
+      void this.runDeferredStartupBackfills()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch initial data'
       this.store.getState().addError(msg)
@@ -97,6 +95,32 @@ export class DataManager {
 
     // Start polling for fresh funding/OI
     this.startPolling()
+  }
+
+  private runCoreSignalPipeline(): void {
+    const state = this.store.getState()
+    state.computeAllSignals()
+    state.generateAllSetups()
+    state.trackAllDecisionSnapshots()
+    state.resolveSetupOutcomes()
+    state.pruneSetupHistory()
+    state.resolveTrackedOutcomes()
+    state.pruneTrackerHistory()
+  }
+
+  private async runDeferredStartupBackfills(): Promise<void> {
+    if (this.bootstrapBackfillInFlight) return
+
+    this.bootstrapBackfillInFlight = true
+    try {
+      await this.backfillMissedSetups()
+      await this.backfillCandlesForPendingSetups()
+      this.runCoreSignalPipeline()
+    } catch {
+      // Non-critical: app remains live even if extended backfill fails
+    } finally {
+      this.bootstrapBackfillInFlight = false
+    }
   }
 
   private async fetchInitialData(): Promise<void> {
@@ -135,8 +159,7 @@ export class DataManager {
     const now = Date.now()
     const startTime = now - candleCount * ms
 
-    // Fetch sequentially to be gentle with rate limits
-    for (const coin of TRACKED_COINS) {
+    await runWithConcurrency(TRACKED_COINS, NETWORK_FETCH_CONCURRENCY, async (coin) => {
       try {
         const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
         const candles = rawCandles.map(parseCandle)
@@ -150,9 +173,8 @@ export class DataManager {
         const msg = err instanceof Error ? err.message : `Failed to fetch candles for ${coin}`
         this.store.getState().addError(msg)
       }
-      // Small delay between requests
-      await sleep(200)
-    }
+      await sleep(NETWORK_REQUEST_GAP_MS)
+    })
 
     // When display interval is NOT 1h, separately fetch 1h candles for setup resolution
     if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
@@ -164,7 +186,7 @@ export class DataManager {
     const now = Date.now()
     const startTime = now - SETUP_RESOLUTION_LOOKBACK_MS
 
-    for (const coin of TRACKED_COINS) {
+    await runWithConcurrency(TRACKED_COINS, NETWORK_FETCH_CONCURRENCY, async (coin) => {
       try {
         const rawCandles = await fetchCandles(coin, SETUP_RESOLUTION_INTERVAL, startTime, now)
         const candles = rawCandles.map(parseCandle)
@@ -172,15 +194,15 @@ export class DataManager {
       } catch {
         // Non-critical: resolution will fall back to display candles
       }
-      await sleep(200)
-    }
+      await sleep(NETWORK_REQUEST_GAP_MS)
+    })
   }
 
   private async fetchAllFundingHistory(): Promise<void> {
     const now = Date.now()
     const startTime = now - this.itvl.fundingLookbackMs
 
-    for (const coin of TRACKED_COINS) {
+    await runWithConcurrency(TRACKED_COINS, NETWORK_FETCH_CONCURRENCY, async (coin) => {
       try {
         const history = await fetchFundingHistory(coin, startTime, now)
         for (const entry of history) {
@@ -193,8 +215,8 @@ export class DataManager {
         const msg = err instanceof Error ? err.message : `Failed to fetch funding for ${coin}`
         this.store.getState().addError(msg)
       }
-      await sleep(200)
-    }
+      await sleep(NETWORK_REQUEST_GAP_MS)
+    })
   }
 
   private async fetchServerSetupHistory(): Promise<void> {
@@ -481,39 +503,37 @@ export class DataManager {
         ])
 
         const universe = meta.universe
-        for (const coin of TRACKED_COINS) {
-          const idx = universe.findIndex((u) => u.name === coin)
-          if (idx >= 0 && assetCtxs[idx]) {
-            const ctx = assetCtxs[idx]
-            this.store.getState().setAssetContext(coin, ctx)
+        const assetByCoin = mapAssetContextsByCoin(universe, assetCtxs)
+        await runWithConcurrency(TRACKED_COINS, NETWORK_FETCH_CONCURRENCY, async (coin) => {
+          try {
+            const ctx = assetByCoin[coin]
+            if (ctx) {
+              this.store.getState().setAssetContext(coin, ctx)
 
-            // Append OI snapshot
-            const oi = parseFloat(ctx.openInterest)
-            if (isFinite(oi)) {
-              this.store.getState().appendOI(coin, now, oi)
+              // Append OI snapshot
+              const oi = parseFloat(ctx.openInterest)
+              if (isFinite(oi)) {
+                this.store.getState().appendOI(coin, now, oi)
+              }
+
+              // Append funding rate snapshot
+              const fr = parseFloat(ctx.funding)
+              if (isFinite(fr)) {
+                this.store.getState().appendFundingRate(coin, now, fr)
+              }
             }
 
-            // Append funding rate snapshot
-            const fr = parseFloat(ctx.funding)
-            if (isFinite(fr)) {
-              this.store.getState().appendFundingRate(coin, now, fr)
+            await this.refreshCandlesIfNeeded(coin, now)
+            if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
+              await this.refreshResolutionCandlesIfNeeded(coin, now)
             }
+          } catch {
+            // Per-coin failures should not cancel the full polling cycle.
           }
-
-          await this.refreshCandlesIfNeeded(coin, now)
-          if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
-            await this.refreshResolutionCandlesIfNeeded(coin, now)
-          }
-        }
+        })
 
         // Trigger signal recomputation, generate setups for all coins, and resolve outcomes
-        this.store.getState().computeAllSignals()
-        this.store.getState().generateAllSetups()
-        this.store.getState().trackAllDecisionSnapshots()
-        this.store.getState().resolveSetupOutcomes()
-        this.store.getState().pruneSetupHistory()
-        this.store.getState().resolveTrackedOutcomes()
-        this.store.getState().pruneTrackerHistory()
+        this.runCoreSignalPipeline()
 
         void this.refreshServerSetupHistoryIfNeeded(now)
 
@@ -671,9 +691,45 @@ export class DataManager {
     this.serverSetupRefreshing = false
     this.lastServerSetupFetchAt = null
     this.lastServerSetupRefreshAttemptAt = 0
+    this.bootstrapBackfillInFlight = false
   }
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function mapAssetContextsByCoin(
+  universe: Array<{ name: string }>,
+  assetCtxs: AssetContext[],
+): Partial<Record<TrackedCoin, AssetContext>> {
+  const mapped: Partial<Record<TrackedCoin, AssetContext>> = {}
+  for (const coin of TRACKED_COINS) {
+    const idx = universe.findIndex((entry) => entry.name === coin)
+    if (idx >= 0) {
+      const ctx = assetCtxs[idx]
+      if (ctx) mapped[coin] = ctx
+    }
+  }
+  return mapped
+}
+
+async function runWithConcurrency<T>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return
+
+  let cursor = 0
+  const workerCount = Math.max(1, Math.min(concurrency, items.length))
+  const jobs = Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const index = cursor
+      cursor += 1
+      if (index >= items.length) return
+      await worker(items[index] as T)
+    }
+  })
+  await Promise.all(jobs)
 }

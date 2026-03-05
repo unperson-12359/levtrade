@@ -13,14 +13,7 @@ export function useDataManager() {
     const manager = new DataManager(useStore)
     managerRef.current = manager
 
-    manager.initialize().then(() => {
-      useStore.getState().computeAllSignals()
-      useStore.getState().trackAllDecisionSnapshots()
-      useStore.getState().resolveSetupOutcomes()
-      useStore.getState().resolveTrackedOutcomes()
-      useStore.getState().pruneSetupHistory()
-      useStore.getState().pruneTrackerHistory()
-    }).catch(() => {
+    manager.initialize().catch(() => {
       // Errors already handled inside DataManager
     })
 

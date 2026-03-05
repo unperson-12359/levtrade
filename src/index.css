@@ -250,28 +250,28 @@ button {
 .live-rail-inner {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 0.14rem 0.5rem calc(0.22rem + env(safe-area-inset-bottom));
+  padding: 0.08rem 0.45rem calc(0.12rem + env(safe-area-inset-bottom));
 }
 
 .live-rail-header {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  margin-bottom: 0.14rem;
+  margin-bottom: 0.08rem;
 }
 
 .live-rail-title {
-  font-size: 0.54rem;
+  font-size: 0.5rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
 .live-rail-pill {
   border-radius: 999px;
-  padding: 0.06rem 0.26rem;
-  font-size: 0.54rem;
+  padding: 0.04rem 0.2rem;
+  font-size: 0.5rem;
   font-weight: 700;
   line-height: 1.05;
 }
@@ -289,7 +289,7 @@ button {
 .live-rail-track {
   display: flex;
   align-items: center;
-  gap: 0.24rem;
+  gap: 0.18rem;
   overflow-x: auto;
   padding-bottom: 0;
 }
@@ -299,11 +299,11 @@ button {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.18rem;
+  gap: 0.14rem;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--color-border-subtle) 74%, transparent);
   background: color-mix(in srgb, var(--color-bg-card) 88%, transparent);
-  padding: 0.1rem 0.3rem;
+  padding: 0.07rem 0.22rem;
   line-height: 1.05;
   transition: border-color 140ms ease, background 140ms ease;
 }
@@ -329,7 +329,7 @@ button {
 }
 
 .live-rail-item__coin {
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   font-weight: 700;
   color: var(--color-text-primary);
 }
@@ -337,7 +337,7 @@ button {
 .live-rail-item__direction {
   border-radius: 0.16rem;
   padding: 0.02rem 0.12rem;
-  font-size: 0.5rem;
+  font-size: 0.46rem;
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -353,20 +353,20 @@ button {
 }
 
 .live-rail-item__pnl {
-  font-size: 0.58rem;
+  font-size: 0.54rem;
   font-family: var(--font-mono);
   font-weight: 700;
 }
 
 .live-rail-item__status {
-  font-size: 0.5rem;
+  font-size: 0.46rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
 .live-rail-item__age {
-  font-size: 0.5rem;
+  font-size: 0.46rem;
   color: var(--color-text-muted);
 }
 
@@ -2798,6 +2798,93 @@ button {
   color: color-mix(in srgb, var(--color-signal-yellow) 72%, var(--color-text-muted));
 }
 
+.market-moments-strip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.26rem;
+}
+
+.market-moment-strip {
+  border-radius: 0.48rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-subtle) 80%, transparent);
+  background: color-mix(in srgb, var(--color-bg-input) 84%, transparent);
+  padding: 0.32rem 0.38rem;
+  min-width: 0;
+}
+
+.market-moment-strip__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+
+.market-moment-strip__head .panel-kicker {
+  font-size: 0.54rem;
+  letter-spacing: 0.08em;
+}
+
+.market-moment-strip__tone {
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.market-moment-strip__headline {
+  margin-top: 0.1rem;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.market-moment-strip__tags {
+  margin-top: 0.16rem;
+  display: grid;
+  gap: 0.14rem;
+}
+
+.market-moment-strip__tag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.26rem;
+  font-size: 0.62rem;
+  color: var(--color-text-secondary);
+  min-width: 0;
+}
+
+.market-moment-strip__tag span {
+  min-width: 0;
+}
+
+.market-moment-strip__note {
+  margin-top: 0.16rem;
+  font-size: 0.6rem;
+  line-height: 1.25;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.market-moment-strip__meta {
+  margin-top: 0.1rem;
+  font-size: 0.56rem;
+  line-height: 1.2;
+  color: var(--color-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .stat-card--clickable {
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease;
@@ -3788,6 +3875,10 @@ button {
   .market-rail-grid__primary {
     grid-column: span 2;
   }
+
+  .market-moments-strip-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 960px) {
@@ -3832,6 +3923,7 @@ button {
   }
 
   .market-rail-grid,
+  .market-moments-strip-grid,
   .workspace-grid,
   .workflow-summary-grid,
   .risk-stack {
@@ -3932,27 +4024,27 @@ button {
   }
 
   .live-rail-inner {
-    padding: 0.12rem 0.4rem calc(0.16rem + env(safe-area-inset-bottom));
+    padding: 0.08rem 0.34rem calc(0.12rem + env(safe-area-inset-bottom));
   }
 
   .live-rail-track {
-    gap: 0.2rem;
+    gap: 0.16rem;
   }
 
   .live-rail-item {
-    padding: 0.08rem 0.24rem;
-    gap: 0.16rem;
+    padding: 0.06rem 0.18rem;
+    gap: 0.14rem;
   }
 
   .live-rail-item__coin,
   .live-rail-item__pnl {
-    font-size: 0.56rem;
+    font-size: 0.52rem;
   }
 
   .live-rail-item__status,
   .live-rail-item__age,
   .live-rail-item__direction {
-    font-size: 0.48rem;
+    font-size: 0.44rem;
   }
 
   .signal-drawer {
@@ -4097,33 +4189,33 @@ button {
   }
 
   .live-rail-header {
-    margin-bottom: 0.1rem;
+    margin-bottom: 0.06rem;
   }
 
   .live-rail-title {
-    font-size: 0.5rem;
-    letter-spacing: 0.1em;
+    font-size: 0.46rem;
+    letter-spacing: 0.08em;
   }
 
   .live-rail-pill {
-    font-size: 0.5rem;
-    padding: 0.04rem 0.2rem;
+    font-size: 0.46rem;
+    padding: 0.02rem 0.16rem;
   }
 
   .live-rail-item {
-    padding: 0.06rem 0.2rem;
-    gap: 0.14rem;
+    padding: 0.05rem 0.15rem;
+    gap: 0.11rem;
   }
 
   .live-rail-item__coin,
   .live-rail-item__pnl {
-    font-size: 0.52rem;
+    font-size: 0.48rem;
   }
 
   .live-rail-item__status,
   .live-rail-item__age,
   .live-rail-item__direction {
-    font-size: 0.44rem;
+    font-size: 0.4rem;
   }
 
   .step2-kpi-card__label {

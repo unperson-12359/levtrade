@@ -3057,3 +3057,42 @@ Add context-only tracking for market-moving moments (session transitions, month/
 ### Remaining risks / follow-up
 - Macro schedule is curated manually and includes estimated timestamps for some non-FOMC events; update cadence/process should be formalized to keep it current.
 - v1 is intentionally context-only and does not alter Step gating or readiness scoring.
+
+---
+
+## 2026-03-05 00:20 - Codex - Performance + Step 1 Density Optimization (3-Workstream Pass)
+
+### Goal
+Implement the active plan to reduce slow/buggy loading behavior and compress oversized Step 1 context UI without changing entry/settlement logic.
+
+### Files changed
+- `src/services/api.ts`
+- `src/services/dataManager.ts`
+- `src/hooks/useDataManager.ts`
+- `src/hooks/useMarketMoments.ts`
+- `src/components/market/MarketRail.tsx`
+- `src/index.css`
+- `COLLAB_LOG.md`
+
+### What changed
+- Workstream A (startup/network path):
+  - Added endpoint-level fetch timeouts with shared `fetchWithTimeout()` for Hyperliquid/external/internal API calls.
+  - Reduced startup fetch serial bottlenecks by switching candle/funding history bootstraps to bounded concurrency (`2` workers).
+  - Moved heavy backfill tasks to deferred async startup (`runDeferredStartupBackfills`) so the first usable UI state is available sooner.
+- Workstream B (runtime path):
+  - Centralized the signal/setup/tracker execution path in `runCoreSignalPipeline()` to remove duplicated initialization compute.
+  - Updated polling per-coin refresh to bounded concurrency with per-coin failure isolation (one coin/network failure no longer aborts the whole poll cycle).
+  - Fixed high-frequency recomputation overhead in `useMarketMoments`: snapshot rebuild now keys off minute bucket instead of raw `lastUpdate` ticks.
+- Workstream C (Step 1 compact UX):
+  - Replaced Market Moments mini-cards with compact horizontal strip cards (`MarketMomentStrip`) and denser typography/padding.
+  - Tightened sticky bottom open-setups ticker spacing/font sizes to be less intrusive and more tape-like.
+  - Added responsive CSS for strip-grid collapse behavior across breakpoints.
+
+### Verification
+- `npm.cmd run typecheck:api`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+
+### Remaining risks / follow-up
+- API timeout values are tuned conservatively for responsiveness; if any upstream endpoint is routinely slow in production, we may need per-endpoint timeout adjustments.
+- Deferred startup backfill runs concurrently with live polling; logic remains safe, but a production telemetry pass should confirm there is no transient duplicate UX noise on first load.
