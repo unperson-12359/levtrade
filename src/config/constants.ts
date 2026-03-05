@@ -13,8 +13,8 @@ export const ENTRY_SIMILARITY_THRESHOLD = 0.02
 export const TRACKER_DEDUPE_WINDOW_MS = 4 * 60 * 60 * 1000
 
 // Time-series limits
-export const MAX_FUNDING_HISTORY = 200
-export const MAX_OI_HISTORY = 200
+export const MAX_FUNDING_HISTORY = 5_000
+export const MAX_OI_HISTORY = 5_000
 
 // Setup resolution
 export const SETUP_RESOLUTION_INTERVAL = '1h'

@@ -1,10 +1,10 @@
-import { DashboardLayout } from './components/layout/DashboardLayout'
+import { ObservatoryLayout } from './components/observatory/ObservatoryLayout'
 import { AppErrorBoundary } from './components/system/AppErrorBoundary'
 
 export default function App() {
   return (
     <AppErrorBoundary>
-      <DashboardLayout />
+      <ObservatoryLayout />
     </AppErrorBoundary>
   )
 }

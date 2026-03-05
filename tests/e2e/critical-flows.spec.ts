@@ -1,316 +1,149 @@
 import { expect, test, type Page } from '@playwright/test'
 
-type ScenarioMode = 'locked' | 'unlocked'
-type HistoryMode = 'server' | 'fallback'
-
-test.describe('LevTrade critical flows', () => {
-  test('@critical load, coin switch, interval switch, and chart render', async ({ page }) => {
+test.describe('Observatory critical flows', () => {
+  test('@critical load, coin switch, interval switch, and pool map render', async ({ page }) => {
     await page.goto('/')
-    await seedAppState(page, 'unlocked', 'server')
+    await seedObservatoryState(page)
 
-    await expect(page.locator('.topbar-shell')).toBeVisible()
-    await expect(page.locator('.price-chart')).toBeVisible()
+    await expect(page.getByTestId('obs-shell')).toBeVisible()
+    await expect(page.getByTestId('obs-pool-map')).toBeVisible()
 
-    await page.getByTestId('asset-pill-ETH').click()
-    await expect(page.locator('button.asset-pill--active .asset-pill__symbol')).toHaveText('ETH')
+    await page.getByTestId('obs-coin-ETH').click()
+    await expect(page.getByTestId('obs-coin-ETH')).toHaveClass(/obs-chip--active/)
 
-    await page.getByTestId('interval-chip-4h').click()
-    await expect(page.locator('.topbar-interval-chip--active')).toHaveText('4h')
-    await expect(page.locator('.price-chart')).toBeVisible()
+    await page.getByTestId('obs-interval-4h').click()
+    await expect(page.getByTestId('obs-interval-4h')).toHaveClass(/obs-chip--active/)
+    await expect(page.getByTestId('obs-pool-map')).toBeVisible()
   })
 
-  test('@critical step lock state and readiness parity when Step 1 fails', async ({ page }) => {
+  test('@critical indicator selection updates drilldown', async ({ page }) => {
     await page.goto('/')
-    await seedAppState(page, 'locked', 'fallback')
+    await seedObservatoryState(page)
 
-    await expect(page.getByTestId('readiness-lock-state')).toHaveText(/LOCKED BY STEP 1/)
-    await assertReadinessParity(page)
+    await page.getByTestId('obs-indicator-row-momentum_rsi14').click()
+    await expect(page.getByTestId('obs-detail-title')).toContainText('RSI 14')
+
+    await page.getByTestId('obs-indicator-row-flow_funding_z20').click()
+    await expect(page.getByTestId('obs-detail-title')).toContainText('Funding Z 20')
   })
 
-  test('@critical readiness parity and unlocked state when workflow is valid', async ({ page }) => {
+  test('@critical strict no-recommendation copy is visible', async ({ page }) => {
     await page.goto('/')
-    await seedAppState(page, 'unlocked', 'server')
-
-    await expect(page.getByTestId('readiness-lock-state')).toHaveText(/UNLOCKED/)
-    await assertReadinessParity(page)
-  })
-
-  test('@critical fallback history message appears only when canonical history is unavailable', async ({ page }) => {
-    await page.goto('/')
-    await seedAppState(page, 'unlocked', 'fallback')
-
-    await page.getByTestId('open-menu-button').click()
-    await page.getByTestId('open-analytics-button').click()
-
-    await expect(page.getByText('Showing browser fallback setup history')).toBeVisible()
-
-    await seedAppState(page, 'unlocked', 'server')
-    await expect(page.getByText('Showing browser fallback setup history')).toHaveCount(0)
-  })
-
-  test('@critical analytics drawer tabs open and close cleanly', async ({ page }) => {
-    await page.goto('/')
-    await seedAppState(page, 'unlocked', 'server')
-
-    await page.getByTestId('open-menu-button').click()
-    await page.getByTestId('open-analytics-button').click()
-
-    await expect(page.getByRole('heading', { name: 'Analytics' })).toBeVisible()
-    await page.getByRole('button', { name: 'Accuracy' }).click()
-    await expect(page.getByText('Accuracy Tracker')).toBeVisible()
-
-    await page.getByRole('button', { name: 'History' }).click()
-    await expect(page.locator('.panel-kicker', { hasText: 'Setup history' }).first()).toBeVisible()
-
-    await page.getByRole('button', { name: 'Data & Storage' }).click()
-    await expect(page.locator('.panel-kicker', { hasText: 'Trust and storage' }).first()).toBeVisible()
-
-    await page.getByTestId('close-analytics-button').click()
-    await expect(page.locator('.guide-page--open')).toHaveCount(0)
+    await seedObservatoryState(page)
+    await expect(page.getByTestId('obs-no-reco-copy')).toContainText('does not produce long/short calls')
   })
 
   test('@critical runtime diagnostics keep app visible under failure signals', async ({ page }) => {
     await page.goto('/')
-    await seedAppState(page, 'unlocked', 'server')
+    await seedObservatoryState(page)
 
     await page.evaluate(() => {
       const store = window.__LEVTRADE_STORE__
       if (!store) throw new Error('E2E store hook not installed')
       store.getState().pushRuntimeDiagnostic({
-        source: 'e2e.network',
-        message: 'Mock network outage',
+        source: 'e2e.mock',
+        message: 'Mock runtime warning',
       })
     })
 
-    await expect(page.locator('.runtime-diagnostic-strip')).toBeVisible()
-    await expect(page.locator('.runtime-diagnostic-strip')).toContainText('Mock network outage')
-    await expect(page.locator('.topbar-shell')).toBeVisible()
+    await expect(page.locator('.obs-runtime')).toBeVisible()
+    await expect(page.locator('.obs-runtime')).toContainText('Mock runtime warning')
+    await expect(page.getByTestId('obs-shell')).toBeVisible()
   })
 })
 
-async function assertReadinessParity(page: Page) {
-  const pctText = (await page.getByTestId('readiness-primary-pct').innerText()).trim()
-  const countText = (await page.getByTestId('readiness-light-count').innerText()).trim()
-
-  const pctMatch = pctText.match(/^(\d+)%$/)
-  const countMatch = countText.match(/^(\d+)\/(\d+)\s+lights$/i)
-
-  expect(pctMatch, `Unexpected readiness pct format: ${pctText}`).not.toBeNull()
-  expect(countMatch, `Unexpected light-count format: ${countText}`).not.toBeNull()
-
-  const pct = Number(pctMatch?.[1] ?? 0)
-  const active = Number(countMatch?.[1] ?? 0)
-  const total = Number(countMatch?.[2] ?? 1)
-  const expectedPct = Math.round((active / total) * 100)
-
-  expect(pct).toBe(expectedPct)
-}
-
-async function seedAppState(page: Page, scenario: ScenarioMode, history: HistoryMode) {
+async function seedObservatoryState(page: Page) {
   const now = Date.now()
   const coins = ['BTC', 'ETH', 'SOL', 'HYPE'] as const
-  const prices = {
-    BTC: scenario === 'locked' ? '111000' : '100000',
-    ETH: scenario === 'locked' ? '6200' : '5200',
-    SOL: scenario === 'locked' ? '410' : '260',
-    HYPE: scenario === 'locked' ? '31' : '22',
+  const basePrices: Record<(typeof coins)[number], number> = {
+    BTC: 102_000,
+    ETH: 5_400,
+    SOL: 240,
+    HYPE: 25,
   }
 
   const candlesByCoin: Record<string, ReturnType<typeof buildCandles>> = {}
-  const signalsByCoin: Record<string, ReturnType<typeof buildSignals>> = {}
+  const fundingByCoin: Record<string, ReturnType<typeof buildFunding>> = {}
+  const oiByCoin: Record<string, ReturnType<typeof buildOi>> = {}
+  const prices: Record<string, string> = {}
+
   for (const coin of coins) {
-    const basePrice = Number(prices[coin])
-    candlesByCoin[coin] = buildCandles(basePrice, now, scenario)
-    signalsByCoin[coin] = buildSignals(coin, now, scenario)
+    const base = basePrices[coin]
+    candlesByCoin[coin] = buildCandles(base, now)
+    fundingByCoin[coin] = buildFunding(now)
+    oiByCoin[coin] = buildOi(base, now)
+    prices[coin] = String(base)
   }
 
-  const localTrackedSetups = [buildTrackedSetup('local-e2e', now, false)]
-  const serverTrackedSetups = history === 'server' ? [buildTrackedSetup('server-e2e', now, true)] : []
-
-  await page.evaluate(({ now, prices, candlesByCoin, signalsByCoin, localTrackedSetups, serverTrackedSetups }) => {
+  await page.evaluate(({ prices, candlesByCoin, fundingByCoin, oiByCoin }) => {
     const store = window.__LEVTRADE_STORE__
     if (!store) throw new Error('E2E store hook not installed')
-
     const actions = store.getState()
-    actions.setConnectionStatus('connected')
-    actions.clearErrors()
-    actions.clearRuntimeDiagnostics()
-    actions.setPrices(prices)
     actions.selectCoin('BTC')
     actions.setInterval('1h')
+    actions.setConnectionStatus('connected')
+    actions.setPrices(prices)
+    actions.clearErrors()
+    actions.clearRuntimeDiagnostics()
 
     for (const coin of Object.keys(candlesByCoin)) {
       const candles = candlesByCoin[coin]
+      const funding = fundingByCoin[coin]
+      const oi = oiByCoin[coin]
       actions.setCandles(coin, candles as any)
       actions.setResolutionCandles(coin, candles as any)
       actions.setExtendedCandles(coin, [])
+      for (const entry of funding) {
+        actions.appendFundingRate(coin, entry.time, entry.rate)
+      }
+      for (const entry of oi) {
+        actions.appendOI(coin, entry.time, entry.oi)
+      }
     }
-
-    store.setState((state: Record<string, unknown>) => ({
-      ...state,
-      signals: signalsByCoin,
-      localTrackedSetups,
-      serverTrackedSetups,
-      trackerLastRunAt: now,
-      lastSignalComputedAt: now,
-    }))
-  }, { now, prices, candlesByCoin, signalsByCoin, localTrackedSetups, serverTrackedSetups })
+  }, { prices, candlesByCoin, fundingByCoin, oiByCoin })
 }
 
-function buildCandles(basePrice: number, now: number, scenario: ScenarioMode) {
+function buildCandles(basePrice: number, now: number) {
   const candles = []
-  for (let i = 0; i < 160; i += 1) {
-    const time = now - (160 - i) * 60 * 60 * 1000
-    const drift = scenario === 'locked' ? i * 1.6 : Math.sin(i / 6) * 2.1
-    const center = basePrice + drift
+  for (let index = 0; index < 800; index += 1) {
+    const time = now - (800 - index) * 60 * 60 * 1000
+    const drift = Math.sin(index / 9) * basePrice * 0.012 + Math.cos(index / 23) * basePrice * 0.008 + index * basePrice * 0.00002
+    const close = basePrice + drift
     candles.push({
       time,
-      open: center - 0.7,
-      high: center + 1.3,
-      low: center - 1.4,
-      close: center,
-      volume: 1000 + i * 2,
-      trades: 100 + i,
+      open: close * 0.996,
+      high: close * 1.004,
+      low: close * 0.994,
+      close,
+      volume: 1000 + Math.sin(index / 6) * 280 + index * 0.75,
+      trades: 420 + Math.cos(index / 5) * 55 + index * 0.3,
     })
   }
   return candles
 }
 
-function buildSignals(coin: string, now: number, scenario: ScenarioMode) {
-  const locked = scenario === 'locked'
-  return {
-    coin,
-    hurst: {
-      value: locked ? 0.72 : 0.43,
-      regime: locked ? 'trending' : 'mean-reverting',
-      color: locked ? 'red' : 'green',
-      confidence: 0.92,
-      explanation: locked ? 'Trending regime blocks mean-reversion.' : 'Range-bound regime supports mean-reversion.',
-    },
-    zScore: {
-      value: locked ? 0.2 : -2.4,
-      normalizedSignal: locked ? 0.08 : 0.84,
-      label: locked ? 'Neutral' : 'Oversold',
-      color: locked ? 'yellow' : 'green',
-      explanation: 'Synthetic E2E z-score',
-    },
-    funding: {
-      currentRate: locked ? 0.00025 : -0.0002,
-      zScore: locked ? 0.4 : -1.4,
-      normalizedSignal: locked ? 0.1 : 0.62,
-      label: locked ? 'Crowded long' : 'Crowded short',
-      color: locked ? 'yellow' : 'green',
-      explanation: 'Synthetic E2E funding',
-    },
-    oiDelta: {
-      oiChangePct: locked ? 0.01 : 0.045,
-      priceChangePct: locked ? 0.02 : -0.018,
-      confirmation: !locked,
-      normalizedSignal: locked ? 0.05 : 0.58,
-      label: locked ? 'No confirmation' : 'Flow confirms',
-      color: locked ? 'yellow' : 'green',
-      explanation: 'Synthetic E2E OI delta',
-    },
-    volatility: {
-      realizedVol: locked ? 58 : 36,
-      atr: locked ? 4.8 : 2.2,
-      level: locked ? 'high' : 'normal',
-      color: locked ? 'yellow' : 'green',
-      explanation: 'Synthetic E2E volatility',
-    },
-    entryGeometry: {
-      distanceFromMeanPct: locked ? -0.2 : -2.8,
-      stretchZEquivalent: locked ? -0.1 : -2.3,
-      atrDislocation: locked ? 0.3 : 1.5,
-      bandPosition: locked ? 0.48 : 0.12,
-      meanPrice: locked ? 100 : 103,
-      reversionPotential: locked ? 0.18 : 0.78,
-      chaseRisk: locked ? 0.62 : 0.16,
-      entryQuality: locked ? 'early' : 'ideal',
-      directionBias: locked ? 'neutral' : 'long',
-      color: locked ? 'yellow' : 'green',
-      explanation: 'Synthetic E2E entry geometry',
-    },
-    composite: {
-      value: locked ? 0.05 : 0.46,
-      direction: locked ? 'neutral' : 'long',
-      strength: locked ? 'weak' : 'moderate',
-      agreementCount: locked ? 1 : 4,
-      agreementTotal: 5,
-      color: locked ? 'yellow' : 'green',
-      label: locked ? 'Mixed' : 'Long bias',
-      explanation: 'Synthetic E2E composite',
-      signalBreakdown: [
-        { name: 'Regime', direction: locked ? 'neutral' : 'long', agrees: !locked },
-        { name: 'Price', direction: locked ? 'neutral' : 'long', agrees: !locked },
-        { name: 'Crowd', direction: locked ? 'neutral' : 'long', agrees: !locked },
-        { name: 'Flow', direction: locked ? 'neutral' : 'long', agrees: !locked },
-      ],
-    },
-    updatedAt: now,
-    isStale: false,
-    isWarmingUp: false,
-    warmupProgress: 1,
+function buildFunding(now: number) {
+  const points = []
+  for (let index = 0; index < 800; index += 1) {
+    const time = now - (800 - index) * 60 * 60 * 1000
+    points.push({
+      time,
+      rate: Math.sin(index / 14) * 0.00018 + Math.cos(index / 31) * 0.00008,
+    })
   }
+  return points
 }
 
-function buildTrackedSetup(id: string, now: number, server: boolean) {
-  const setup = {
-    coin: 'BTC',
-    direction: 'long',
-    entryPrice: 100000,
-    stopPrice: 98500,
-    targetPrice: 104500,
-    meanReversionTarget: 102300,
-    rrRatio: 3,
-    suggestedPositionSize: 250,
-    suggestedLeverage: 3,
-    tradeGrade: 'green',
-    confidence: 0.71,
-    confidenceTier: 'high',
-    entryQuality: 'ideal',
-    agreementCount: 4,
-    agreementTotal: 5,
-    regime: 'mean-reverting',
-    reversionPotential: 0.76,
-    stretchSigma: 2.2,
-    atr: 2.4,
-    compositeValue: 0.44,
-    timeframe: '4-24h',
-    summary: 'Synthetic setup for critical-flow E2E checks.',
-    generatedAt: now - 2 * 60 * 60 * 1000,
-    source: server ? 'server' : 'live',
+function buildOi(basePrice: number, now: number) {
+  const points = []
+  for (let index = 0; index < 800; index += 1) {
+    const time = now - (800 - index) * 60 * 60 * 1000
+    points.push({
+      time,
+      oi: Math.max(1, 220_000 + Math.sin(index / 18) * 18_000 + Math.cos(index / 27) * 7_000 + basePrice * 0.4),
+    })
   }
-
-  const pendingOutcome = (window: '4h' | '24h' | '72h') => ({
-    window,
-    resolvedAt: null,
-    result: 'pending',
-    resolutionReason: 'pending',
-    coverageStatus: 'full',
-    candleCountUsed: 0,
-    returnPct: null,
-    rAchieved: null,
-    mfe: null,
-    mfePct: null,
-    mae: null,
-    maePct: null,
-    targetHit: false,
-    stopHit: false,
-    priceAtResolution: null,
-  })
-
-  return {
-    id,
-    setup,
-    coverageStatus: 'full',
-    outcomes: {
-      '4h': pendingOutcome('4h'),
-      '24h': pendingOutcome('24h'),
-      '72h': pendingOutcome('72h'),
-    },
-    syncEligible: !server,
-  }
+  return points
 }
 
 declare global {
