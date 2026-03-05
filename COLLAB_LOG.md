@@ -3212,3 +3212,50 @@ Implement the stabilization reset plan end-to-end: enforce release gates, add cr
 - Manual release signoff is intentionally still pending in `docs/release-signoff.md`; freeze-exit requires a real filled PASS signoff.
 - `gate:release` will continue to fail until manual responsive + soak + trust verification checkboxes are completed.
 - E2E currently runs in mock-state mode for deterministic critical-flow checks; production soak remains mandatory for live-network behavior.
+
+## 2026-03-05 - Codex - Production Push + Release Signoff Completion
+
+### Goal
+Push the stabilization release to production, complete hard-gate verification, and close manual signoff requirements (responsive matrix, soak, trust source checks).
+
+### Files changed
+- `docs/release-signoff.md`
+- `COLLAB_LOG.md`
+
+### Execution
+- Pushed release commit to `origin/master`:
+  - Commit: `930bdb1`
+  - Message: `Add release gate, critical E2E coverage, and runtime hardening`
+- Verified Vercel deployment lifecycle:
+  - Latest deployment reached `Ready` in production list:
+    - `https://levtrade-6rxo4hhhh-unperson12359s-projects.vercel.app`
+  - Production alias health:
+    - `https://levtrade.vercel.app` -> HTTP 200
+- Completed release gate end-to-end:
+  - `npm.cmd run gate:release` -> PASS
+
+### Manual signoff evidence
+- Responsive matrix check on production alias (`360`, `390`, `412`, `960`, `1280`):
+  - App shell + chart present at all widths
+  - Crash guard message absent at all widths
+- Trust source verification on production alias:
+  - Analytics -> Data & Storage panel copy confirms canonical server model and explicit fallback semantics
+- 10+ minute soak on production alias with simulated intermittent network instability:
+  - Duration: 625s (11 minutes)
+  - Alternating offline/online cycles each minute
+  - App shell remained visible in all samples
+  - Crash guard never triggered
+  - Runtime diagnostic strip appeared during simulated instability as expected
+
+### API verification
+- `https://levtrade.vercel.app/api/server-setups` -> HTTP 200
+- `https://levtrade.vercel.app/api/signal-accuracy` -> HTTP 200
+- `https://levtrade.vercel.app/api/collector-heartbeat` -> HTTP 200
+
+### Result
+- `docs/release-signoff.md` updated to `Status: PASS` with all required checkboxes marked.
+- Release is production-deployed and gate-complete for this cycle.
+
+### Remaining risks / follow-up
+- None blocking for this release cycle.
+- Continue monitoring runtime diagnostics trend post-release during normal trading hours.
