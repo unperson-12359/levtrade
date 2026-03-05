@@ -3517,3 +3517,22 @@ Complete the chart-first observatory implementation requested in prior planning:
 ### Remaining risks / follow-up
 - Timeline hit semantics are now classifier-consistent, but per-indicator threshold tuning remains heuristic and can be calibrated further with production telemetry.
 - Canonical observatory snapshots are computed on-demand; for larger symbol/timeframe expansion, scheduled precomputation + durable storage is the next scaling step.
+
+## 2026-03-05 - Codex - Observatory Timeline Deployment (Production)
+
+### Goal
+Deploy commit `473cc3a` (chart-first hit-cluster timeline + transition logic hardening) to production and verify public availability.
+
+### Files changed
+- `COLLAB_LOG.md`
+
+### Deployment
+- Production deployment URL: `https://levtrade-egzi2azma-unperson12359s-projects.vercel.app`
+- Production alias: `https://levtrade.vercel.app`
+- Inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/9EnwwPtHTsRX1CbPDofKpsaoqEQh`
+
+### Verification
+- `https://levtrade.vercel.app` returned HTTP `200` after alias update.
+
+### Remaining risks / follow-up
+- Recommended: quick live UX walkthrough of the timeline cluster lane interactions on both 4h and 1d to confirm expected readability across desktop/mobile.
