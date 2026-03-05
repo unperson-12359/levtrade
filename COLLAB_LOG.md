@@ -3701,3 +3701,22 @@ Upgrade timeline click behavior so each selected heatmap cell opens an exact can
 ### Remaining risks / follow-up
 - Legacy snapshots normalized with fallback price `0` may display neutral candle stats until refreshed canonical payload arrives.
 - Report currently focuses on transition events; if needed, a follow-up can add a secondary section for indicators that remained active without firing.
+
+## 2026-03-05 - Codex - Candle Forensics Production Deployment
+
+### Goal
+Deploy commit `e58349c` (candle-level indicator forensics report with durations and exact Simple-mode candle click semantics) to production and verify live availability.
+
+### Files changed
+- `COLLAB_LOG.md`
+
+### Deployment
+- Production deployment URL: `https://levtrade-fclkxmja8-unperson12359s-projects.vercel.app`
+- Production alias: `https://levtrade.vercel.app`
+- Inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/EthSSe9v3am3Pnm1Qx2wWBFRqSXV`
+
+### Verification
+- `https://levtrade.vercel.app` returned HTTP `200` after alias update.
+
+### Remaining risks / follow-up
+- If desired, next refinement can add optional active-state (non-firing) context under each candle report to complement transition-only events.
