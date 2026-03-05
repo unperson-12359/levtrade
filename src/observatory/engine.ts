@@ -511,12 +511,14 @@ function computeCorrelationEdges(indicators: IndicatorMetric[], maxLagBars: numb
       const b = indicators[right]
       if (!b) continue
 
-      const paired = pairSeries(a.rawValues, b.rawValues, 40)
+      const valuesA = a.rawValues ?? []
+      const valuesB = b.rawValues ?? []
+      const paired = pairSeries(valuesA, valuesB, 40)
       if (!paired) continue
 
       const pearson = pearsonCorrelation(paired.x, paired.y)
       const spearman = spearmanCorrelation(paired.x, paired.y)
-      const lag = bestLagCorrelation(a.rawValues, b.rawValues, maxLagBars, 40)
+      const lag = bestLagCorrelation(valuesA, valuesB, maxLagBars, 40)
       const strength = (Math.abs(pearson) + Math.abs(spearman) + Math.abs(lag.correlation)) / 3
 
       if (!isFiniteNumber(strength) || strength < 0.25) continue

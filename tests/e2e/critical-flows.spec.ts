@@ -6,6 +6,8 @@ test.describe('Observatory critical flows', () => {
     await seedObservatoryState(page)
 
     await expect(page.getByTestId('obs-shell')).toBeVisible()
+    await expect(page.getByTestId('obs-price-strip')).toBeVisible()
+    await expect(page.getByTestId('obs-map-legend')).toBeVisible()
     await expect(page.getByTestId('obs-pool-map')).toBeVisible()
 
     await page.getByTestId('obs-coin-ETH').click()
@@ -14,6 +16,11 @@ test.describe('Observatory critical flows', () => {
     await page.getByTestId('obs-interval-4h').click()
     await expect(page.getByTestId('obs-interval-4h')).toHaveClass(/obs-chip--active/)
     await expect(page.getByTestId('obs-pool-map')).toBeVisible()
+
+    await page.getByTestId('obs-mode-advanced').click()
+    await expect(page.getByTestId('obs-mode-advanced')).toHaveClass(/obs-chip--active/)
+    await page.getByTestId('obs-mode-basic').click()
+    await expect(page.getByTestId('obs-mode-basic')).toHaveClass(/obs-chip--active/)
   })
 
   test('@critical indicator selection updates drilldown', async ({ page }) => {

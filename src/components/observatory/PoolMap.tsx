@@ -6,6 +6,7 @@ interface PoolMapProps {
   edges: CorrelationEdge[]
   selectedId: string | null
   onSelect: (id: string) => void
+  viewMode: 'basic' | 'advanced'
 }
 
 interface PositionedNode {
@@ -23,7 +24,7 @@ const CATEGORY_ORDER: IndicatorCategory[] = [
   'Structure',
 ]
 
-export function PoolMap({ indicators, edges, selectedId, onSelect }: PoolMapProps) {
+export function PoolMap({ indicators, edges, selectedId, onSelect, viewMode }: PoolMapProps) {
   const nodes = useMemo(() => positionNodes(indicators), [indicators])
   const nodeMap = useMemo(() => {
     const mapped = new Map<string, PositionedNode>()
@@ -37,8 +38,8 @@ export function PoolMap({ indicators, edges, selectedId, onSelect }: PoolMapProp
     () =>
       edges
         .filter((edge) => nodeMap.has(edge.a) && nodeMap.has(edge.b))
-        .slice(0, 80),
-    [edges, nodeMap],
+        .slice(0, viewMode === 'advanced' ? 96 : 48),
+    [edges, nodeMap, viewMode],
   )
 
   return (
@@ -58,6 +59,7 @@ export function PoolMap({ indicators, edges, selectedId, onSelect }: PoolMapProp
               y2={to.y}
               stroke={tone >= 0 ? 'rgba(103, 232, 249, 0.45)' : 'rgba(251, 113, 133, 0.45)'}
               strokeWidth={Math.max(0.12, edge.strength * 0.35)}
+              strokeDasharray={edge.lagBars === 0 ? undefined : '1.2 0.8'}
             />
           )
         })}

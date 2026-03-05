@@ -3431,3 +3431,47 @@ Promote the observatory revamp commit (`89158e1`) to production and verify publi
 
 ### Follow-up risks / next steps
 - Manual UX validation on real mobile devices (`360/390/412`) is still recommended post-deploy.
+
+## 2026-03-05 - Codex — Clarity + Robustness Refinement (Price, Legend, Basic/Advanced, Canonical Snapshot)
+
+### Goal
+Address user confusion by making token price explicit, making line semantics obvious, adding a beginner-friendly mode, and improving scalability by introducing a canonical observatory snapshot API.
+
+### Files changed
+- `api/observatory-snapshot.ts`
+- `src/hooks/useIndicatorObservatory.ts`
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/components/observatory/PoolMap.tsx`
+- `src/index.css`
+- `src/observatory/types.ts`
+- `src/observatory/engine.ts`
+- `tests/e2e/critical-flows.spec.ts`
+
+### Major changes
+- Added canonical API route `/api/observatory-snapshot`:
+  - computes observatory snapshot server-side
+  - includes 1-minute cache TTL behavior and contract metadata
+  - returns price context (`lastPrice`, `change24hPct`, `intervalReturnPct`, `updatedAt`)
+- Updated observatory hook to prefer canonical API snapshots with local fallback.
+- Added pinned **Price Strip** at top of UI so selected token price context is always visible.
+- Added always-on **Map Legend** clarifying line meaning:
+  - color = correlation sign
+  - thickness = strength
+  - dashed = lag/lead relationship
+- Added **Basic/Advanced mode** toggle:
+  - Basic reduces node/edge density for readability
+  - Advanced restores full network density
+- Added inline learning scaffolding:
+  - first-run quick guide banner
+  - drilldown “What this means” teaching block
+- Updated critical E2E tests to validate price strip, legend visibility, and mode toggling.
+
+### Verification
+- `npm.cmd run build` — PASS
+- `npm.cmd run test:logic` — PASS
+- `npm.cmd run test:e2e:critical` — PASS (elevated run required due sandbox `spawn EPERM`)
+- `npm.cmd run gate:release` — PASS
+
+### Follow-up risks / next steps
+- Canonical route currently uses funding + candle history from Hyperliquid and does not yet hydrate full OI historical depth from a canonical database source.
+- For larger symbol universes, add persistent precompute/storage and scheduled snapshot materialization beyond in-function cache.

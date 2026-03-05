@@ -36,7 +36,7 @@ export interface IndicatorMetric {
   quantileRank: number | null
   quantileBucket: QuantileBucket | null
   series: IndicatorSeriesPoint[]
-  rawValues: Array<number | null>
+  rawValues?: Array<number | null>
   frequency: IndicatorFrequency
 }
 

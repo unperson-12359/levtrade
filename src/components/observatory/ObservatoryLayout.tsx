@@ -8,6 +8,7 @@ import { TRACKED_COINS } from '../../types/market'
 import { PoolMap } from './PoolMap'
 
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Flow', 'Structure']
+type ViewMode = 'basic' | 'advanced'
 
 export function ObservatoryLayout() {
   useDataManager()
@@ -20,8 +21,16 @@ export function ObservatoryLayout() {
   const runtimeDiagnostics = useStore((state) => state.runtimeDiagnostics)
   const clearRuntimeDiagnostics = useStore((state) => state.clearRuntimeDiagnostics)
 
-  const snapshot = useIndicatorObservatory(selectedCoin)
+  const { snapshot, priceContext, source, freshness, loading } = useIndicatorObservatory(selectedCoin)
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>('basic')
+  const [showGuide, setShowGuide] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const seen = window.localStorage.getItem('obs_guide_seen_v1')
+    setShowGuide(seen !== '1')
+  }, [])
 
   useEffect(() => {
     if (snapshot.indicators.length === 0) {
@@ -54,17 +63,44 @@ export function ObservatoryLayout() {
     return grouped
   }, [snapshot.indicators])
 
+  const mapIndicators = useMemo(() => {
+    if (viewMode === 'advanced') return snapshot.indicators
+    const keep = new Set<string>()
+    for (const category of CATEGORY_ORDER) {
+      const categoryIndicators = indicatorsByCategory[category].slice(0, 4)
+      for (const indicator of categoryIndicators) {
+        keep.add(indicator.id)
+      }
+    }
+    if (selectedIndicatorId) keep.add(selectedIndicatorId)
+    return snapshot.indicators.filter((indicator) => keep.has(indicator.id))
+  }, [indicatorsByCategory, selectedIndicatorId, snapshot.indicators, viewMode])
+
+  const mapEdges = useMemo(() => {
+    const allowed = new Set(mapIndicators.map((indicator) => indicator.id))
+    const filtered = snapshot.edges.filter((edge) => allowed.has(edge.a) && allowed.has(edge.b))
+    if (viewMode === 'advanced') return filtered
+    return filtered.filter((edge) => edge.strength >= 0.45).slice(0, 48)
+  }, [mapIndicators, snapshot.edges, viewMode])
+
   const selectedEdges = useMemo(() => {
     if (!selectedIndicator) return []
-    return snapshot.edges
+    const base = snapshot.edges
       .filter((edge) => edge.a === selectedIndicator.id || edge.b === selectedIndicator.id)
-      .slice(0, 10)
-  }, [selectedIndicator, snapshot.edges])
+    return viewMode === 'advanced' ? base.slice(0, 10) : base.slice(0, 6)
+  }, [selectedIndicator, snapshot.edges, viewMode])
 
   const density = useMemo(() => {
     if (snapshot.indicators.length === 0) return 0
     return snapshot.edges.length / snapshot.indicators.length
   }, [snapshot.edges.length, snapshot.indicators.length])
+
+  const dismissGuide = () => {
+    setShowGuide(false)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('obs_guide_seen_v1', '1')
+    }
+  }
 
   return (
     <div className="obs-app" data-testid="obs-shell">
@@ -76,9 +112,19 @@ export function ObservatoryLayout() {
         </div>
         <div className="obs-topbar__right">
           <div className={`obs-connection obs-connection--${connectionStatus}`}>{connectionStatus}</div>
-          <div className="obs-updated">{new Date(snapshot.generatedAt).toLocaleTimeString()}</div>
+          <div className={`obs-freshness obs-freshness--${freshness}`}>{source === 'canonical' ? `Canonical ${freshness}` : 'Local fallback'}</div>
         </div>
       </header>
+
+      {showGuide && (
+        <section className="obs-guide">
+          <div className="obs-guide__title">How to read this screen</div>
+          <div className="obs-guide__row">1. Use the price strip to track live token context.</div>
+          <div className="obs-guide__row">2. In the map, line color is direction, thickness is strength, and dashed lines mean lag.</div>
+          <div className="obs-guide__row">3. Click a node to see plain-English interpretation in drilldown.</div>
+          <button type="button" className="obs-guide__dismiss" onClick={dismissGuide}>Got it</button>
+        </section>
+      )}
 
       {runtimeDiagnostics.length > 0 && (
         <div className="obs-runtime">
@@ -87,6 +133,13 @@ export function ObservatoryLayout() {
           <button type="button" className="obs-runtime__clear" onClick={clearRuntimeDiagnostics}>Clear</button>
         </div>
       )}
+
+      <section className="obs-price-strip" data-testid="obs-price-strip">
+        <PriceCell label={`${selectedCoin} Last Price`} value={formatPrice(priceContext.lastPrice)} tone="neutral" />
+        <PriceCell label="24h Change" value={formatSignedPct(priceContext.change24hPct)} tone={toneFromNumber(priceContext.change24hPct)} />
+        <PriceCell label={`${selectedInterval} Return`} value={formatSignedPct(priceContext.intervalReturnPct)} tone={toneFromNumber(priceContext.intervalReturnPct)} />
+        <PriceCell label="Updated" value={new Date(priceContext.updatedAt).toLocaleTimeString()} tone="neutral" />
+      </section>
 
       <section className="obs-policy" data-testid="obs-no-reco-copy">
         No recommendation mode: this platform does not produce long/short calls, entries, exits, or leverage guidance.
@@ -118,6 +171,22 @@ export function ObservatoryLayout() {
               {interval}
             </button>
           ))}
+          <button
+            type="button"
+            className={`obs-chip ${viewMode === 'basic' ? 'obs-chip--active' : ''}`}
+            onClick={() => setViewMode('basic')}
+            data-testid="obs-mode-basic"
+          >
+            Basic
+          </button>
+          <button
+            type="button"
+            className={`obs-chip ${viewMode === 'advanced' ? 'obs-chip--active' : ''}`}
+            onClick={() => setViewMode('advanced')}
+            data-testid="obs-mode-advanced"
+          >
+            Advanced
+          </button>
         </div>
       </section>
 
@@ -159,13 +228,15 @@ export function ObservatoryLayout() {
         <section className="obs-panel obs-panel--map">
           <div className="obs-panel__title-row">
             <h2 className="obs-panel__title">2D Pool Map</h2>
-            <p className="obs-panel__hint">Node clusters are grouped by indicator domain; links encode rolling correlation strength.</p>
+            <p className="obs-panel__hint">{loading ? 'Refreshing...' : 'Click nodes to inspect meaning in drilldown.'}</p>
           </div>
+          <MapLegend />
           <PoolMap
-            indicators={snapshot.indicators}
-            edges={snapshot.edges}
+            indicators={mapIndicators}
+            edges={mapEdges}
             selectedId={selectedIndicatorId}
             onSelect={setSelectedIndicatorId}
+            viewMode={viewMode}
           />
         </section>
 
@@ -196,6 +267,7 @@ export function ObservatoryLayout() {
                 </div>
               </div>
               <p className="obs-detail-copy">{selectedIndicator.description}</p>
+              <TeachingBlock indicatorState={selectedIndicator.currentState} />
               <div className="obs-detail-subtitle">Strongest links</div>
               <div className="obs-correlation-list">
                 {selectedEdges.length > 0 ? (
@@ -229,7 +301,7 @@ export function ObservatoryLayout() {
       <section className="obs-panel obs-panel--table">
         <div className="obs-panel__title-row">
           <h2 className="obs-panel__title">Top Correlation Pairs</h2>
-          <p className="obs-panel__hint">Pearson, Spearman, and lag-adjusted correlation are blended in the edge strength score.</p>
+          <p className="obs-panel__hint">Strength combines Pearson, Spearman, and lag-adjusted correlation.</p>
         </div>
         <div className="obs-table">
           <div className="obs-table__head">
@@ -239,7 +311,7 @@ export function ObservatoryLayout() {
             <span>Lag</span>
             <span>Strength</span>
           </div>
-          {snapshot.edges.slice(0, 12).map((edge) => {
+          {(viewMode === 'advanced' ? snapshot.edges : snapshot.edges.filter((edge) => edge.strength >= 0.45)).slice(0, 12).map((edge) => {
             const left = snapshot.indicators.find((indicator) => indicator.id === edge.a)
             const right = snapshot.indicators.find((indicator) => indicator.id === edge.b)
             if (!left || !right) return null
@@ -259,6 +331,29 @@ export function ObservatoryLayout() {
   )
 }
 
+function MapLegend() {
+  return (
+    <div className="obs-legend" data-testid="obs-map-legend">
+      <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--pos" /> Positive correlation</div>
+      <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--neg" /> Negative correlation</div>
+      <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--thick" /> Thicker = stronger</div>
+      <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--lag" /> Dashed = lead/lag detected</div>
+    </div>
+  )
+}
+
+function TeachingBlock({ indicatorState }: { indicatorState: 'high' | 'low' | 'neutral' }) {
+  return (
+    <div className="obs-teach">
+      <div className="obs-teach__title">What this means</div>
+      <div className="obs-teach__row">State: <strong>{indicatorState}</strong> = current value compared to indicator threshold bands.</div>
+      <div className="obs-teach__row">Quantile: how rare today is compared with the recent history window.</div>
+      <div className="obs-teach__row">Active rate: how often this indicator leaves neutral state.</div>
+      <div className="obs-teach__row">Transition rate: how frequently the state flips over time.</div>
+    </div>
+  )
+}
+
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
     <article className="obs-summary-card">
@@ -266,6 +361,40 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
       <div className="obs-summary-card__label">{label}</div>
     </article>
   )
+}
+
+function PriceCell({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string
+  tone: 'up' | 'down' | 'neutral'
+}) {
+  return (
+    <article className={`obs-price-cell obs-price-cell--${tone}`}>
+      <div className="obs-price-cell__label">{label}</div>
+      <div className="obs-price-cell__value">{value}</div>
+    </article>
+  )
+}
+
+function toneFromNumber(value: number | null): 'up' | 'down' | 'neutral' {
+  if (value === null || !Number.isFinite(value)) return 'neutral'
+  if (value > 0) return 'up'
+  if (value < 0) return 'down'
+  return 'neutral'
+}
+
+function formatPrice(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '--'
+  return `$${value.toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+}
+
+function formatSignedPct(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '--'
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
 }
 
 function formatValue(value: number | null, unit: string): string {
