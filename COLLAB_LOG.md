@@ -3720,3 +3720,40 @@ Deploy commit `e58349c` (candle-level indicator forensics report with durations 
 
 ### Remaining risks / follow-up
 - If desired, next refinement can add optional active-state (non-firing) context under each candle report to complement transition-only events.
+
+## 2026-03-05 - Codex - Separate Candle Report Page + Compact Heatmap
+
+### Goal
+Move the detailed candle forensics view to a dedicated page for cleaner reading, and re-compact the heatmap timeline for higher information density.
+
+### Files changed
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/components/observatory/IndicatorClusterLanes.tsx`
+- `src/components/observatory/CandleReportPage.tsx`
+- `src/index.css`
+- `tests/e2e/critical-flows.spec.ts`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added hash-route driven view split:
+  - Heatmap: `#/observatory`
+  - Candle report: `#/observatory/report?coin=<coin>&interval=<4h|1d>&time=<unix_ms>`
+- Heatmap click behavior now opens dedicated Candle Report page and preserves selected context in URL.
+- Added `Back to Heatmap` action from report page.
+- Extracted full report UI into new `CandleReportPage` component:
+  - chart context
+  - selected candle OHLC/change/range
+  - categorized fired-indicator list with transition + duration
+- Reworked `IndicatorClusterLanes` into compact map-only interaction surface (no side panel).
+- Tightened heatmap spacing and lane sizing for dense scanability.
+- Updated critical E2E flow to validate route navigation, report rendering, and return to heatmap.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS (elevated due local sandbox `spawn EPERM`)
+- `npm.cmd run gate:release`: PASS (elevated due local sandbox `spawn EPERM`)
+
+### Remaining risks / follow-up
+- Report route currently relies on hash navigation; if full browser-route support is desired later, migration to a dedicated router can be done without changing report schema.
+- Deep-linking to very old timestamps may show unavailable message if snapshot window no longer contains the candle.

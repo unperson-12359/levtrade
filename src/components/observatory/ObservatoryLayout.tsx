@@ -3,9 +3,10 @@ import { useDataManager } from '../../hooks/useDataManager'
 import { useIndicatorObservatory } from '../../hooks/useIndicatorObservatory'
 import type { IndicatorCategory, IndicatorHealthStatus } from '../../observatory/types'
 import { useStore } from '../../store'
-import { TRACKED_COINS } from '../../types/market'
+import { TRACKED_COINS, type TrackedCoin } from '../../types/market'
 import { PriceChart } from '../chart/PriceChart'
 import { IndicatorClusterLanes, type ClusterPresentationMode } from './IndicatorClusterLanes'
+import { CandleReportPage } from './CandleReportPage'
 import { PoolMap } from './PoolMap'
 
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Flow', 'Structure']
@@ -13,6 +14,14 @@ const ALLOWED_INTERVALS = ['4h', '1d'] as const
 type AllowedInterval = (typeof ALLOWED_INTERVALS)[number]
 type ViewMode = 'basic' | 'advanced'
 type PrimaryView = 'timeline' | 'network'
+type ObservatoryRoutePage = 'observatory' | 'report'
+
+interface ObservatoryRouteState {
+  page: ObservatoryRoutePage
+  coin: TrackedCoin | null
+  interval: AllowedInterval | null
+  time: number | null
+}
 
 export function ObservatoryLayout() {
   useDataManager()
@@ -34,12 +43,42 @@ export function ObservatoryLayout() {
   const [showRuntimeDetail, setShowRuntimeDetail] = useState(false)
   const [showPolicyDetail, setShowPolicyDetail] = useState(false)
   const [showHealthDetail, setShowHealthDetail] = useState(false)
+  const [route, setRoute] = useState<ObservatoryRouteState>(() => parseObservatoryHash(window.location.hash))
 
   useEffect(() => {
     if (selectedInterval !== '4h' && selectedInterval !== '1d') {
       setInterval('4h')
     }
   }, [selectedInterval, setInterval])
+
+  useEffect(() => {
+    const onHashChange = () => {
+      setRoute(parseObservatoryHash(window.location.hash))
+    }
+
+    window.addEventListener('hashchange', onHashChange)
+    if (!window.location.hash) {
+      window.location.hash = '#/observatory'
+    } else {
+      onHashChange()
+    }
+
+    return () => {
+      window.removeEventListener('hashchange', onHashChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (route.coin && route.coin !== selectedCoin) {
+      selectCoin(route.coin)
+    }
+    if (route.interval && route.interval !== selectedInterval) {
+      setInterval(route.interval)
+    }
+    if (route.page === 'report' && route.time !== null) {
+      setSelectedClusterTime(route.time)
+    }
+  }, [route, selectCoin, selectedCoin, selectedInterval, setInterval])
 
   useEffect(() => {
     if (snapshot.indicators.length === 0) {
@@ -121,6 +160,24 @@ export function ObservatoryLayout() {
   }, [selectedIndicator, snapshot.edges, viewMode])
 
   const timeframe = (selectedInterval === '1d' ? '1d' : '4h') as AllowedInterval
+  const isReportPage = route.page === 'report'
+  const reportCluster = useMemo(() => {
+    if (!isReportPage || route.time === null) return null
+    return snapshot.timeline.find((cluster) => cluster.time === route.time) ?? null
+  }, [isReportPage, route.time, snapshot.timeline])
+
+  const openCandleReport = (time: number) => {
+    const next = new URLSearchParams()
+    next.set('coin', selectedCoin)
+    next.set('interval', timeframe)
+    next.set('time', String(time))
+    window.location.hash = `#/observatory/report?${next.toString()}`
+  }
+
+  const backToHeatmap = () => {
+    window.location.hash = '#/observatory'
+  }
+
   const latestRuntimeMessage = runtimeDiagnostics[runtimeDiagnostics.length - 1]?.message ?? null
   const healthStatus = snapshot.health.status
   const healthTone = toneFromHealthStatus(healthStatus)
@@ -174,23 +231,27 @@ export function ObservatoryLayout() {
           >
             Advanced
           </button>
-          <button
-            type="button"
-            className={`obs-chip ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
-            onClick={() => setPrimaryView('timeline')}
-            data-testid="obs-view-timeline"
-          >
-            Timeline
-          </button>
-          <button
-            type="button"
-            className={`obs-chip ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
-            onClick={() => setPrimaryView('network')}
-            data-testid="obs-view-network"
-          >
-            Network
-          </button>
-          {primaryView === 'timeline' && (
+          {!isReportPage && (
+            <>
+              <button
+                type="button"
+                className={`obs-chip ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
+                onClick={() => setPrimaryView('timeline')}
+                data-testid="obs-view-timeline"
+              >
+                Timeline
+              </button>
+              <button
+                type="button"
+                className={`obs-chip ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
+                onClick={() => setPrimaryView('network')}
+                data-testid="obs-view-network"
+              >
+                Network
+              </button>
+            </>
+          )}
+          {!isReportPage && primaryView === 'timeline' && (
             <>
               <button
                 type="button"
@@ -297,7 +358,15 @@ export function ObservatoryLayout() {
         </section>
       )}
 
-      {primaryView === 'timeline' ? (
+      {isReportPage ? (
+        <CandleReportPage
+          coin={selectedCoin}
+          timeframe={timeframe}
+          cluster={reportCluster}
+          loading={loading}
+          onBack={backToHeatmap}
+        />
+      ) : primaryView === 'timeline' ? (
         <section className="obs-timeline-stack">
           <div className="obs-panel">
             <div className="obs-panel__title-row">
@@ -316,6 +385,7 @@ export function ObservatoryLayout() {
               mode={clusterMode}
               selectedTime={selectedClusterTime}
               onSelectTime={setSelectedClusterTime}
+              onOpenReport={openCandleReport}
             />
           </div>
         </section>
@@ -400,6 +470,28 @@ export function ObservatoryLayout() {
       )}
     </div>
   )
+}
+
+function parseObservatoryHash(hash: string): ObservatoryRouteState {
+  const raw = hash.trim()
+  const fallback: ObservatoryRouteState = { page: 'observatory', coin: null, interval: null, time: null }
+  if (!raw) return fallback
+
+  const withoutHash = raw.startsWith('#') ? raw.slice(1) : raw
+  if (!withoutHash.startsWith('/observatory')) return fallback
+
+  const [pathPart = '', queryPart = ''] = withoutHash.split('?')
+  const page: ObservatoryRoutePage = pathPart.includes('/report') ? 'report' : 'observatory'
+  const query = new URLSearchParams(queryPart)
+  const rawCoin = query.get('coin')
+  const rawInterval = query.get('interval')
+  const rawTime = query.get('time')
+
+  const coin = rawCoin && TRACKED_COINS.includes(rawCoin as TrackedCoin) ? rawCoin as TrackedCoin : null
+  const interval = rawInterval === '4h' || rawInterval === '1d' ? rawInterval : null
+  const time = rawTime && Number.isFinite(Number(rawTime)) ? Number(rawTime) : null
+
+  return { page, coin, interval, time }
 }
 
 function MapLegend() {
