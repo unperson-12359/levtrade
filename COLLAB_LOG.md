@@ -3757,3 +3757,22 @@ Move the detailed candle forensics view to a dedicated page for cleaner reading,
 ### Remaining risks / follow-up
 - Report route currently relies on hash navigation; if full browser-route support is desired later, migration to a dedicated router can be done without changing report schema.
 - Deep-linking to very old timestamps may show unavailable message if snapshot window no longer contains the candle.
+
+## 2026-03-05 - Codex - Separate Report Page Production Deployment
+
+### Goal
+Deploy commit `0771b53` (separate candle report route page + compact heatmap refresh) to production and verify live availability.
+
+### Files changed
+- `COLLAB_LOG.md`
+
+### Deployment
+- Production deployment URL: `https://levtrade-6nm3s0uqm-unperson12359s-projects.vercel.app`
+- Production alias: `https://levtrade.vercel.app`
+- Inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/7h2icAAErRJrxHnZsN7KrMnjE1rp`
+
+### Verification
+- `https://levtrade.vercel.app` returned HTTP `200` after alias update.
+
+### Remaining risks / follow-up
+- Consider adding prev/next candle navigation inside report route for faster sequential forensic review.
