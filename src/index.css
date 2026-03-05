@@ -1069,6 +1069,15 @@ button {
   font-size: 0.66rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  cursor: pointer;
+}
+.obs-report__back:hover {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+.obs-report__back:focus-visible {
+  outline: 1px solid rgba(56, 189, 248, 0.7);
+  outline-offset: 1px;
 }
 
 .obs-report__title-wrap {

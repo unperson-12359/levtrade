@@ -92,6 +92,7 @@ export function ObservatoryLayout() {
   }, [selectedIndicatorId, snapshot.indicators])
 
   useEffect(() => {
+    if (route.page === 'report') return
     if (snapshot.timeline.length === 0) {
       setSelectedClusterTime(null)
       return
@@ -100,7 +101,7 @@ export function ObservatoryLayout() {
     if (!exists) {
       setSelectedClusterTime(snapshot.timeline[snapshot.timeline.length - 1]?.time ?? null)
     }
-  }, [selectedClusterTime, snapshot.timeline])
+  }, [selectedClusterTime, snapshot.timeline, route.page])
 
   useEffect(() => {
     if (runtimeDiagnostics.length > 0) {
@@ -166,16 +167,22 @@ export function ObservatoryLayout() {
     return snapshot.timeline.find((cluster) => cluster.time === route.time) ?? null
   }, [isReportPage, route.time, snapshot.timeline])
 
+  const backToHeatmap = () => {
+    window.location.hash = '#/observatory'
+  }
+
+  useEffect(() => {
+    if (isReportPage && !loading && snapshot.timeline.length > 0 && !reportCluster) {
+      backToHeatmap()
+    }
+  }, [isReportPage, loading, snapshot.timeline.length, reportCluster])
+
   const openCandleReport = (time: number) => {
     const next = new URLSearchParams()
     next.set('coin', selectedCoin)
     next.set('interval', timeframe)
     next.set('time', String(time))
     window.location.hash = `#/observatory/report?${next.toString()}`
-  }
-
-  const backToHeatmap = () => {
-    window.location.hash = '#/observatory'
   }
 
   const latestRuntimeMessage = runtimeDiagnostics[runtimeDiagnostics.length - 1]?.message ?? null
