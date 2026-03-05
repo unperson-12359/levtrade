@@ -3319,3 +3319,39 @@ Implement the approved free-first/scalable trust plan foundation in production c
 - `/api/events/stream` currently emits snapshot-style events per connection cycle (best-effort SSE suitable for current scale), not a durable brokered stream.
 - New backtest/snapshot endpoints are canonical aggregate views over `server_setups` and do not yet include strategy-specific execution isolation beyond the route parameter.
 - Consider adding dashboard UI consumption for `/api/portfolios/:id/snapshot` and `/api/strategies/:id/backtests` in a follow-up slice.
+
+## 2026-03-05 13:45 - Codex - Production Hotfix: Vercel ESM Runtime Module Resolution
+
+### Goal
+Fix immediate post-deploy production API 500s caused by Vercel serverless ESM runtime not resolving extensionless internal API imports.
+
+### Files changed
+- `api/_contracts.ts`
+- `api/server-setups.ts`
+- `api/signal-accuracy.ts`
+- `api/collector-heartbeat.ts`
+- `api/events/stream.ts`
+- `api/portfolios/[portfolioId]/snapshot.ts`
+- `api/strategies/[strategyId]/backtests.ts`
+- `COLLAB_LOG.md`
+
+### What changed
+- Converted runtime API helper imports to explicit `.js` specifiers for Vercel Node ESM resolution:
+  - `./_contracts.js`
+  - `./_supabase.js`
+  - `./_analytics.js`
+- Removed runtime dependency from `api/_contracts.ts` to `src/contracts/v1` by defining `CONTRACT_VERSION_V1` locally and keeping cross-tree contract imports type-only.
+
+### Root cause evidence
+- Vercel production logs showed repeated failures:
+  - `ERR_MODULE_NOT_FOUND: Cannot find module '/var/task/api/_contracts'`
+  - affected routes: `/api/server-setups`, `/api/signal-accuracy`, `/api/collector-heartbeat`, `/api/events/stream`, `/api/portfolios/:id/snapshot`, `/api/strategies/:id/backtests`
+
+### Verification
+- `npm.cmd run typecheck:api`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+- `npm.cmd run gate:release -- --verify-only`: PASS
+
+### Remaining risks / follow-up
+- None identified from the import-resolution hotfix scope.

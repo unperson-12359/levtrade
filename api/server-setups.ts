@@ -1,7 +1,7 @@
 import { emptyOutcome, summarizeCoverage } from './_signals.mjs'
 import type { SetupOutcome, SetupWindow } from '../src/types/setup'
-import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts'
-import { fetchSupabaseRows, getSupabaseEnv, type SupabaseEnv } from './_supabase'
+import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts.js'
+import { fetchSupabaseRows, getSupabaseEnv, type SupabaseEnv } from './_supabase.js'
 
 interface VercelRequest {
   method?: string

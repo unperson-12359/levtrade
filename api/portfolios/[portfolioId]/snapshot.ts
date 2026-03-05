@@ -1,11 +1,11 @@
 import type { LivePerformanceSnapshotV1 } from '../../../src/contracts/v1'
-import { buildContractMeta, CONTRACT_VERSION_V1 } from '../../_contracts'
-import { fetchSupabaseRows, getSupabaseEnv, type SupabaseEnv } from '../../_supabase'
+import { buildContractMeta, CONTRACT_VERSION_V1 } from '../../_contracts.js'
+import { fetchSupabaseRows, getSupabaseEnv, type SupabaseEnv } from '../../_supabase.js'
 import {
   normalizeCanonicalSetups,
   summarizeWindowStats,
   type CanonicalSetupRow,
-} from '../../_analytics'
+} from '../../_analytics.js'
 
 interface VercelRequest {
   method?: string

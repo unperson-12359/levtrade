@@ -1,9 +1,6 @@
-import {
-  CONTRACT_VERSION_V1,
-  type ContractMetaV1,
-  type DataSourceV1,
-  type FreshnessStatusV1,
-} from '../src/contracts/v1'
+import type { ContractMetaV1, DataSourceV1, FreshnessStatusV1 } from '../src/contracts/v1'
+
+export const CONTRACT_VERSION_V1 = 'v1' as const
 
 interface FreshnessConfig {
   nowMs?: number
@@ -56,5 +53,3 @@ export function buildContractMeta(params: {
       : null,
   }
 }
-
-export { CONTRACT_VERSION_V1 }

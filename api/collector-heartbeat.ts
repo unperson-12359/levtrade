@@ -1,5 +1,5 @@
-import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts'
-import { fetchSupabaseRows, getSupabaseEnv } from './_supabase'
+import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts.js'
+import { fetchSupabaseRows, getSupabaseEnv } from './_supabase.js'
 
 interface VercelRequest {
   method?: string

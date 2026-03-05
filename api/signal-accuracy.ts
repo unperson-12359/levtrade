@@ -1,7 +1,7 @@
 import { computeTrackerStats } from './_signals.mjs'
 import type { TrackedSignalRecord, TrackedSignalOutcome, TrackerWindow } from '../src/types/tracker'
-import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts'
-import { fetchSupabaseRows, getSupabaseEnv, type SupabaseEnv } from './_supabase'
+import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts.js'
+import { fetchSupabaseRows, getSupabaseEnv, type SupabaseEnv } from './_supabase.js'
 
 interface VercelRequest {
   method?: string

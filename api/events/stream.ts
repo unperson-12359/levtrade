@@ -1,6 +1,6 @@
 import type { ExecutionEventV1 } from '../../src/contracts/v1'
-import { buildContractMeta, computeFreshnessStatus, CONTRACT_VERSION_V1 } from '../_contracts'
-import { fetchSupabaseRows, getSupabaseEnv } from '../_supabase'
+import { buildContractMeta, computeFreshnessStatus, CONTRACT_VERSION_V1 } from '../_contracts.js'
+import { fetchSupabaseRows, getSupabaseEnv } from '../_supabase.js'
 
 interface VercelRequest {
   method?: string
