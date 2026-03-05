@@ -3259,3 +3259,63 @@ Push the stabilization release to production, complete hard-gate verification, a
 ### Remaining risks / follow-up
 - None blocking for this release cycle.
 - Continue monitoring runtime diagnostics trend post-release during normal trading hours.
+
+## 2026-03-05 12:50 - Codex - Contracted API Layer + Freshness/Events Runtime Hardening
+
+### Goal
+Implement the approved free-first/scalable trust plan foundation in production code by adding versioned contracts, explicit freshness state propagation, deterministic replay checks, and best-effort execution event streaming with fallback/reconciliation.
+
+### Files changed
+- `src/contracts/v1.ts` (new)
+- `api/_contracts.ts` (new)
+- `api/_supabase.ts` (new)
+- `api/_analytics.ts` (new)
+- `api/server-setups.ts`
+- `api/signal-accuracy.ts`
+- `api/collector-heartbeat.ts`
+- `api/events/stream.ts` (new)
+- `api/portfolios/[portfolioId]/snapshot.ts` (new)
+- `api/strategies/[strategyId]/backtests.ts` (new)
+- `src/services/api.ts`
+- `src/store/uiSlice.ts`
+- `src/store/index.ts`
+- `src/services/dataManager.ts`
+- `src/hooks/useSystemHealth.ts`
+- `src/hooks/useServerTrackerStats.ts`
+- `src/components/claims/TrustPanel.tsx`
+- `src/signals/api-entry.ts`
+- `api/_signals.d.mts`
+- `api/_signals.mjs`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Added shared v1 contracts for API metadata/freshness, backtest results, portfolio snapshots, and execution events.
+- Added reusable API helpers for contract metadata and Supabase querying.
+- Upgraded canonical APIs (`server-setups`, `signal-accuracy`, `collector-heartbeat`) to emit `contractVersion` + `meta` freshness data while preserving existing payload compatibility.
+- Added new v1 endpoints:
+  - `/api/events/stream` (SSE + `mode=poll` JSON fallback)
+  - `/api/portfolios/:portfolioId/snapshot`
+  - `/api/strategies/:strategyId/backtests`
+- Added runtime event-feed orchestration in `DataManager`:
+  - SSE primary path
+  - polling fallback path
+  - periodic reconciliation loop
+  - status/freshness updates pushed to store
+- Added store-level freshness/event state (`canonical`, `signal-accuracy`, `collector`, stream status, execution events) and ensured this runtime-only state is never persisted.
+- Updated system-health derivation and trust panel visibility to surface freshness/event state.
+- Added deterministic replay regression checks and contract/interface source checks in logic test suite.
+- Exported backfill signal functions in API bundle path for replay testing.
+
+### Verification
+- `npm.cmd run typecheck:api`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run build`: PASS
+- `npm.cmd run gate:release -- --verify-only`: PASS
+- `npm.cmd run gate:release`: PASS (required one elevated rerun due sandbox `spawn EPERM`)
+- `npm.cmd run test:e2e:critical`: PASS (6/6, via release gate)
+
+### Remaining risks / follow-up
+- `/api/events/stream` currently emits snapshot-style events per connection cycle (best-effort SSE suitable for current scale), not a durable brokered stream.
+- New backtest/snapshot endpoints are canonical aggregate views over `server_setups` and do not yet include strategy-specific execution isolation beyond the route parameter.
+- Consider adding dashboard UI consumption for `/api/portfolios/:id/snapshot` and `/api/strategies/:id/backtests` in a follow-up slice.

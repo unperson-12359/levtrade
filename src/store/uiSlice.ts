@@ -4,6 +4,7 @@ import type { RiskInputs } from '../types/risk'
 import { DEFAULT_RISK_INPUTS } from '../types/risk'
 import type { CandleInterval } from '../config/intervals'
 import type { AppStore } from '.'
+import type { ExecutionEventV1, FreshnessStatusV1 } from '../contracts/v1'
 
 export type AnalyticsTab = 'performance' | 'accuracy' | 'history' | 'storage'
 
@@ -15,6 +16,8 @@ export interface RuntimeDiagnostic {
   stack?: string | null
 }
 
+export type ExecutionStreamState = 'idle' | 'connected' | 'polling' | 'stale' | 'error'
+
 export interface UISlice {
   expandedSections: Record<string, boolean>
   selectedCoin: TrackedCoin
@@ -24,6 +27,11 @@ export interface UISlice {
   riskInputsUpdatedAt: number | null
   analyticsTab: AnalyticsTab
   runtimeDiagnostics: RuntimeDiagnostic[]
+  canonicalFreshness: FreshnessStatusV1
+  signalAccuracyFreshness: FreshnessStatusV1
+  collectorFreshness: FreshnessStatusV1
+  eventStreamStatus: ExecutionStreamState
+  executionEvents: ExecutionEventV1[]
 
   toggleSection: (sectionId: string) => void
   selectCoin: (coin: TrackedCoin) => void
@@ -38,6 +46,12 @@ export interface UISlice {
     stack?: string | null
   }) => void
   clearRuntimeDiagnostics: () => void
+  setCanonicalFreshness: (status: FreshnessStatusV1) => void
+  setSignalAccuracyFreshness: (status: FreshnessStatusV1) => void
+  setCollectorFreshness: (status: FreshnessStatusV1) => void
+  setEventStreamStatus: (status: ExecutionStreamState) => void
+  ingestExecutionEvents: (events: ExecutionEventV1[]) => void
+  clearExecutionEvents: () => void
 }
 
 export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => ({
@@ -49,6 +63,11 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
   riskInputsUpdatedAt: null,
   analyticsTab: 'performance',
   runtimeDiagnostics: [],
+  canonicalFreshness: 'stale',
+  signalAccuracyFreshness: 'stale',
+  collectorFreshness: 'stale',
+  eventStreamStatus: 'idle',
+  executionEvents: [],
 
   toggleSection: (sectionId) =>
     set((state) => ({
@@ -111,6 +130,28 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
     }),
 
   clearRuntimeDiagnostics: () => set({ runtimeDiagnostics: [] }),
+
+  setCanonicalFreshness: (status) => set({ canonicalFreshness: status }),
+  setSignalAccuracyFreshness: (status) => set({ signalAccuracyFreshness: status }),
+  setCollectorFreshness: (status) => set({ collectorFreshness: status }),
+  setEventStreamStatus: (status) => set({ eventStreamStatus: status }),
+
+  ingestExecutionEvents: (events) =>
+    set((state) => {
+      if (events.length === 0) return state
+
+      const existingById = new Map(state.executionEvents.map((event) => [event.id, event]))
+      for (const event of events) {
+        existingById.set(event.id, event)
+      }
+      const merged = [...existingById.values()]
+        .sort((a, b) => Date.parse(a.time) - Date.parse(b.time))
+        .slice(-80)
+
+      return { executionEvents: merged }
+    }),
+
+  clearExecutionEvents: () => set({ executionEvents: [] }),
 
   resetRiskInputs: () =>
     set((state) => ({

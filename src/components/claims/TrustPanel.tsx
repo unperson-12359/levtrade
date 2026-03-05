@@ -11,6 +11,8 @@ export function TrustPanel() {
   const exportJson = useStore((s) => s.exportSetupsJson)
   const importJson = useStore((s) => s.importSetupsJson)
   const clearSetupHistory = useStore((s) => s.clearSetupHistory)
+  const collectorFreshness = useStore((s) => s.collectorFreshness)
+  const executionEvents = useStore((s) => s.executionEvents)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [collectorHeartbeat, setCollectorHeartbeat] = useState<(CollectorHeartbeat & { status: string }) | null>(null)
 
@@ -82,6 +84,7 @@ export function TrustPanel() {
         <Stat label="Storage key" value={STORAGE_KEY} tone="yellow" />
         <Stat label="History source" value="Oracle collector" tone="green" />
         <Stat label="Collector status" value={collectorStatus.label} tone={collectorStatus.tone} />
+        <Stat label="Collector freshness" value={collectorFreshness} tone={collectorFreshness === 'fresh' ? 'green' : collectorFreshness === 'delayed' ? 'yellow' : 'red'} />
         <Stat label="Last server run" value={collectorStatus.lastRun} tone={collectorStatus.tone} />
         <Stat label="Persistence" value="Supabase + browser cache" tone="green" />
         <Stat label="State model" value="Server canonical, local fallback only when needed" tone="green" />
@@ -93,6 +96,17 @@ export function TrustPanel() {
       {collectorHeartbeat?.lastError && (
         <div className="panel-copy">
           Collector note: {collectorHeartbeat.lastError}
+        </div>
+      )}
+
+      {executionEvents.length > 0 && (
+        <div className="panel-copy">
+          Recent execution events:
+          {executionEvents.slice(-5).reverse().map((event) => (
+            <div key={event.id}>
+              {event.summary} ({timeAgo(Date.parse(event.time))})
+            </div>
+          ))}
         </div>
       )}
 

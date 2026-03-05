@@ -2,6 +2,15 @@ import type { RawCandle, AssetContext, MetaResponse, FundingHistoryEntry, Tracke
 import type { TrackedSetup } from '../types/setup'
 import type { CollectorHeartbeat } from '../types/collector'
 import type { TrackerStats } from '../types/tracker'
+import {
+  CONTRACT_VERSION_V1,
+  isContractMetaV1,
+  isExecutionEventV1,
+  type BacktestResultV1,
+  type ContractMetaV1,
+  type ExecutionEventV1,
+  type LivePerformanceSnapshotV1,
+} from '../contracts/v1'
 
 const API_URL = 'https://api.hyperliquid.xyz/info'
 const CORE_API_TIMEOUT_MS = 9_000
@@ -159,6 +168,8 @@ export interface ServerSetupsResponse {
   truncated: boolean
   fetchedAt: string | null
   maxRowsApplied: number | null
+  latestGeneratedAt: string | null
+  meta: ContractMetaV1 | null
 }
 
 export async function fetchServerSetups(options?: {
@@ -186,16 +197,21 @@ export async function fetchServerSetups(options?: {
         truncated: false,
         fetchedAt: null,
         maxRowsApplied: null,
+        latestGeneratedAt: null,
+        meta: null,
       }
     }
 
     const payload = (await res.json()) as {
       ok?: boolean
+      contractVersion?: string
       setups?: TrackedSetup[]
       rowCount?: number
       truncated?: boolean
       fetchedAt?: string
       maxRowsApplied?: number | null
+      latestGeneratedAt?: string | null
+      meta?: unknown
     }
     if (payload.ok && Array.isArray(payload.setups)) {
       return {
@@ -204,6 +220,8 @@ export async function fetchServerSetups(options?: {
         truncated: payload.truncated ?? false,
         fetchedAt: payload.fetchedAt ?? null,
         maxRowsApplied: payload.maxRowsApplied ?? null,
+        latestGeneratedAt: payload.latestGeneratedAt ?? null,
+        meta: parseContractMeta(payload.meta, payload.contractVersion),
       }
     }
 
@@ -213,6 +231,8 @@ export async function fetchServerSetups(options?: {
       truncated: false,
       fetchedAt: null,
       maxRowsApplied: null,
+      latestGeneratedAt: null,
+      meta: parseContractMeta(payload.meta, payload.contractVersion),
     }
   } catch {
     return {
@@ -221,6 +241,8 @@ export async function fetchServerSetups(options?: {
       truncated: false,
       fetchedAt: null,
       maxRowsApplied: null,
+      latestGeneratedAt: null,
+      meta: null,
     }
   }
 }
@@ -276,14 +298,45 @@ export async function uploadLocalSetups(
 }
 
 export async function fetchCollectorHeartbeat(): Promise<(CollectorHeartbeat & { status: string }) | null> {
+  const status = await fetchCollectorHeartbeatStatus()
+  return status.heartbeat
+}
+
+export interface CollectorHeartbeatStatusResponse {
+  heartbeat: (CollectorHeartbeat & { status: string }) | null
+  error: string | null
+  meta: ContractMetaV1 | null
+}
+
+export async function fetchCollectorHeartbeatStatus(): Promise<CollectorHeartbeatStatusResponse> {
   try {
     const res = await fetchWithTimeout('/api/collector-heartbeat', undefined, INTERNAL_API_TIMEOUT_MS)
-    if (!res.ok) return null
+    if (!res.ok) {
+      return {
+        heartbeat: null,
+        error: `Collector heartbeat request failed with status ${res.status}.`,
+        meta: null,
+      }
+    }
 
-    const payload = (await res.json()) as { ok?: boolean; heartbeat?: (CollectorHeartbeat & { status: string }) | null }
-    return payload.ok ? (payload.heartbeat ?? null) : null
+    const payload = (await res.json()) as {
+      ok?: boolean
+      contractVersion?: string
+      heartbeat?: (CollectorHeartbeat & { status: string }) | null
+      error?: string
+      meta?: unknown
+    }
+    return {
+      heartbeat: payload.ok ? (payload.heartbeat ?? null) : null,
+      error: payload.ok ? null : (payload.error ?? 'Collector heartbeat is unavailable right now.'),
+      meta: parseContractMeta(payload.meta, payload.contractVersion),
+    }
   } catch {
-    return null
+    return {
+      heartbeat: null,
+      error: 'Collector heartbeat is unavailable right now.',
+      meta: null,
+    }
   }
 }
 
@@ -294,6 +347,7 @@ export interface SignalAccuracyResponse {
   recordCount: number
   windowDays: number
   computedAt: string | null
+  meta: ContractMetaV1 | null
 }
 
 export async function fetchSignalAccuracy(days?: number): Promise<SignalAccuracyResponse> {
@@ -310,16 +364,19 @@ export async function fetchSignalAccuracy(days?: number): Promise<SignalAccuracy
         recordCount: 0,
         windowDays: days ?? 90,
         computedAt: null,
+        meta: null,
       }
     }
     const payload = (await res.json()) as {
       ok?: boolean
+      contractVersion?: string
       stats?: TrackerStats
       error?: string
       truncated?: boolean
       recordCount?: number
       windowDays?: number
       computedAt?: string
+      meta?: unknown
     }
     if (payload.ok && payload.stats) {
       return {
@@ -329,6 +386,7 @@ export async function fetchSignalAccuracy(days?: number): Promise<SignalAccuracy
         recordCount: payload.recordCount ?? 0,
         windowDays: payload.windowDays ?? (days ?? 90),
         computedAt: payload.computedAt ?? null,
+        meta: parseContractMeta(payload.meta, payload.contractVersion),
       }
     }
     return {
@@ -338,6 +396,7 @@ export async function fetchSignalAccuracy(days?: number): Promise<SignalAccuracy
       recordCount: payload.recordCount ?? 0,
       windowDays: payload.windowDays ?? (days ?? 90),
       computedAt: payload.computedAt ?? null,
+      meta: parseContractMeta(payload.meta, payload.contractVersion),
     }
   } catch {
     return {
@@ -347,8 +406,147 @@ export async function fetchSignalAccuracy(days?: number): Promise<SignalAccuracy
       recordCount: 0,
       windowDays: days ?? 90,
       computedAt: null,
+      meta: null,
     }
   }
+}
+
+export interface PortfolioSnapshotResponse {
+  snapshot: LivePerformanceSnapshotV1 | null
+  error: string | null
+  meta: ContractMetaV1 | null
+}
+
+export async function fetchPortfolioSnapshot(
+  portfolioId: string = 'global',
+  days?: number,
+): Promise<PortfolioSnapshotResponse> {
+  try {
+    const params = new URLSearchParams()
+    if (days) params.set('days', String(days))
+    const url = `/api/portfolios/${encodeURIComponent(portfolioId)}/snapshot${params.size > 0 ? `?${params.toString()}` : ''}`
+    const res = await fetchWithTimeout(url, undefined, INTERNAL_API_TIMEOUT_MS)
+    if (!res.ok) {
+      return {
+        snapshot: null,
+        error: `Portfolio snapshot request failed with status ${res.status}.`,
+        meta: null,
+      }
+    }
+    const payload = (await res.json()) as {
+      ok?: boolean
+      contractVersion?: string
+      snapshot?: LivePerformanceSnapshotV1
+      error?: string
+      meta?: unknown
+    }
+    return {
+      snapshot: payload.ok ? (payload.snapshot ?? null) : null,
+      error: payload.ok ? null : (payload.error ?? 'Portfolio snapshot is unavailable right now.'),
+      meta: parseContractMeta(payload.meta, payload.contractVersion),
+    }
+  } catch {
+    return {
+      snapshot: null,
+      error: 'Portfolio snapshot is unavailable right now.',
+      meta: null,
+    }
+  }
+}
+
+export interface BacktestResultResponse {
+  result: BacktestResultV1 | null
+  replayFingerprint: string | null
+  error: string | null
+  meta: ContractMetaV1 | null
+}
+
+export async function fetchBacktestResult(
+  strategyId: string = 'mean-reversion-core',
+  days?: number,
+): Promise<BacktestResultResponse> {
+  try {
+    const params = new URLSearchParams()
+    if (days) params.set('days', String(days))
+    const url = `/api/strategies/${encodeURIComponent(strategyId)}/backtests${params.size > 0 ? `?${params.toString()}` : ''}`
+    const res = await fetchWithTimeout(url, {
+      method: 'GET',
+    }, INTERNAL_API_TIMEOUT_MS)
+    if (!res.ok) {
+      return {
+        result: null,
+        replayFingerprint: null,
+        error: `Backtest request failed with status ${res.status}.`,
+        meta: null,
+      }
+    }
+    const payload = (await res.json()) as {
+      ok?: boolean
+      contractVersion?: string
+      result?: BacktestResultV1
+      replayFingerprint?: string
+      error?: string
+      meta?: unknown
+    }
+    return {
+      result: payload.ok ? (payload.result ?? null) : null,
+      replayFingerprint: payload.ok ? (payload.replayFingerprint ?? null) : null,
+      error: payload.ok ? null : (payload.error ?? 'Backtest is unavailable right now.'),
+      meta: parseContractMeta(payload.meta, payload.contractVersion),
+    }
+  } catch {
+    return {
+      result: null,
+      replayFingerprint: null,
+      error: 'Backtest is unavailable right now.',
+      meta: null,
+    }
+  }
+}
+
+export interface ExecutionEventsResponse {
+  events: ExecutionEventV1[]
+  error: string | null
+  meta: ContractMetaV1 | null
+}
+
+export async function fetchExecutionEvents(): Promise<ExecutionEventsResponse> {
+  try {
+    const res = await fetchWithTimeout('/api/events/stream?mode=poll', undefined, INTERNAL_API_TIMEOUT_MS)
+    if (!res.ok) {
+      return {
+        events: [],
+        error: `Execution events request failed with status ${res.status}.`,
+        meta: null,
+      }
+    }
+    const payload = (await res.json()) as {
+      ok?: boolean
+      contractVersion?: string
+      events?: unknown[]
+      error?: string
+      meta?: unknown
+    }
+    const events = Array.isArray(payload.events) ? payload.events.filter(isExecutionEventV1) : []
+    return {
+      events: payload.ok ? events : [],
+      error: payload.ok ? null : (payload.error ?? 'Execution events are unavailable right now.'),
+      meta: parseContractMeta(payload.meta, payload.contractVersion),
+    }
+  } catch {
+    return {
+      events: [],
+      error: 'Execution events are unavailable right now.',
+      meta: null,
+    }
+  }
+}
+
+function parseContractMeta(raw: unknown, contractVersion?: string): ContractMetaV1 | null {
+  if (contractVersion !== CONTRACT_VERSION_V1) {
+    return isContractMetaV1(raw) ? raw : null
+  }
+  return isContractMetaV1(raw) ? raw : null
 }
 
 async function fetchWithTimeout(

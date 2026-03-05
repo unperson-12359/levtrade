@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchSignalAccuracy } from '../services/api'
 import type { TrackerStats } from '../types/tracker'
+import { useStore } from '../store'
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
@@ -28,6 +29,7 @@ export function useServerTrackerStats(): {
   windowDays: number
   computedAt: string | null
 } {
+  const setSignalAccuracyFreshness = useStore((state) => state.setSignalAccuracyFreshness)
   const [stats, setStats] = useState<TrackerStats>(EMPTY_STATS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -38,6 +40,12 @@ export function useServerTrackerStats(): {
 
   const refresh = useCallback(async () => {
     const result = await fetchSignalAccuracy()
+    if (result.meta?.freshness) {
+      setSignalAccuracyFreshness(result.meta.freshness)
+    } else if (result.error) {
+      setSignalAccuracyFreshness('error')
+    }
+
     if (result.stats) {
       setStats(result.stats)
       setError(result.error)
@@ -53,7 +61,7 @@ export function useServerTrackerStats(): {
       setComputedAt(result.computedAt)
     }
     setLoading(false)
-  }, [])
+  }, [setSignalAccuracyFreshness])
 
   useEffect(() => {
     void refresh()

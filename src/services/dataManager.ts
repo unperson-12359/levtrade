@@ -8,6 +8,8 @@ import {
   fetchCoinGeckoGlobal,
   fetchBinanceFundingRate,
   fetchBinanceOpenInterest,
+  fetchCollectorHeartbeatStatus,
+  fetchExecutionEvents,
   fetchServerSetups,
   uploadLocalSetups,
 } from './api'
@@ -17,6 +19,7 @@ import { computeSuggestedSetup } from '../signals/setup'
 import { INTERVAL_CONFIG } from '../config/intervals'
 import type { StoreApi } from 'zustand'
 import type { AppStore } from '../store'
+import type { ExecutionEventV1, FreshnessStatusV1 } from '../contracts/v1'
 
 import { POLL_INTERVAL_MS, SETUP_RESOLUTION_INTERVAL, SETUP_RESOLUTION_LOOKBACK_MS } from '../config/constants'
 import { buildSetupId } from '../utils/identity'
@@ -25,7 +28,10 @@ import type { TrackedCoin } from '../types/market'
 const FEAR_GREED_REFRESH_MS = 15 * 60 * 1000
 const CRYPTO_MACRO_REFRESH_MS = 5 * 60 * 1000
 const BINANCE_CONTEXT_REFRESH_MS = 2 * 60 * 1000
+const COLLECTOR_HEARTBEAT_REFRESH_MS = 2 * 60 * 1000
 const SERVER_SETUP_REFRESH_MS = 5 * 60 * 1000
+const EVENT_POLLING_REFRESH_MS = 20 * 1000
+const EVENT_RECONCILIATION_REFRESH_MS = 2 * 60 * 1000
 const NETWORK_FETCH_CONCURRENCY = 2
 const NETWORK_REQUEST_GAP_MS = 80
 
@@ -43,7 +49,12 @@ export class DataManager {
   private pendingSetupUploadIds = new Set<string>()
   private lastServerSetupFetchAt: string | null = null
   private lastServerSetupRefreshAttemptAt = 0
+  private lastCollectorHeartbeatRefreshAttemptAt = 0
   private bootstrapBackfillInFlight = false
+  private eventSource: EventSource | null = null
+  private eventPollingTimer: ReturnType<typeof setTimeout> | null = null
+  private eventPollingInFlight = false
+  private eventReconcileTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(store: StoreApi<AppStore>) {
     this.store = store
@@ -89,6 +100,7 @@ export class DataManager {
       }
     })
     this.unsubscribers.push(unsub)
+    this.startExecutionEventFeed()
 
     // Fetch initial data in parallel
     try {
@@ -101,6 +113,7 @@ export class DataManager {
       ])
       this.runCoreSignalPipeline()
       void this.fetchServerSetupHistory()
+      void this.refreshCollectorHeartbeatIfNeeded(Date.now(), true)
 
       // Fetch external context (non-blocking — failures don't affect core data)
       void this.fetchAllExternalContext().catch((error) => {
@@ -260,6 +273,9 @@ export class DataManager {
           ? { updatedSince: this.lastServerSetupFetchAt }
           : undefined,
       )
+      this.store.getState().setCanonicalFreshness(
+        response.meta?.freshness ?? (response.setups.length > 0 ? 'fresh' : 'stale'),
+      )
 
       if (response.fetchedAt) {
         this.lastServerSetupFetchAt = response.fetchedAt
@@ -278,6 +294,7 @@ export class DataManager {
       // Auto-sync: push local-only setups to the server so all devices converge
       void this.syncLocalSetupsToServer()
     } catch (error) {
+      this.store.getState().setCanonicalFreshness('error')
       this.reportRuntimeIssue('fetch-server-setups', error, 'Failed to hydrate canonical setup history')
     }
   }
@@ -297,6 +314,26 @@ export class DataManager {
       await this.fetchServerSetupHistory()
     } finally {
       this.serverSetupRefreshing = false
+    }
+  }
+
+  private shouldRefreshCollectorHeartbeat(now: number): boolean {
+    return now - this.lastCollectorHeartbeatRefreshAttemptAt >= COLLECTOR_HEARTBEAT_REFRESH_MS
+  }
+
+  private async refreshCollectorHeartbeatIfNeeded(now: number, force = false): Promise<void> {
+    if (!force && !this.shouldRefreshCollectorHeartbeat(now)) {
+      return
+    }
+
+    this.lastCollectorHeartbeatRefreshAttemptAt = now
+    const response = await fetchCollectorHeartbeatStatus()
+    if (response.meta?.freshness) {
+      this.store.getState().setCollectorFreshness(response.meta.freshness)
+    } else if (response.heartbeat?.status) {
+      this.store.getState().setCollectorFreshness(mapCollectorStatusToFreshness(response.heartbeat.status))
+    } else {
+      this.store.getState().setCollectorFreshness('error')
     }
   }
 
@@ -328,6 +365,9 @@ export class DataManager {
       if (result.synced > 0) {
         // Re-fetch server setups to hydrate the newly synced data
         const fresh = await fetchServerSetups()
+        this.store.getState().setCanonicalFreshness(
+          fresh.meta?.freshness ?? (fresh.setups.length > 0 ? 'fresh' : 'stale'),
+        )
         if (fresh.setups.length > 0) {
           this.store.getState().hydrateServerSetups(fresh.setups)
         }
@@ -527,6 +567,137 @@ export class DataManager {
     this.store.getState().setResolutionCandles(coin, candles)
   }
 
+  private startExecutionEventFeed(): void {
+    this.store.getState().setEventStreamStatus('polling')
+    this.scheduleEventPolling(0)
+
+    if (typeof EventSource === 'undefined') {
+      this.startEventReconciliationLoop()
+      return
+    }
+
+    this.connectExecutionEventSource()
+    this.startEventReconciliationLoop()
+  }
+
+  private connectExecutionEventSource(): void {
+    this.teardownEventSource()
+
+    try {
+      const source = new EventSource('/api/events/stream')
+      this.eventSource = source
+
+      source.onopen = () => {
+        this.store.getState().setEventStreamStatus('connected')
+      }
+
+      source.onerror = () => {
+        this.store.getState().setEventStreamStatus('polling')
+        this.teardownEventSource()
+        this.scheduleEventPolling(1_000)
+      }
+
+      source.addEventListener('execution', (event) => {
+        const payload = parseJson((event as MessageEvent<string>).data)
+        if (!isExecutionEvent(payload)) return
+        this.ingestExecutionEvents([payload])
+      })
+
+      source.addEventListener('snapshot', (event) => {
+        const payload = parseJson((event as MessageEvent<string>).data)
+        const freshness = extractMetaFreshness(payload)
+        if (freshness) {
+          this.store.getState().setEventStreamStatus(
+            freshness === 'stale' || freshness === 'error' ? 'stale' : 'connected',
+          )
+        }
+      })
+    } catch (error) {
+      this.reportRuntimeIssue('event-feed.sse-connect', error, 'Failed to initialize execution event stream')
+      this.store.getState().setEventStreamStatus('polling')
+      this.scheduleEventPolling(1_000)
+    }
+  }
+
+  private startEventReconciliationLoop(): void {
+    if (this.eventReconcileTimer) return
+    this.eventReconcileTimer = setInterval(() => {
+      void this.pollExecutionEvents().catch((error) => {
+        this.reportRuntimeIssue('event-feed.reconcile', error, 'Execution event reconciliation failed')
+      })
+    }, EVENT_RECONCILIATION_REFRESH_MS)
+  }
+
+  private scheduleEventPolling(delayMs: number): void {
+    if (this.pollStopped) return
+    if (this.eventPollingTimer) {
+      clearTimeout(this.eventPollingTimer)
+      this.eventPollingTimer = null
+    }
+    this.eventPollingTimer = setTimeout(() => {
+      void this.pollExecutionEvents()
+    }, Math.max(500, delayMs))
+  }
+
+  private async pollExecutionEvents(): Promise<void> {
+    if (this.pollStopped) return
+    if (this.eventPollingInFlight) return
+
+    this.eventPollingInFlight = true
+    try {
+      const response = await fetchExecutionEvents()
+      if (response.error) {
+        this.store.getState().setEventStreamStatus('error')
+      } else if (response.meta?.freshness === 'stale' || response.meta?.freshness === 'error') {
+        this.store.getState().setEventStreamStatus('stale')
+      } else if (this.store.getState().eventStreamStatus !== 'connected') {
+        this.store.getState().setEventStreamStatus('polling')
+      }
+
+      if (response.events.length > 0) {
+        this.ingestExecutionEvents(response.events)
+      }
+    } catch (error) {
+      const message = this.reportRuntimeIssue('event-feed.poll', error, 'Execution event poll failed')
+      this.store.getState().addError(message)
+      this.store.getState().setEventStreamStatus('error')
+    } finally {
+      this.eventPollingInFlight = false
+      this.scheduleEventPolling(EVENT_POLLING_REFRESH_MS)
+    }
+  }
+
+  private ingestExecutionEvents(events: ExecutionEventV1[]): void {
+    if (events.length === 0) return
+    this.store.getState().ingestExecutionEvents(events)
+
+    for (const event of events) {
+      if (event.type === 'collector.heartbeat') {
+        const status = typeof event.details?.status === 'string' ? event.details.status : null
+        this.store.getState().setCollectorFreshness(
+          status ? mapCollectorStatusToFreshness(status) : mapLevelToFreshness(event.level),
+        )
+      }
+
+      if (event.type === 'canonical.setup-history') {
+        const nextFreshness = normalizeFreshness(event.details?.freshness)
+        this.store.getState().setCanonicalFreshness(nextFreshness ?? mapLevelToFreshness(event.level))
+      }
+
+      if (event.type === 'canonical.signal-accuracy') {
+        const nextFreshness = normalizeFreshness(event.details?.freshness)
+        this.store.getState().setSignalAccuracyFreshness(nextFreshness ?? mapLevelToFreshness(event.level))
+      }
+    }
+  }
+
+  private teardownEventSource(): void {
+    if (this.eventSource) {
+      this.eventSource.close()
+      this.eventSource = null
+    }
+  }
+
   // ── External context fetching ───────────────────────────────────────
 
   private startPolling(): void {
@@ -606,6 +777,9 @@ export class DataManager {
 
     void this.refreshServerSetupHistoryIfNeeded(now).catch((error) => {
       this.reportRuntimeIssue('polling-refresh-server-setups', error, 'Failed incremental canonical setup refresh')
+    })
+    void this.refreshCollectorHeartbeatIfNeeded(now).catch((error) => {
+      this.reportRuntimeIssue('polling-refresh-collector-heartbeat', error, 'Failed collector heartbeat refresh')
     })
     void this.refreshExternalContextIfNeeded().catch((error) => {
       this.reportRuntimeIssue('polling-refresh-external-context', error, 'Failed periodic external context refresh')
@@ -747,23 +921,80 @@ export class DataManager {
       unsub()
     }
     this.unsubscribers = []
+    this.teardownEventSource()
     this.ws.disconnect()
     this.pollStopped = true
     this.pollInFlight = false
+    this.eventPollingInFlight = false
     if (this.pollTimer) {
       clearTimeout(this.pollTimer)
       this.pollTimer = null
+    }
+    if (this.eventPollingTimer) {
+      clearTimeout(this.eventPollingTimer)
+      this.eventPollingTimer = null
+    }
+    if (this.eventReconcileTimer) {
+      clearInterval(this.eventReconcileTimer)
+      this.eventReconcileTimer = null
     }
     this.initialized = false
     this.serverSetupRefreshing = false
     this.lastServerSetupFetchAt = null
     this.lastServerSetupRefreshAttemptAt = 0
+    this.lastCollectorHeartbeatRefreshAttemptAt = 0
     this.bootstrapBackfillInFlight = false
   }
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function parseJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function isExecutionEvent(value: unknown): value is ExecutionEventV1 {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<ExecutionEventV1>
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.time === 'string' &&
+    typeof candidate.summary === 'string' &&
+    typeof candidate.type === 'string' &&
+    (candidate.level === 'info' || candidate.level === 'warn' || candidate.level === 'error')
+  )
+}
+
+function extractMetaFreshness(value: unknown): FreshnessStatusV1 | null {
+  if (!value || typeof value !== 'object') return null
+  const candidate = value as { meta?: { freshness?: unknown } }
+  return normalizeFreshness(candidate.meta?.freshness)
+}
+
+function normalizeFreshness(value: unknown): FreshnessStatusV1 | null {
+  if (value === 'fresh' || value === 'delayed' || value === 'stale' || value === 'error') {
+    return value
+  }
+  return null
+}
+
+function mapLevelToFreshness(level: ExecutionEventV1['level']): FreshnessStatusV1 {
+  if (level === 'info') return 'fresh'
+  if (level === 'warn') return 'stale'
+  return 'error'
+}
+
+function mapCollectorStatusToFreshness(status: string): FreshnessStatusV1 {
+  if (status === 'live') return 'fresh'
+  if (status === 'stale') return 'stale'
+  if (status === 'error') return 'error'
+  return 'stale'
 }
 
 function mapAssetContextsByCoin(

@@ -37,6 +37,8 @@ runStep3CompactDensityCheck()
 runHeroPairCompressionCheck()
 runTrackerRiskSourceCheck()
 runRuntimeStabilitySourceCheck()
+runDeterministicReplayCheck()
+runContractInterfaceSourceCheck()
 runBundleDriftCheck()
 
 console.log('Logic regression checks passed')
@@ -609,6 +611,89 @@ function runRuntimeStabilitySourceCheck() {
   assert.match(cssSource, /\.runtime-diagnostic-strip \{/)
   assert.match(cssSource, /\.app-crash-shell \{/)
   assert.match(cssSource, /\.density-ultra \.panel-shell \{/)
+}
+
+function runDeterministicReplayCheck() {
+  const candles = buildReplayCandles(140, 100)
+  const funding = candles.map((candle, index) => ({
+    time: candle.time,
+    rate: Math.sin(index / 10) * 0.0002,
+  }))
+  const oi = candles.map((candle, index) => ({
+    time: candle.time,
+    oi: 1_000_000 + index * 1_500 + Math.cos(index / 9) * 500,
+  }))
+
+  const checkpoints = candles.slice(110, 130).map((candle) => candle.time)
+  const firstPass = runReplayPass(candles, funding, oi, checkpoints)
+  const secondPass = runReplayPass(candles, funding, oi, checkpoints)
+
+  assert.deepEqual(firstPass, secondPass)
+}
+
+function runReplayPass(candles, funding, oi, checkpoints) {
+  return checkpoints.map((timestamp) => {
+    const signal = signals.computeSignalsAtTime('BTC', candles, funding, oi, timestamp)
+    if (!signal) return null
+
+    const candle = candles.find((entry) => entry.time === timestamp)
+    const setup = signals.computeSuggestedSetup('BTC', signal, candle ? candle.close : 0, {
+      generatedAt: timestamp,
+      source: 'backfill',
+    })
+
+    return setup
+      ? {
+          direction: setup.direction,
+          confidenceTier: setup.confidenceTier,
+          confidence: Number(setup.confidence.toFixed(6)),
+          entryPrice: Number(setup.entryPrice.toFixed(6)),
+          stopPrice: Number(setup.stopPrice.toFixed(6)),
+          targetPrice: Number(setup.targetPrice.toFixed(6)),
+        }
+      : null
+  })
+}
+
+function buildReplayCandles(count, startPrice) {
+  const start = Date.UTC(2026, 1, 1, 0, 0, 0)
+  const result = []
+  let prevClose = startPrice
+
+  for (let i = 0; i < count; i += 1) {
+    const drift = Math.sin(i / 8) * 0.4 + Math.cos(i / 13) * 0.25
+    const close = prevClose + drift
+    const high = Math.max(prevClose, close) + 0.8
+    const low = Math.min(prevClose, close) - 0.8
+    result.push(candle(start + i * 3_600_000, prevClose, high, low, close))
+    prevClose = close
+  }
+
+  return result
+}
+
+function runContractInterfaceSourceCheck() {
+  const serverSetupsSource = readFileSync(join(__dirname, '../api/server-setups.ts'), 'utf8')
+  const accuracySource = readFileSync(join(__dirname, '../api/signal-accuracy.ts'), 'utf8')
+  const heartbeatSource = readFileSync(join(__dirname, '../api/collector-heartbeat.ts'), 'utf8')
+  const streamSource = readFileSync(join(__dirname, '../api/events/stream.ts'), 'utf8')
+  const portfolioSource = readFileSync(join(__dirname, '../api/portfolios/[portfolioId]/snapshot.ts'), 'utf8')
+  const backtestsSource = readFileSync(join(__dirname, '../api/strategies/[strategyId]/backtests.ts'), 'utf8')
+  const apiClientSource = readFileSync(join(__dirname, '../src/services/api.ts'), 'utf8')
+  const contractsSource = readFileSync(join(__dirname, '../src/contracts/v1.ts'), 'utf8')
+
+  assert.match(contractsSource, /export const CONTRACT_VERSION_V1 = 'v1'/)
+  assert.match(contractsSource, /export interface ExecutionEventV1/)
+  assert.match(serverSetupsSource, /contractVersion: CONTRACT_VERSION_V1/)
+  assert.match(serverSetupsSource, /meta: buildContractMeta/)
+  assert.match(accuracySource, /contractVersion: CONTRACT_VERSION_V1/)
+  assert.match(heartbeatSource, /contractVersion: CONTRACT_VERSION_V1/)
+  assert.match(streamSource, /event: execution/)
+  assert.match(portfolioSource, /LivePerformanceSnapshotV1/)
+  assert.match(backtestsSource, /BacktestResultV1/)
+  assert.match(apiClientSource, /fetchExecutionEvents/)
+  assert.match(apiClientSource, /fetchPortfolioSnapshot/)
+  assert.match(apiClientSource, /fetchBacktestResult/)
 }
 
 function candle(time, open, high, low, close) {

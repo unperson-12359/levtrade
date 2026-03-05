@@ -11,13 +11,17 @@ export interface SystemHealthModel {
 }
 
 export function useSystemHealth(): SystemHealthModel {
-  const selectedCoin = useStore((s) => s.selectedCoin)
-  const signals = useStore((s) => s.signals[selectedCoin])
-  const connectionStatus = useStore((s) => s.connectionStatus)
-  const serverTrackedSetups = useStore((s) => s.serverTrackedSetups)
-  const localTrackedSetups = useStore((s) => s.localTrackedSetups)
-  const runtimeDiagnostics = useStore((s) => s.runtimeDiagnostics)
-  const errors = useStore((s) => s.errors)
+  const selectedCoin = useStore((state) => state.selectedCoin)
+  const signals = useStore((state) => state.signals[selectedCoin])
+  const connectionStatus = useStore((state) => state.connectionStatus)
+  const serverTrackedSetups = useStore((state) => state.serverTrackedSetups)
+  const localTrackedSetups = useStore((state) => state.localTrackedSetups)
+  const runtimeDiagnostics = useStore((state) => state.runtimeDiagnostics)
+  const errors = useStore((state) => state.errors)
+  const canonicalFreshness = useStore((state) => state.canonicalFreshness)
+  const signalAccuracyFreshness = useStore((state) => state.signalAccuracyFreshness)
+  const collectorFreshness = useStore((state) => state.collectorFreshness)
+  const eventStreamStatus = useStore((state) => state.eventStreamStatus)
 
   return useMemo(() => {
     const market =
@@ -27,15 +31,20 @@ export function useSystemHealth(): SystemHealthModel {
           ? 'degraded'
           : 'healthy'
 
-    const canonical = serverTrackedSetups.length > 0
-      ? 'healthy'
-      : localTrackedSetups.length > 0
-        ? 'fallback'
-        : 'cold'
+    const canonical =
+      serverTrackedSetups.length > 0 && canonicalFreshness !== 'stale' && canonicalFreshness !== 'error'
+        ? 'healthy'
+        : localTrackedSetups.length > 0
+          ? 'fallback'
+          : 'cold'
 
-    const runtime = runtimeDiagnostics.length > 0 || errors.length > 0
-      ? 'degraded'
-      : 'healthy'
+    const runtime =
+      runtimeDiagnostics.length > 0 ||
+      errors.length > 0 ||
+      eventStreamStatus === 'error' ||
+      eventStreamStatus === 'stale'
+        ? 'degraded'
+        : 'healthy'
 
     const tone =
       market === 'down'
@@ -60,14 +69,17 @@ export function useSystemHealth(): SystemHealthModel {
 
     const canonicalText =
       canonical === 'healthy'
-        ? 'Canonical history active'
+        ? `Canonical history ${canonicalFreshness}`
         : canonical === 'fallback'
           ? 'Using browser fallback history'
           : 'Canonical history not hydrated yet'
 
     const runtimeText = runtime === 'healthy'
-      ? 'Runtime stable'
-      : 'Runtime diagnostics present'
+      ? `Runtime stable (${eventStreamStatus})`
+      : `Runtime degraded (${eventStreamStatus})`
+
+    const collectorText = `Collector ${collectorFreshness}`
+    const accuracyText = `Accuracy ${signalAccuracyFreshness}`
 
     return {
       market,
@@ -75,14 +87,18 @@ export function useSystemHealth(): SystemHealthModel {
       runtime,
       tone,
       label,
-      summary: `${marketText} • ${canonicalText} • ${runtimeText}`,
+      summary: `${marketText} • ${canonicalText} • ${collectorText} • ${accuracyText} • ${runtimeText}`,
     }
   }, [
+    canonicalFreshness,
+    collectorFreshness,
     connectionStatus,
     errors.length,
+    eventStreamStatus,
     localTrackedSetups.length,
     runtimeDiagnostics.length,
     serverTrackedSetups.length,
+    signalAccuracyFreshness,
     signals,
   ])
 }

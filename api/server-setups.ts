@@ -1,5 +1,7 @@
 import { emptyOutcome, summarizeCoverage } from './_signals.mjs'
 import type { SetupOutcome, SetupWindow } from '../src/types/setup'
+import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts'
+import { fetchSupabaseRows, getSupabaseEnv, type SupabaseEnv } from './_supabase'
 
 interface VercelRequest {
   method?: string
@@ -21,17 +23,28 @@ const GLOBAL_SCOPE = 'global'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ ok: false, error: 'Method not allowed' })
+    return res.status(405).json({ ok: false, error: 'Method not allowed', contractVersion: CONTRACT_VERSION_V1 })
   }
 
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return res.status(503).json({ ok: false, error: 'Not configured' })
+  const supabase = getSupabaseEnv()
+  if (!supabase) {
+    return res.status(503).json({
+      ok: false,
+      error: 'Not configured',
+      contractVersion: CONTRACT_VERSION_V1,
+      meta: buildContractMeta({
+        source: 'canonical',
+        lastSuccessfulAtMs: null,
+        freshness: 'error',
+        staleAfterMs: MS_PER_DAY,
+      }),
+    })
   }
 
   try {
     const since = resolveSince(req.query)
     const updatedSince = resolveUpdatedSince(req.query)
-    const rows = await fetchServerSetupsFromSupabase(since, updatedSince)
+    const rows = await fetchServerSetupsFromSupabase(supabase, since, updatedSince)
 
     const setups = rows.map((row) => {
       const outcomes = normalizeOutcomes(row.outcomes_json)
@@ -42,31 +55,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         outcomes,
       }
     })
+    const latestUpdatedAtMs = rows.length > 0
+      ? Math.max(...rows.map((row) => Date.parse(row.updated_at ?? row.generated_at)))
+      : null
+    const latestGeneratedAt = rows[0]?.generated_at ?? null
 
     return res.status(200).json({
       ok: true,
+      contractVersion: CONTRACT_VERSION_V1,
       setups,
       count: setups.length,
       rowCount: rows.length,
       fetchedAt: new Date().toISOString(),
+      latestGeneratedAt,
       truncated: rows.length >= MAX_FETCH_ROWS,
       maxRowsApplied: rows.length >= MAX_FETCH_ROWS ? MAX_FETCH_ROWS : null,
+      meta: buildContractMeta({
+        source: 'canonical',
+        lastSuccessfulAtMs: latestUpdatedAtMs,
+        freshness: rows.length === 0 ? 'delayed' : undefined,
+        staleAfterMs: MS_PER_DAY,
+      }),
     })
   } catch (err) {
     return res.status(500).json({
       ok: false,
+      contractVersion: CONTRACT_VERSION_V1,
       error: err instanceof Error ? err.message : 'Unexpected error',
+      meta: buildContractMeta({
+        source: 'canonical',
+        lastSuccessfulAtMs: null,
+        freshness: 'error',
+        staleAfterMs: MS_PER_DAY,
+      }),
     })
   }
 }
 
-async function fetchServerSetupsFromSupabase(since: string, updatedSince: string | null): Promise<Array<{
+async function fetchServerSetupsFromSupabase(
+  supabase: SupabaseEnv,
+  since: string,
+  updatedSince: string | null,
+): Promise<Array<{
   id: string
   coin: string
   direction: string
   setup_json: Record<string, unknown>
   outcomes_json: Record<string, unknown> | null
   generated_at: string
+  updated_at: string | null
 }>> {
   const rows: Array<{
     id: string
@@ -75,6 +112,7 @@ async function fetchServerSetupsFromSupabase(since: string, updatedSince: string
     setup_json: Record<string, unknown>
     outcomes_json: Record<string, unknown> | null
     generated_at: string
+    updated_at: string | null
   }> = []
 
   for (let offset = 0; offset < MAX_FETCH_ROWS; offset += PAGE_SIZE) {
@@ -90,25 +128,19 @@ async function fetchServerSetupsFromSupabase(since: string, updatedSince: string
       params.set('updated_at', `gte.${updatedSince}`)
     }
 
-    const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/server_setups?${params.toString()}`, {
-      headers: {
-        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Supabase query failed: ${response.status}`)
-    }
-
-    const page = (await response.json()) as Array<{
+    const page = await fetchSupabaseRows<{
       id: string
       coin: string
       direction: string
       setup_json: Record<string, unknown>
       outcomes_json: Record<string, unknown> | null
       generated_at: string
-    }>
+      updated_at: string | null
+    }>({
+      env: supabase,
+      table: 'server_setups',
+      query: params,
+    })
 
     rows.push(...page)
     if (page.length < PAGE_SIZE) {

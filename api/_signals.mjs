@@ -1108,6 +1108,70 @@ function computeSuggestedSetup(coin, signals, currentPrice, options) {
   };
 }
 
+// src/signals/backfill.ts
+var MIN_CANDLES_HURST = 100;
+var MIN_CANDLES_ZSCORE = 20;
+var MIN_FUNDING_ENTRIES = 8;
+var MIN_OI_ENTRIES = 6;
+var MS_PER_HOUR2 = 36e5;
+var NEUTRAL_FUNDING = {
+  currentRate: 0,
+  zScore: 0,
+  normalizedSignal: 0,
+  label: "Unavailable",
+  color: "yellow",
+  explanation: "Funding data unavailable for backfill period"
+};
+var NEUTRAL_OI_DELTA = {
+  oiChangePct: 0,
+  priceChangePct: 0,
+  confirmation: false,
+  normalizedSignal: 0,
+  label: "Unavailable",
+  color: "yellow",
+  explanation: "OI data unavailable for backfill period"
+};
+function computeSignalsAtTime(coin, candles, fundingHistory, oiHistory, targetTime) {
+  const filteredCandles = candles.filter((c) => c.time <= targetTime);
+  if (filteredCandles.length < MIN_CANDLES_HURST) {
+    return null;
+  }
+  const closes = filteredCandles.map((c) => c.close);
+  const hurst = computeHurst(closes, MIN_CANDLES_HURST);
+  const zScore = computeZScore(closes, MIN_CANDLES_ZSCORE);
+  const volResult = computeRealizedVol(closes);
+  const atr = computeATR(filteredCandles);
+  const volatility = { ...volResult, atr };
+  const entryGeometry = computeEntryGeometry(closes, atr, MIN_CANDLES_ZSCORE);
+  const filteredFunding = fundingHistory.filter((f) => f.time <= targetTime);
+  const funding = filteredFunding.length >= MIN_FUNDING_ENTRIES ? computeFundingZScore(filteredFunding) : NEUTRAL_FUNDING;
+  const filteredOI = oiHistory.filter((o) => o.time <= targetTime);
+  const oiDelta = filteredOI.length >= MIN_OI_ENTRIES ? computeOIDelta(filteredOI, closes) : NEUTRAL_OI_DELTA;
+  const composite = computeComposite(hurst, zScore, funding, oiDelta);
+  return {
+    coin,
+    hurst,
+    zScore,
+    funding,
+    oiDelta,
+    volatility,
+    entryGeometry,
+    composite,
+    updatedAt: targetTime,
+    isStale: false,
+    isWarmingUp: false,
+    warmupProgress: 1
+  };
+}
+function generateBackfillTimestamps(lastComputedAt, now, stepMs = MS_PER_HOUR2) {
+  const firstStep = Math.ceil(lastComputedAt / stepMs) * stepMs;
+  const timestamps = [];
+  for (let t = firstStep; t < now; t += stepMs) {
+    timestamps.push(t);
+  }
+  return timestamps;
+}
+
 // src/signals/provisionalSetup.ts
 var PROVISIONAL_CONFIDENCE_SCALE = 0.55;
 function computeProvisionalSetup(coin, signals, currentPrice, options) {
@@ -1896,6 +1960,7 @@ export {
   computeProvisionalSetup,
   computeRealizedVol,
   computeSetupMetrics,
+  computeSignalsAtTime,
   computeSuggestedPositionComposition,
   computeSuggestedSetup,
   computeTrackerStats,
@@ -1904,6 +1969,7 @@ export {
   directionalFromNumber,
   emptyOutcome,
   emptySignalOutcome,
+  generateBackfillTimestamps,
   parseCandle,
   resolveSetupWindow,
   scoreDirection,

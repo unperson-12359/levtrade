@@ -30,3 +30,13 @@ export function computeSuggestedPositionComposition(input: {
 }): SuggestedPositionComposition
 
 export function deriveCompositionRiskStatus(composition: SuggestedPositionComposition): RiskStatus
+
+export function computeSignalsAtTime(
+  coin: TrackedCoin,
+  candles: Array<{ time: number; open: number; high: number; low: number; close: number; volume?: number; trades?: number }>,
+  fundingHistory: Array<{ time: number; rate?: number; fundingRate?: string }>,
+  oiHistory: Array<{ time: number; oi: number }>,
+  targetTime: number,
+): AssetSignals | null
+
+export function generateBackfillTimestamps(lastComputedAt: number, now: number, stepMs?: number): number[]

@@ -1,5 +1,7 @@
 import { computeTrackerStats } from './_signals.mjs'
 import type { TrackedSignalRecord, TrackedSignalOutcome, TrackerWindow } from '../src/types/tracker'
+import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts'
+import { fetchSupabaseRows, getSupabaseEnv, type SupabaseEnv } from './_supabase'
 
 interface VercelRequest {
   method?: string
@@ -21,49 +23,81 @@ const GLOBAL_SCOPE = 'global'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ ok: false, error: 'Method not allowed' })
+    return res.status(405).json({ ok: false, error: 'Method not allowed', contractVersion: CONTRACT_VERSION_V1 })
   }
 
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return res.status(503).json({ ok: false, error: 'Not configured' })
+  const supabase = getSupabaseEnv()
+  if (!supabase) {
+    return res.status(503).json({
+      ok: false,
+      error: 'Not configured',
+      contractVersion: CONTRACT_VERSION_V1,
+      meta: buildContractMeta({
+        source: 'canonical',
+        lastSuccessfulAtMs: null,
+        freshness: 'error',
+        staleAfterMs: MS_PER_DAY,
+      }),
+    })
   }
 
   try {
     const since = resolveSince(req.query)
-    const rows = await fetchTrackedSignals(since)
+    const rows = await fetchTrackedSignals(supabase, since)
 
-    const records: TrackedSignalRecord[] = rows.map((r) => r.signal_json)
-    const outcomes: TrackedSignalOutcome[] = rows.flatMap((r) =>
-      Object.values(r.outcomes_json),
-    )
-
+    const records: TrackedSignalRecord[] = rows.map((row) => row.signal_json)
+    const outcomes: TrackedSignalOutcome[] = rows.flatMap((row) => Object.values(row.outcomes_json))
     const stats = computeTrackerStats(records, outcomes)
+    const latestUpdatedAtMs = rows.length > 0
+      ? Math.max(...rows.map((row) => Date.parse(row.updated_at ?? row.recorded_at)))
+      : null
 
     return res.status(200).json({
       ok: true,
+      contractVersion: CONTRACT_VERSION_V1,
       stats,
       recordCount: rows.length,
       windowDays: resolveDays(req.query),
       computedAt: new Date().toISOString(),
       truncated: rows.length >= MAX_FETCH_ROWS,
+      meta: buildContractMeta({
+        source: 'canonical',
+        lastSuccessfulAtMs: latestUpdatedAtMs,
+        freshness: rows.length === 0 ? 'delayed' : undefined,
+        staleAfterMs: MS_PER_DAY,
+      }),
     })
   } catch (err) {
     return res.status(500).json({
       ok: false,
       error: err instanceof Error ? err.message : 'Unexpected error',
+      contractVersion: CONTRACT_VERSION_V1,
+      meta: buildContractMeta({
+        source: 'canonical',
+        lastSuccessfulAtMs: null,
+        freshness: 'error',
+        staleAfterMs: MS_PER_DAY,
+      }),
     })
   }
 }
 
-async function fetchTrackedSignals(since: string): Promise<Array<{
+async function fetchTrackedSignals(
+  supabase: SupabaseEnv,
+  since: string,
+): Promise<Array<{
   id: string
   signal_json: TrackedSignalRecord
   outcomes_json: Record<TrackerWindow, TrackedSignalOutcome>
+  recorded_at: string
+  updated_at: string | null
 }>> {
   const rows: Array<{
     id: string
     signal_json: TrackedSignalRecord
     outcomes_json: Record<TrackerWindow, TrackedSignalOutcome>
+    recorded_at: string
+    updated_at: string | null
   }> = []
 
   for (let offset = 0; offset < MAX_FETCH_ROWS; offset += PAGE_SIZE) {
@@ -73,28 +107,20 @@ async function fetchTrackedSignals(since: string): Promise<Array<{
       order: 'recorded_at.desc',
       limit: String(PAGE_SIZE),
       offset: String(offset),
-      select: 'id,signal_json,outcomes_json',
+      select: 'id,signal_json,outcomes_json,recorded_at,updated_at',
     })
 
-    const response = await fetch(
-      `${process.env.SUPABASE_URL}/rest/v1/tracked_signals?${params.toString()}`,
-      {
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-        },
-      },
-    )
-
-    if (!response.ok) {
-      throw new Error(`Supabase query failed: ${response.status}`)
-    }
-
-    const page = (await response.json()) as Array<{
+    const page = await fetchSupabaseRows<{
       id: string
       signal_json: TrackedSignalRecord
       outcomes_json: Record<TrackerWindow, TrackedSignalOutcome>
-    }>
+      recorded_at: string
+      updated_at: string | null
+    }>({
+      env: supabase,
+      table: 'tracked_signals',
+      query: params,
+    })
 
     rows.push(...page)
     if (page.length < PAGE_SIZE) {

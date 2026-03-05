@@ -106,6 +106,11 @@ export const useStore = create<AppStore>()(
         // Server setups are never persisted — always start empty, hydrated from server
         merged.serverTrackedSetups = []
         merged.runtimeDiagnostics = []
+        merged.canonicalFreshness = 'stale'
+        merged.signalAccuracyFreshness = 'stale'
+        merged.collectorFreshness = 'stale'
+        merged.eventStreamStatus = 'idle'
+        merged.executionEvents = []
         return merged as AppStore
       },
     },
