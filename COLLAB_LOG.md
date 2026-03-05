@@ -3583,3 +3583,22 @@ Implement the approved observatory refinement pass: ultra-compact top layout, sh
 ### Remaining risks / follow-up
 - Indicator health warnings are currently surfaced as advisory (no hard-block); if desired, we can escalate warning/critical states into explicit UI lock banners.
 - Audit thresholds are intentionally conservative; can be tuned with live telemetry after observing real-market variance.
+
+## 2026-03-05 - Codex - Compact Observatory Release Deployment
+
+### Goal
+Deploy commit `a783d3d` (ultra-compact command bar + indicator health audit) to production and verify live availability.
+
+### Files changed
+- `COLLAB_LOG.md`
+
+### Deployment
+- Production deployment URL: `https://levtrade-lhdn723ej-unperson12359s-projects.vercel.app`
+- Production alias: `https://levtrade.vercel.app`
+- Inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/3SnT79uA7A6ArZaKaaoje7ekcU7a`
+
+### Verification
+- `https://levtrade.vercel.app` returned HTTP `200` after alias update.
+
+### Remaining risks / follow-up
+- Recommend a quick visual pass on 360/390/412 widths to confirm the dense command bar remains legible with all chips active.
