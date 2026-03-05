@@ -3412,3 +3412,22 @@ Replace the legacy setup/decision/risk-facing app surface with a strict no-recom
 - Current observatory correlations are computed client-side; if API-level canonical observatory endpoints are required, that remains to be implemented.
 - Legacy setup/tracker/decision code paths still exist in the repository for compatibility, but they are no longer surfaced in the runtime UI.
 - Full production deployment + external live URL validation still pending after this local implementation pass.
+
+## 2026-03-05 - Codex — Observatory Production Deployment
+
+### Goal
+Promote the observatory revamp commit (`89158e1`) to production and verify public availability.
+
+### Files changed
+- `COLLAB_LOG.md`
+
+### Deployment
+- Vercel production deployment: `https://levtrade-pw5bdz4q3-unperson12359s-projects.vercel.app`
+- Production alias: `https://levtrade.vercel.app`
+- Deployment inspect URL: `https://vercel.com/unperson12359s-projects/levtrade/BZXmfLBWnGN3D7YgYMMqufk5wz5E`
+
+### Verification
+- `https://levtrade.vercel.app` HTTP status check returned `200`.
+
+### Follow-up risks / next steps
+- Manual UX validation on real mobile devices (`360/390/412`) is still recommended post-deploy.
