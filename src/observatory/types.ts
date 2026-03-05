@@ -40,6 +40,22 @@ export interface IndicatorMetric {
   frequency: IndicatorFrequency
 }
 
+export type IndicatorHealthStatus = 'healthy' | 'warning' | 'critical'
+
+export interface IndicatorHealthWarning {
+  indicatorId: string
+  indicatorLabel: string
+  kind: 'insufficient_data' | 'range_violation' | 'flatline'
+  message: string
+}
+
+export interface IndicatorHealth {
+  status: IndicatorHealthStatus
+  total: number
+  valid: number
+  warnings: IndicatorHealthWarning[]
+}
+
 export interface CorrelationEdge {
   a: string
   b: string
@@ -82,4 +98,5 @@ export interface ObservatorySnapshot {
   indicators: IndicatorMetric[]
   edges: CorrelationEdge[]
   timeline: CandleHitCluster[]
+  health: IndicatorHealth
 }

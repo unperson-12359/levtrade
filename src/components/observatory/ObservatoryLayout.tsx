@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDataManager } from '../../hooks/useDataManager'
 import { useIndicatorObservatory } from '../../hooks/useIndicatorObservatory'
-import type { IndicatorCategory } from '../../observatory/types'
+import type { IndicatorCategory, IndicatorHealthStatus } from '../../observatory/types'
 import { useStore } from '../../store'
 import { TRACKED_COINS } from '../../types/market'
 import { PriceChart } from '../chart/PriceChart'
@@ -30,6 +30,9 @@ export function ObservatoryLayout() {
   const [selectedClusterTime, setSelectedClusterTime] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('basic')
   const [primaryView, setPrimaryView] = useState<PrimaryView>('timeline')
+  const [showRuntimeDetail, setShowRuntimeDetail] = useState(false)
+  const [showPolicyDetail, setShowPolicyDetail] = useState(false)
+  const [showHealthDetail, setShowHealthDetail] = useState(false)
 
   useEffect(() => {
     if (selectedInterval !== '4h' && selectedInterval !== '1d') {
@@ -58,6 +61,12 @@ export function ObservatoryLayout() {
       setSelectedClusterTime(snapshot.timeline[snapshot.timeline.length - 1]?.time ?? null)
     }
   }, [selectedClusterTime, snapshot.timeline])
+
+  useEffect(() => {
+    if (runtimeDiagnostics.length > 0) {
+      setShowRuntimeDetail(true)
+    }
+  }, [runtimeDiagnostics.length])
 
   const selectedIndicator = useMemo(
     () => snapshot.indicators.find((indicator) => indicator.id === selectedIndicatorId) ?? null,
@@ -111,42 +120,21 @@ export function ObservatoryLayout() {
   }, [selectedIndicator, snapshot.edges, viewMode])
 
   const timeframe = (selectedInterval === '1d' ? '1d' : '4h') as AllowedInterval
+  const latestRuntimeMessage = runtimeDiagnostics[runtimeDiagnostics.length - 1]?.message ?? null
+  const healthStatus = snapshot.health.status
+  const healthTone = toneFromHealthStatus(healthStatus)
+  const healthLabel = snapshot.health.total > 0 ? `${snapshot.health.valid}/${snapshot.health.total} indicators` : '--'
 
   return (
     <div className="obs-app" data-testid="obs-shell">
       <div className="obs-backdrop-grid" />
-      <header className="obs-topbar">
-        <div className="obs-topbar__left">
+      <header className="obs-command-bar" data-testid="obs-command-bar">
+        <div className="obs-command-bar__identity">
           <div className="obs-brand">LEVTRADE SIGNAL POOL</div>
-          <p className="obs-kicker">Observe behavior, do not predict it. Chart first, then indicator hit clusters by candle time.</p>
+          <p className="obs-kicker">Observe behavior, not predictions.</p>
         </div>
-        <div className="obs-topbar__right">
-          <div className={`obs-connection obs-connection--${connectionStatus}`}>{connectionStatus}</div>
-          <div className={`obs-freshness obs-freshness--${freshness}`}>{source === 'canonical' ? `Canonical ${freshness}` : 'Local fallback'}</div>
-        </div>
-      </header>
 
-      {runtimeDiagnostics.length > 0 && (
-        <div className="obs-runtime">
-          <span className="obs-runtime__tag">Runtime</span>
-          <span className="obs-runtime__msg">{runtimeDiagnostics[runtimeDiagnostics.length - 1]?.message}</span>
-          <button type="button" className="obs-runtime__clear" onClick={clearRuntimeDiagnostics}>Clear</button>
-        </div>
-      )}
-
-      <section className="obs-price-strip" data-testid="obs-price-strip">
-        <PriceCell label={`${selectedCoin} Last Price`} value={formatPrice(priceContext.lastPrice)} tone="neutral" />
-        <PriceCell label="24h Change" value={formatSignedPct(priceContext.change24hPct)} tone={toneFromNumber(priceContext.change24hPct)} />
-        <PriceCell label={`${timeframe} Return`} value={formatSignedPct(priceContext.intervalReturnPct)} tone={toneFromNumber(priceContext.intervalReturnPct)} />
-        <PriceCell label="Updated" value={new Date(priceContext.updatedAt).toLocaleTimeString()} tone="neutral" />
-      </section>
-
-      <section className="obs-policy" data-testid="obs-no-reco-copy">
-        No recommendation mode: this platform explains what happened while price moved (or stalled); it does not output trading calls.
-      </section>
-
-      <section className="obs-controls">
-        <div className="obs-chip-row">
+        <div className="obs-command-bar__chips">
           {TRACKED_COINS.map((coin) => (
             <button
               key={coin}
@@ -158,8 +146,6 @@ export function ObservatoryLayout() {
               {coin}
             </button>
           ))}
-        </div>
-        <div className="obs-chip-row">
           {ALLOWED_INTERVALS.map((interval) => (
             <button
               key={interval}
@@ -204,14 +190,91 @@ export function ObservatoryLayout() {
             Network
           </button>
         </div>
-      </section>
 
-      <section className="obs-summary">
-        <SummaryCard label="Indicators" value={String(snapshot.indicators.length)} />
-        <SummaryCard label="Hit Candles" value={String(snapshot.timeline.length)} />
-        <SummaryCard label="Correlation Edges" value={String(snapshot.edges.length)} />
-        <SummaryCard label="Edge Density" value={density.toFixed(2)} />
-      </section>
+        <div className="obs-command-bar__metrics" data-testid="obs-price-strip">
+          <CommandMetric label={`${selectedCoin} Price`} value={formatPrice(priceContext.lastPrice)} tone="neutral" />
+          <CommandMetric label="24h" value={formatSignedPct(priceContext.change24hPct)} tone={toneFromNumber(priceContext.change24hPct)} />
+          <CommandMetric label={`${timeframe}`} value={formatSignedPct(priceContext.intervalReturnPct)} tone={toneFromNumber(priceContext.intervalReturnPct)} />
+          <CommandMetric label="Updated" value={new Date(priceContext.updatedAt).toLocaleTimeString()} tone="neutral" />
+          <CommandMetric label="Indicators" value={String(snapshot.indicators.length)} tone="neutral" />
+          <CommandMetric label="Hits" value={String(snapshot.timeline.length)} tone="neutral" />
+          <CommandMetric label="Edges" value={String(snapshot.edges.length)} tone="neutral" />
+          <CommandMetric label="Density" value={density.toFixed(2)} tone="neutral" />
+        </div>
+
+        <div className="obs-command-bar__status">
+          <button
+            type="button"
+            className={`obs-chip obs-chip--toggle ${runtimeDiagnostics.length > 0 ? 'obs-chip--warn' : ''}`}
+            onClick={() => setShowRuntimeDetail((value) => !value)}
+            data-testid="obs-chip-runtime"
+          >
+            Runtime {runtimeDiagnostics.length > 0 ? runtimeDiagnostics.length : 'OK'}
+          </button>
+          <button
+            type="button"
+            className={`obs-chip obs-chip--toggle ${showPolicyDetail ? 'obs-chip--active' : ''}`}
+            onClick={() => setShowPolicyDetail((value) => !value)}
+            data-testid="obs-chip-policy"
+          >
+            No Reco
+          </button>
+          <button
+            type="button"
+            className={`obs-chip obs-chip--toggle obs-chip--${healthTone}`}
+            onClick={() => setShowHealthDetail((value) => !value)}
+            data-testid="obs-health-chip"
+          >
+            {healthLabel}
+          </button>
+          <div className={`obs-connection obs-connection--${connectionStatus}`}>{connectionStatus}</div>
+          <div className={`obs-freshness obs-freshness--${freshness}`}>{source === 'canonical' ? `Canonical ${freshness}` : 'Local fallback'}</div>
+        </div>
+      </header>
+
+      {showRuntimeDetail && (
+        <section className="obs-runtime" data-testid="obs-runtime-detail">
+          <span className="obs-runtime__tag">Runtime</span>
+          <span className="obs-runtime__msg">{latestRuntimeMessage ?? 'No runtime warnings currently.'}</span>
+          <button
+            type="button"
+            className="obs-runtime__clear"
+            onClick={() => {
+              clearRuntimeDiagnostics()
+              setShowRuntimeDetail(false)
+            }}
+          >
+            Clear
+          </button>
+        </section>
+      )}
+
+      {showPolicyDetail && (
+        <section className="obs-policy" data-testid="obs-no-reco-copy">
+          No recommendation mode: this platform explains what happened while price moved (or stalled); it does not output trading calls.
+        </section>
+      )}
+
+      {showHealthDetail && (
+        <section className="obs-health-panel" data-testid="obs-health-detail">
+          <div className="obs-health-panel__head">
+            <span className={`obs-health-panel__status obs-health-panel__status--${healthTone}`}>{snapshot.health.status}</span>
+            <span>{snapshot.health.valid}/{snapshot.health.total} indicators healthy</span>
+          </div>
+          {snapshot.health.warnings.length > 0 ? (
+            <div className="obs-health-panel__warnings">
+              {snapshot.health.warnings.map((warning) => (
+                <div key={`${warning.indicatorId}:${warning.kind}:${warning.message}`} className="obs-health-panel__warning">
+                  <strong>{warning.indicatorLabel}</strong>
+                  <span>{warning.message}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="obs-health-panel__ok">All indicator checks passed.</div>
+          )}
+        </section>
+      )}
 
       {primaryView === 'timeline' ? (
         <section className="obs-timeline-stack">
@@ -220,7 +283,9 @@ export function ObservatoryLayout() {
               <h2 className="obs-panel__title">Asset Chart</h2>
               <p className="obs-panel__hint">{loading ? 'Refreshing canonical snapshot...' : 'Top panel anchors behavior in price.'}</p>
             </div>
-            <PriceChart coin={selectedCoin} embedded showHeader={false} />
+            <div className="obs-chart-compact">
+              <PriceChart coin={selectedCoin} embedded showHeader={false} />
+            </div>
           </div>
 
           <div className="obs-panel">
@@ -326,16 +391,7 @@ function MapLegend() {
   )
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <article className="obs-summary-card">
-      <div className="obs-summary-card__value">{value}</div>
-      <div className="obs-summary-card__label">{label}</div>
-    </article>
-  )
-}
-
-function PriceCell({
+function CommandMetric({
   label,
   value,
   tone,
@@ -345,9 +401,9 @@ function PriceCell({
   tone: 'up' | 'down' | 'neutral'
 }) {
   return (
-    <article className={`obs-price-cell obs-price-cell--${tone}`}>
-      <div className="obs-price-cell__label">{label}</div>
-      <div className="obs-price-cell__value">{value}</div>
+    <article className={`obs-command-metric obs-command-metric--${tone}`}>
+      <div className="obs-command-metric__label">{label}</div>
+      <div className="obs-command-metric__value">{value}</div>
     </article>
   )
 }
@@ -357,6 +413,12 @@ function toneFromNumber(value: number | null): 'up' | 'down' | 'neutral' {
   if (value > 0) return 'up'
   if (value < 0) return 'down'
   return 'neutral'
+}
+
+function toneFromHealthStatus(status: IndicatorHealthStatus): 'good' | 'warn' | 'critical' {
+  if (status === 'healthy') return 'good'
+  if (status === 'warning') return 'warn'
+  return 'critical'
 }
 
 function formatPrice(value: number | null): string {

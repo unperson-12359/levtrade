@@ -14,6 +14,7 @@ const {
   computeSuggestedPositionComposition,
   deriveCompositionRiskStatus,
   computeSetupMetrics,
+  buildObservatorySnapshot,
 } = signals
 
 runResolveOutcomeTest()
@@ -37,6 +38,7 @@ runStep3CompactDensityCheck()
 runHeroPairCompressionCheck()
 runTrackerRiskSourceCheck()
 runRuntimeStabilitySourceCheck()
+runObservatoryIndicatorHealthTest()
 runDeterministicReplayCheck()
 runContractInterfaceSourceCheck()
 runBundleDriftCheck()
@@ -613,6 +615,46 @@ function runRuntimeStabilitySourceCheck() {
   assert.match(cssSource, /\.density-ultra \.panel-shell \{/)
 }
 
+function runObservatoryIndicatorHealthTest() {
+  const candles = buildObservatoryCandles(280, 100)
+  const fundingHistory = candles.map((candle, index) => ({
+    time: candle.time,
+    rate: Math.sin(index / 17) * 0.00014 + Math.cos(index / 33) * 0.00006,
+  }))
+  const oiHistory = candles.map((candle, index) => ({
+    time: candle.time,
+    oi: 900_000 + index * 1200 + Math.sin(index / 13) * 2200,
+  }))
+
+  const snapshot = buildObservatorySnapshot({
+    coin: 'BTC',
+    interval: '4h',
+    candles,
+    fundingHistory,
+    oiHistory,
+  })
+
+  assert.ok(snapshot.indicators.length >= 35)
+  assert.equal(snapshot.health.total, snapshot.indicators.length)
+  assert.ok(snapshot.health.valid >= Math.floor(snapshot.indicators.length * 0.8))
+  assert.ok(snapshot.timeline.every((cluster) => cluster.topHits.length <= 3))
+
+  const priceChangeOneBar = snapshot.indicators.find((indicator) => indicator.id === 'momentum_price_change_1h')
+  assert.ok(priceChangeOneBar)
+  assert.equal(priceChangeOneBar.label, 'Price Change 1 Bar')
+
+  const roc24Bars = snapshot.indicators.find((indicator) => indicator.id === 'momentum_roc_24')
+  assert.ok(roc24Bars)
+  assert.equal(roc24Bars.label, 'ROC 24 Bars')
+
+  const rsi = snapshot.indicators.find((indicator) => indicator.id === 'momentum_rsi14')
+  const donchian = snapshot.indicators.find((indicator) => indicator.id === 'structure_donchian_pos_20')
+  assert.ok(rsi)
+  assert.ok(donchian)
+  assertIndicatorRange(rsi.series.map((point) => point.value), 0, 100, 1e-3)
+  assertIndicatorRange(donchian.series.map((point) => point.value), 0, 1, 1e-3)
+}
+
 function runDeterministicReplayCheck() {
   const candles = buildReplayCandles(140, 100)
   const funding = candles.map((candle, index) => ({
@@ -629,6 +671,14 @@ function runDeterministicReplayCheck() {
   const secondPass = runReplayPass(candles, funding, oi, checkpoints)
 
   assert.deepEqual(firstPass, secondPass)
+}
+
+function assertIndicatorRange(values, minExpected, maxExpected, tolerance = 0) {
+  assert.ok(values.length > 0)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  assert.ok(min >= minExpected - tolerance, `Expected min >= ${minExpected}, got ${min}`)
+  assert.ok(max <= maxExpected + tolerance, `Expected max <= ${maxExpected}, got ${max}`)
 }
 
 function runReplayPass(candles, funding, oi, checkpoints) {
@@ -666,6 +716,35 @@ function buildReplayCandles(count, startPrice) {
     const high = Math.max(prevClose, close) + 0.8
     const low = Math.min(prevClose, close) - 0.8
     result.push(candle(start + i * 3_600_000, prevClose, high, low, close))
+    prevClose = close
+  }
+
+  return result
+}
+
+function buildObservatoryCandles(count, startPrice) {
+  const start = Date.UTC(2026, 0, 1, 0, 0, 0)
+  const result = []
+  let prevClose = startPrice
+
+  for (let i = 0; i < count; i += 1) {
+    const drift = Math.sin(i / 8) * 0.9 + Math.cos(i / 21) * 0.45 + i * 0.006
+    const close = prevClose + drift
+    const open = prevClose
+    const high = Math.max(open, close) + 0.55 + Math.sin(i / 11) * 0.12
+    const low = Math.min(open, close) - 0.55 - Math.cos(i / 14) * 0.11
+    const volume = 1200 + Math.sin(i / 6) * 220 + i * 1.3
+    const trades = 480 + Math.cos(i / 5) * 60 + i * 0.45
+
+    result.push({
+      time: start + i * 4 * 3_600_000,
+      open,
+      high,
+      low,
+      close,
+      volume,
+      trades,
+    })
     prevClose = close
   }
 

@@ -3536,3 +3536,50 @@ Deploy commit `473cc3a` (chart-first hit-cluster timeline + transition logic har
 
 ### Remaining risks / follow-up
 - Recommended: quick live UX walkthrough of the timeline cluster lane interactions on both 4h and 1d to confirm expected readability across desktop/mobile.
+
+## 2026-03-05 - Codex - Ultra-Compact Command Bar + Indicator Health Audit
+
+### Goal
+Implement the approved observatory refinement pass: ultra-compact top layout, sharper chart-first UI, collapsible runtime/policy strips, strict indicator naming semantics, and full indicator audit with regression tests.
+
+### Files changed
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/index.css`
+- `src/observatory/types.ts`
+- `src/observatory/engine.ts`
+- `src/hooks/useIndicatorObservatory.ts`
+- `src/signals/api-entry.ts`
+- `tests/run-logic-tests.mjs`
+- `tests/e2e/critical-flows.spec.ts`
+- `api/_signals.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Replaced the multi-row observatory top stack with a single sticky compact command bar that now combines:
+  - coin/timeframe/mode/view controls
+  - price + context micro-metrics
+  - observatory counters (indicators/hits/edges/density)
+  - runtime/policy/health/connection/freshness status chips
+- Converted runtime and policy content into collapsible detail panels (policy hidden by default, runtime auto-opens when diagnostics exist).
+- Added indicator health to the observatory snapshot contract (`status`, `total`, `valid`, warnings list) and surfaced it in UI via a health chip + expandable detail panel.
+- Added indicator audit logic in engine:
+  - finite sample and coverage checks
+  - flatline checks
+  - bounded-range validation for RSI/Stoch/Williams/MFI/Donchian/ADX-family/%B
+- Applied strict semantic naming cleanup for timeframe-sensitive labels:
+  - `Price Change 1h` -> `Price Change 1 Bar`
+  - `ROC 24` -> `ROC 24 Bars`
+  - OI change label now reflects bar-based horizon for active timeframe.
+- Tightened observatory visual density (panel/chip/legend/metric sizing) and compressed embedded chart legend/readability.
+- Extended logic regression suite with observatory indicator health/range tests.
+- Updated critical E2E to validate command bar and new collapsed-policy behavior.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS (elevated execution required due local sandbox `spawn EPERM`)
+- `npm.cmd run gate:release`: PASS (elevated execution required due local sandbox `spawn EPERM`)
+
+### Remaining risks / follow-up
+- Indicator health warnings are currently surfaced as advisory (no hard-block); if desired, we can escalate warning/critical states into explicit UI lock banners.
+- Audit thresholds are intentionally conservative; can be tuned with live telemetry after observing real-market variance.

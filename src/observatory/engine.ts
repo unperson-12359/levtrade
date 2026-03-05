@@ -2,6 +2,8 @@ import type { Candle, FundingSnapshot, OISnapshot, TrackedCoin } from '../types/
 import type {
   CandleHitCluster,
   CorrelationEdge,
+  IndicatorHealth,
+  IndicatorHealthWarning,
   IndicatorHitEvent,
   IndicatorCategory,
   IndicatorMetric,
@@ -37,6 +39,19 @@ interface HydratedMetric {
   stateSeries: Array<IndicatorState | null>
 }
 
+const BOUNDED_RANGES: Record<string, { min: number; max: number; tolerance?: number }> = {
+  momentum_rsi14: { min: 0, max: 100 },
+  momentum_stoch_k14: { min: 0, max: 100 },
+  momentum_stoch_d14: { min: 0, max: 100 },
+  momentum_williams_r14: { min: -100, max: 0 },
+  volume_mfi14: { min: 0, max: 100 },
+  structure_donchian_pos_20: { min: 0, max: 1 },
+  volatility_bb_percent_b: { min: -0.5, max: 1.5, tolerance: 0.05 },
+  volatility_adx14: { min: 0, max: 100 },
+  volatility_plus_di14: { min: 0, max: 100 },
+  volatility_minus_di14: { min: 0, max: 100 },
+}
+
 export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot {
   const candles = input.candles
   if (candles.length === 0) {
@@ -48,6 +63,12 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
       indicators: [],
       edges: [],
       timeline: [],
+      health: {
+        status: 'healthy',
+        total: 0,
+        valid: 0,
+        warnings: [],
+      },
     }
   }
 
@@ -90,13 +111,14 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
   const volumeZ20 = zScoreSeries(wrapNumericSeries(volumes), 20)
   const tradesZ20 = zScoreSeries(wrapNumericSeries(trades), 20)
   const adx = adxSeries(candles, 14)
-  const priceChange1h = pctChangeSeries(closes, 1)
+  const priceChange1Bar = pctChangeSeries(closes, 1)
   const priceChange24h = pctChangeSeries(closes, Math.max(1, Math.round(24 / intervalHours)))
 
   const fundingAligned = alignSnapshots(times, input.fundingHistory, (snapshot) => snapshot.rate * 10_000)
   const fundingZ20 = zScoreSeries(fundingAligned, 20)
   const oiAligned = alignSnapshots(times, input.oiHistory, (snapshot) => snapshot.oi)
-  const oiChange6h = pctChangeSeries(oiAligned, Math.max(1, Math.round(6 / intervalHours)))
+  const oiShortLagBars = Math.max(1, Math.round(6 / intervalHours))
+  const oiChangeShort = pctChangeSeries(oiAligned, oiShortLagBars)
   const oiZ20 = zScoreSeries(oiAligned, 20)
 
   const seeds: MetricSeed[] = [
@@ -255,10 +277,10 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
     ),
     makeMetric(
       'momentum_roc_24',
-      'ROC 24',
+      'ROC 24 Bars',
       'Momentum',
       '%',
-      '24-hour equivalent percentage rate of change.',
+      '24-bar percentage rate of change.',
       roc24,
       signedState(1.4),
     ),
@@ -426,11 +448,11 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
     ),
     makeMetric(
       'flow_oi_change_6h',
-      'Open Interest Change 6h',
+      `Open Interest Change ${oiShortLagBars} Bars`,
       'Flow',
       '%',
-      'Open-interest expansion or contraction over 6 hours.',
-      oiChange6h,
+      `Open-interest expansion or contraction over ${oiShortLagBars} bars.`,
+      oiChangeShort,
       signedState(2),
     ),
     makeMetric(
@@ -444,11 +466,11 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
     ),
     makeMetric(
       'momentum_price_change_1h',
-      'Price Change 1h',
+      'Price Change 1 Bar',
       'Momentum',
       '%',
       'Single-bar return for local acceleration mapping.',
-      priceChange1h,
+      priceChange1Bar,
       signedState(0.8),
     ),
     makeMetric(
@@ -469,6 +491,7 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
   const indicators = hydrated.map((entry) => entry.metric)
   const edges = computeCorrelationEdges(indicators, 12)
   const timeline = buildHitTimeline(hydrated, times, 3)
+  const health = computeIndicatorHealth(indicators)
 
   return {
     coin: input.coin,
@@ -478,6 +501,7 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
     indicators,
     edges,
     timeline,
+    health,
   }
 }
 
@@ -554,6 +578,89 @@ function computeCorrelationEdges(indicators: IndicatorMetric[], maxLagBars: numb
   }
 
   return edges.sort((x, y) => y.strength - x.strength).slice(0, 220)
+}
+
+function computeIndicatorHealth(indicators: IndicatorMetric[]): IndicatorHealth {
+  if (indicators.length === 0) {
+    return {
+      status: 'healthy',
+      total: 0,
+      valid: 0,
+      warnings: [],
+    }
+  }
+
+  const warnings: IndicatorHealthWarning[] = []
+  const warnedIndicators = new Set<string>()
+  const seenWarnings = new Set<string>()
+
+  const pushWarning = (
+    indicator: IndicatorMetric,
+    kind: IndicatorHealthWarning['kind'],
+    message: string,
+  ) => {
+    const key = `${indicator.id}:${kind}:${message}`
+    if (seenWarnings.has(key)) return
+    seenWarnings.add(key)
+    warnedIndicators.add(indicator.id)
+    warnings.push({
+      indicatorId: indicator.id,
+      indicatorLabel: indicator.label,
+      kind,
+      message,
+    })
+  }
+
+  for (const indicator of indicators) {
+    const rawValues = indicator.rawValues ?? []
+    const finiteValues = rawValues.filter((value): value is number => isFiniteNumber(value))
+    const totalSamples = rawValues.length
+    const finiteSamples = finiteValues.length
+
+    if (finiteSamples < 30) {
+      pushWarning(indicator, 'insufficient_data', `Only ${finiteSamples} valid samples available.`)
+    }
+
+    if (totalSamples > 0) {
+      const coverage = finiteSamples / totalSamples
+      if (coverage < 0.55) {
+        pushWarning(indicator, 'insufficient_data', `Coverage ${(coverage * 100).toFixed(0)}% below 55%.`)
+      }
+    }
+
+    if (finiteValues.length >= 20) {
+      const scale = computeSeriesScale(rawValues)
+      if (scale < 1e-9) {
+        pushWarning(indicator, 'flatline', 'Series is nearly flat and may not carry signal information.')
+      }
+    }
+
+    const bounds = BOUNDED_RANGES[indicator.id]
+    if (!bounds || finiteValues.length === 0) continue
+
+    const minValue = Math.min(...finiteValues)
+    const maxValue = Math.max(...finiteValues)
+    const tolerance = bounds.tolerance ?? 0
+    if (minValue < bounds.min - tolerance || maxValue > bounds.max + tolerance) {
+      pushWarning(
+        indicator,
+        'range_violation',
+        `Observed range ${minValue.toFixed(2)}..${maxValue.toFixed(2)} outside expected ${bounds.min}..${bounds.max}.`,
+      )
+    }
+  }
+
+  const valid = Math.max(0, indicators.length - warnedIndicators.size)
+  const validRatio = indicators.length > 0 ? valid / indicators.length : 1
+  const status: IndicatorHealth['status'] =
+    warnings.length === 0 ? 'healthy' : validRatio >= 0.85 ? 'warning' : 'critical'
+
+  return {
+    status,
+    total: indicators.length,
+    valid,
+    warnings: warnings.slice(0, 32),
+  }
 }
 
 function makeMetric(

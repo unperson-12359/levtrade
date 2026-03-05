@@ -6,7 +6,9 @@ test.describe('Observatory critical flows', () => {
     await seedObservatoryState(page)
 
     await expect(page.getByTestId('obs-shell')).toBeVisible()
+    await expect(page.getByTestId('obs-command-bar')).toBeVisible()
     await expect(page.getByTestId('obs-price-strip')).toBeVisible()
+    await expect(page.getByTestId('obs-health-chip')).toBeVisible()
     await expect(page.locator('.price-chart')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 
@@ -42,6 +44,7 @@ test.describe('Observatory critical flows', () => {
   test('@critical strict no-recommendation copy is visible', async ({ page }) => {
     await page.goto('/')
     await seedObservatoryState(page)
+    await page.getByTestId('obs-chip-policy').click()
     await expect(page.getByTestId('obs-no-reco-copy')).toContainText('it does not output trading calls')
   })
 
@@ -59,6 +62,7 @@ test.describe('Observatory critical flows', () => {
     })
 
     await expect(page.locator('.obs-runtime')).toBeVisible()
+    await expect(page.getByTestId('obs-chip-runtime')).toContainText('Runtime 1')
     await expect(page.locator('.obs-runtime')).toContainText('Mock runtime warning')
     await expect(page.getByTestId('obs-shell')).toBeVisible()
   })

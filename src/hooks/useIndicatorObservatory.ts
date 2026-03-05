@@ -21,6 +21,22 @@ interface CanonicalResponse {
   }
 }
 
+function normalizeSnapshotHealth(snapshot: ObservatorySnapshot): ObservatorySnapshot {
+  const anySnapshot = snapshot as ObservatorySnapshot & { health?: ObservatorySnapshot['health'] }
+  if (anySnapshot.health) return snapshot
+
+  const total = snapshot.indicators.length
+  return {
+    ...snapshot,
+    health: {
+      status: total > 0 ? 'warning' : 'healthy',
+      total,
+      valid: total,
+      warnings: [],
+    },
+  }
+}
+
 export function useIndicatorObservatory(coin: TrackedCoin) {
   const interval = useStore((state) => state.selectedInterval)
   const candles = useStore((state) => state.candles[coin])
@@ -93,7 +109,7 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
         const payload = (await response.json()) as CanonicalResponse
         if (!active || payload.ok !== true || !payload.snapshot) return
 
-        setRemoteSnapshot(payload.snapshot)
+        setRemoteSnapshot(normalizeSnapshotHealth(payload.snapshot))
         setRemotePriceContext(payload.priceContext ?? null)
         setFreshness(payload.meta?.freshness ?? 'fresh')
         setSource('canonical')
