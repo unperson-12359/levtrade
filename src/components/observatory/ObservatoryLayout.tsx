@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDataManager } from '../../hooks/useDataManager'
+import { useHashRouter } from '../../hooks/useHashRouter'
 import { useIndicatorObservatory } from '../../hooks/useIndicatorObservatory'
 import type { IndicatorCategory, IndicatorHealthStatus } from '../../observatory/types'
 import { useStore } from '../../store'
-import { TRACKED_COINS, type TrackedCoin } from '../../types/market'
+import { TRACKED_COINS } from '../../types/market'
 import { PriceChart } from '../chart/PriceChart'
 import { IndicatorClusterLanes, type ClusterPresentationMode } from './IndicatorClusterLanes'
 import { CandleReportPage } from './CandleReportPage'
@@ -14,14 +15,6 @@ const ALLOWED_INTERVALS = ['4h', '1d'] as const
 type AllowedInterval = (typeof ALLOWED_INTERVALS)[number]
 type ViewMode = 'basic' | 'advanced'
 type PrimaryView = 'timeline' | 'network'
-type ObservatoryRoutePage = 'observatory' | 'report'
-
-interface ObservatoryRouteState {
-  page: ObservatoryRoutePage
-  coin: TrackedCoin | null
-  interval: AllowedInterval | null
-  time: number | null
-}
 
 export function ObservatoryLayout() {
   useDataManager()
@@ -34,6 +27,8 @@ export function ObservatoryLayout() {
   const runtimeDiagnostics = useStore((state) => state.runtimeDiagnostics)
   const clearRuntimeDiagnostics = useStore((state) => state.clearRuntimeDiagnostics)
 
+  const { route, navigateToHeatmap, navigateToReport } = useHashRouter()
+
   const { snapshot, priceContext, source, freshness, loading } = useIndicatorObservatory(selectedCoin)
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null)
   const [selectedClusterTime, setSelectedClusterTime] = useState<number | null>(null)
@@ -41,9 +36,7 @@ export function ObservatoryLayout() {
   const [primaryView, setPrimaryView] = useState<PrimaryView>('timeline')
   const [clusterMode, setClusterMode] = useState<ClusterPresentationMode>('simple')
   const [showRuntimeDetail, setShowRuntimeDetail] = useState(false)
-  const [showPolicyDetail, setShowPolicyDetail] = useState(false)
   const [showHealthDetail, setShowHealthDetail] = useState(false)
-  const [route, setRoute] = useState<ObservatoryRouteState>(() => parseObservatoryHash(window.location.hash))
 
   useEffect(() => {
     if (selectedInterval !== '4h' && selectedInterval !== '1d') {
@@ -51,23 +44,7 @@ export function ObservatoryLayout() {
     }
   }, [selectedInterval, setInterval])
 
-  useEffect(() => {
-    const onHashChange = () => {
-      setRoute(parseObservatoryHash(window.location.hash))
-    }
-
-    window.addEventListener('hashchange', onHashChange)
-    if (!window.location.hash) {
-      window.location.hash = '#/observatory'
-    } else {
-      onHashChange()
-    }
-
-    return () => {
-      window.removeEventListener('hashchange', onHashChange)
-    }
-  }, [])
-
+  // Sync coin/interval from route (e.g. browser back to a report URL)
   useEffect(() => {
     if (route.coin && route.coin !== selectedCoin) {
       selectCoin(route.coin)
@@ -75,10 +52,7 @@ export function ObservatoryLayout() {
     if (route.interval && route.interval !== selectedInterval) {
       setInterval(route.interval)
     }
-    if (route.page === 'report' && route.time !== null) {
-      setSelectedClusterTime(route.time)
-    }
-  }, [route, selectCoin, selectedCoin, selectedInterval, setInterval])
+  }, [route.coin, route.interval, selectCoin, selectedCoin, selectedInterval, setInterval])
 
   useEffect(() => {
     if (snapshot.indicators.length === 0) {
@@ -91,6 +65,7 @@ export function ObservatoryLayout() {
     }
   }, [selectedIndicatorId, snapshot.indicators])
 
+  // Auto-select latest cluster time on heatmap only
   useEffect(() => {
     if (route.page === 'report') return
     if (snapshot.timeline.length === 0) {
@@ -167,23 +142,25 @@ export function ObservatoryLayout() {
     return snapshot.timeline.find((cluster) => cluster.time === route.time) ?? null
   }, [isReportPage, route.time, snapshot.timeline])
 
-  const backToHeatmap = () => {
-    window.location.hash = '#/observatory'
-  }
+  const openCandleReport = useCallback(
+    (time: number) => navigateToReport(selectedCoin, timeframe, time),
+    [navigateToReport, selectedCoin, timeframe],
+  )
 
-  useEffect(() => {
-    if (isReportPage && !loading && snapshot.timeline.length > 0 && !reportCluster) {
-      backToHeatmap()
+  // Prev/next candle navigation (replaceState so browser back returns to heatmap)
+  const { onPrev, onNext } = useMemo(() => {
+    if (!isReportPage || route.time === null || snapshot.timeline.length === 0) {
+      return { onPrev: null, onNext: null }
     }
-  }, [isReportPage, loading, snapshot.timeline.length, reportCluster])
-
-  const openCandleReport = (time: number) => {
-    const next = new URLSearchParams()
-    next.set('coin', selectedCoin)
-    next.set('interval', timeframe)
-    next.set('time', String(time))
-    window.location.hash = `#/observatory/report?${next.toString()}`
-  }
+    const idx = snapshot.timeline.findIndex((c) => c.time === route.time)
+    if (idx === -1) return { onPrev: null, onNext: null }
+    const prevTime = idx > 0 ? snapshot.timeline[idx - 1]!.time : null
+    const nextTime = idx < snapshot.timeline.length - 1 ? snapshot.timeline[idx + 1]!.time : null
+    return {
+      onPrev: prevTime !== null ? () => navigateToReport(selectedCoin, timeframe, prevTime, { replace: true }) : null,
+      onNext: nextTime !== null ? () => navigateToReport(selectedCoin, timeframe, nextTime, { replace: true }) : null,
+    }
+  }, [isReportPage, route.time, snapshot.timeline, navigateToReport, selectedCoin, timeframe])
 
   const latestRuntimeMessage = runtimeDiagnostics[runtimeDiagnostics.length - 1]?.message ?? null
   const healthStatus = snapshot.health.status
@@ -194,130 +171,135 @@ export function ObservatoryLayout() {
     <div className="obs-app" data-testid="obs-shell">
       <div className="obs-backdrop-grid" />
       <header className="obs-command-bar" data-testid="obs-command-bar">
-        <div className="obs-command-bar__identity">
-          <div className="obs-brand">LEVTRADE SIGNAL POOL</div>
-          <p className="obs-kicker">Observe behavior, not predictions.</p>
-        </div>
+        <div className="obs-command-bar__primary">
+          <div className="obs-brand">LEVTRADE</div>
 
-        <div className="obs-command-bar__chips">
-          {TRACKED_COINS.map((coin) => (
+          <div className="obs-command-bar__nav-group">
+            {TRACKED_COINS.map((coin) => (
+              <button
+                key={coin}
+                type="button"
+                className={`obs-chip ${coin === selectedCoin ? 'obs-chip--active' : ''}`}
+                onClick={() => selectCoin(coin)}
+                data-testid={`obs-coin-${coin}`}
+              >
+                {coin}
+              </button>
+            ))}
+            <span className="obs-command-bar__sep" />
+            {ALLOWED_INTERVALS.map((interval) => (
+              <button
+                key={interval}
+                type="button"
+                className={`obs-chip ${interval === timeframe ? 'obs-chip--active' : ''}`}
+                onClick={() => setInterval(interval)}
+                data-testid={`obs-interval-${interval}`}
+              >
+                {interval}
+              </button>
+            ))}
+          </div>
+
+          <div className="obs-command-bar__price-hero" data-testid="obs-price-strip">
+            <span className="obs-price-hero__value">{formatPrice(priceContext.lastPrice)}</span>
+            <span className={`obs-price-hero__change obs-price-hero__change--${toneFromNumber(priceContext.change24hPct)}`}>
+              {formatSignedPct(priceContext.change24hPct)}
+            </span>
+          </div>
+
+          <div className="obs-command-bar__status-compact">
+            <div className={`obs-connection obs-connection--${connectionStatus}`}>{connectionStatus}</div>
             <button
-              key={coin}
               type="button"
-              className={`obs-chip ${coin === selectedCoin ? 'obs-chip--active' : ''}`}
-              onClick={() => selectCoin(coin)}
-              data-testid={`obs-coin-${coin}`}
+              className={`obs-chip obs-chip--toggle obs-chip--${healthTone}`}
+              onClick={() => setShowHealthDetail((value) => !value)}
+              data-testid="obs-health-chip"
             >
-              {coin}
+              {healthLabel}
             </button>
-          ))}
-          {ALLOWED_INTERVALS.map((interval) => (
+          </div>
+        </div>
+
+        <div className="obs-command-bar__secondary">
+          <div className="obs-command-bar__mode-group">
+            {!isReportPage && (
+              <>
+                <button
+                  type="button"
+                  className={`obs-chip obs-chip--sm ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
+                  onClick={() => setPrimaryView('timeline')}
+                  data-testid="obs-view-timeline"
+                >
+                  Timeline
+                </button>
+                <button
+                  type="button"
+                  className={`obs-chip obs-chip--sm ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
+                  onClick={() => setPrimaryView('network')}
+                  data-testid="obs-view-network"
+                >
+                  Network
+                </button>
+                <span className="obs-command-bar__sep" />
+              </>
+            )}
             <button
-              key={interval}
               type="button"
-              className={`obs-chip ${interval === timeframe ? 'obs-chip--active' : ''}`}
-              onClick={() => setInterval(interval)}
-              data-testid={`obs-interval-${interval}`}
+              className={`obs-chip obs-chip--sm ${viewMode === 'basic' ? 'obs-chip--active' : ''}`}
+              onClick={() => setViewMode('basic')}
+              data-testid="obs-mode-basic"
             >
-              {interval}
+              Basic
             </button>
-          ))}
-          <button
-            type="button"
-            className={`obs-chip ${viewMode === 'basic' ? 'obs-chip--active' : ''}`}
-            onClick={() => setViewMode('basic')}
-            data-testid="obs-mode-basic"
-          >
-            Basic
-          </button>
-          <button
-            type="button"
-            className={`obs-chip ${viewMode === 'advanced' ? 'obs-chip--active' : ''}`}
-            onClick={() => setViewMode('advanced')}
-            data-testid="obs-mode-advanced"
-          >
-            Advanced
-          </button>
-          {!isReportPage && (
-            <>
-              <button
-                type="button"
-                className={`obs-chip ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
-                onClick={() => setPrimaryView('timeline')}
-                data-testid="obs-view-timeline"
-              >
-                Timeline
-              </button>
-              <button
-                type="button"
-                className={`obs-chip ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
-                onClick={() => setPrimaryView('network')}
-                data-testid="obs-view-network"
-              >
-                Network
-              </button>
-            </>
-          )}
-          {!isReportPage && primaryView === 'timeline' && (
-            <>
-              <button
-                type="button"
-                className={`obs-chip ${clusterMode === 'simple' ? 'obs-chip--active' : ''}`}
-                onClick={() => setClusterMode('simple')}
-                data-testid="obs-cluster-mode-simple"
-              >
-                Simple
-              </button>
-              <button
-                type="button"
-                className={`obs-chip ${clusterMode === 'pro' ? 'obs-chip--active' : ''}`}
-                onClick={() => setClusterMode('pro')}
-                data-testid="obs-cluster-mode-pro"
-              >
-                Pro
-              </button>
-            </>
-          )}
-        </div>
+            <button
+              type="button"
+              className={`obs-chip obs-chip--sm ${viewMode === 'advanced' ? 'obs-chip--active' : ''}`}
+              onClick={() => setViewMode('advanced')}
+              data-testid="obs-mode-advanced"
+            >
+              Advanced
+            </button>
+            {!isReportPage && primaryView === 'timeline' && (
+              <>
+                <span className="obs-command-bar__sep" />
+                <button
+                  type="button"
+                  className={`obs-chip obs-chip--sm ${clusterMode === 'simple' ? 'obs-chip--active' : ''}`}
+                  onClick={() => setClusterMode('simple')}
+                  data-testid="obs-cluster-mode-simple"
+                >
+                  Simple
+                </button>
+                <button
+                  type="button"
+                  className={`obs-chip obs-chip--sm ${clusterMode === 'pro' ? 'obs-chip--active' : ''}`}
+                  onClick={() => setClusterMode('pro')}
+                  data-testid="obs-cluster-mode-pro"
+                >
+                  Pro
+                </button>
+              </>
+            )}
+          </div>
 
-        <div className="obs-command-bar__metrics" data-testid="obs-price-strip">
-          <CommandMetric label={`${selectedCoin} Price`} value={formatPrice(priceContext.lastPrice)} tone="neutral" />
-          <CommandMetric label="24h" value={formatSignedPct(priceContext.change24hPct)} tone={toneFromNumber(priceContext.change24hPct)} />
-          <CommandMetric label={`${timeframe}`} value={formatSignedPct(priceContext.intervalReturnPct)} tone={toneFromNumber(priceContext.intervalReturnPct)} />
-          <CommandMetric label="Updated" value={new Date(priceContext.updatedAt).toLocaleTimeString()} tone="neutral" />
-          <CommandMetric label="Indicators" value={String(snapshot.indicators.length)} tone="neutral" />
-          <CommandMetric label="Hits" value={String(snapshot.timeline.length)} tone="neutral" />
-          <CommandMetric label="Edges" value={String(snapshot.edges.length)} tone="neutral" />
-          <CommandMetric label="Density" value={density.toFixed(2)} tone="neutral" />
-        </div>
+          <div className="obs-command-bar__meta-group">
+            <CommandMetric label={`${timeframe}`} value={formatSignedPct(priceContext.intervalReturnPct)} tone={toneFromNumber(priceContext.intervalReturnPct)} />
+            <CommandMetric label="Indicators" value={String(snapshot.indicators.length)} tone="neutral" />
+            <CommandMetric label="Signals" value={String(snapshot.timeline.length)} tone="neutral" />
+            <CommandMetric label="Density" value={density.toFixed(2)} tone="neutral" />
+          </div>
 
-        <div className="obs-command-bar__status">
-          <button
-            type="button"
-            className={`obs-chip obs-chip--toggle ${runtimeDiagnostics.length > 0 ? 'obs-chip--warn' : ''}`}
-            onClick={() => setShowRuntimeDetail((value) => !value)}
-            data-testid="obs-chip-runtime"
-          >
-            Runtime {runtimeDiagnostics.length > 0 ? runtimeDiagnostics.length : 'OK'}
-          </button>
-          <button
-            type="button"
-            className={`obs-chip obs-chip--toggle ${showPolicyDetail ? 'obs-chip--active' : ''}`}
-            onClick={() => setShowPolicyDetail((value) => !value)}
-            data-testid="obs-chip-policy"
-          >
-            No Reco
-          </button>
-          <button
-            type="button"
-            className={`obs-chip obs-chip--toggle obs-chip--${healthTone}`}
-            onClick={() => setShowHealthDetail((value) => !value)}
-            data-testid="obs-health-chip"
-          >
-            {healthLabel}
-          </button>
-          <div className={`obs-connection obs-connection--${connectionStatus}`}>{connectionStatus}</div>
-          <div className={`obs-freshness obs-freshness--${freshness}`}>{source === 'canonical' ? `Canonical ${freshness}` : 'Local fallback'}</div>
+          <div className="obs-command-bar__status-row">
+            <button
+              type="button"
+              className={`obs-chip obs-chip--sm obs-chip--toggle ${runtimeDiagnostics.length > 0 ? 'obs-chip--warn' : ''}`}
+              onClick={() => setShowRuntimeDetail((value) => !value)}
+              data-testid="obs-chip-runtime"
+            >
+              {runtimeDiagnostics.length > 0 ? `Runtime ${runtimeDiagnostics.length}` : 'OK'}
+            </button>
+            <div className={`obs-freshness obs-freshness--${freshness}`}>{source === 'canonical' ? freshness : 'local'}</div>
+          </div>
         </div>
       </header>
 
@@ -338,11 +320,6 @@ export function ObservatoryLayout() {
         </section>
       )}
 
-      {showPolicyDetail && (
-        <section className="obs-policy" data-testid="obs-no-reco-copy">
-          No recommendation mode: this platform explains what happened while price moved (or stalled); it does not output trading calls.
-        </section>
-      )}
 
       {showHealthDetail && (
         <section className="obs-health-panel" data-testid="obs-health-detail">
@@ -370,15 +347,18 @@ export function ObservatoryLayout() {
           coin={selectedCoin}
           timeframe={timeframe}
           cluster={reportCluster}
+          allIndicators={snapshot.indicators}
           loading={loading}
-          onBack={backToHeatmap}
+          onBack={navigateToHeatmap}
+          onPrev={onPrev}
+          onNext={onNext}
         />
       ) : primaryView === 'timeline' ? (
         <section className="obs-timeline-stack">
           <div className="obs-panel">
             <div className="obs-panel__title-row">
-              <h2 className="obs-panel__title">Asset Chart</h2>
-              <p className="obs-panel__hint">{loading ? 'Refreshing canonical snapshot...' : 'Top panel anchors behavior in price.'}</p>
+              <h2 className="obs-panel__title">Price</h2>
+              <p className="obs-panel__hint">{loading ? 'Refreshing...' : ''}</p>
             </div>
             <div className="obs-chart-compact">
               <PriceChart coin={selectedCoin} embedded showHeader={false} />
@@ -427,8 +407,8 @@ export function ObservatoryLayout() {
 
           <section className="obs-panel obs-panel--map">
             <div className="obs-panel__title-row">
-              <h2 className="obs-panel__title">Indicator Network</h2>
-              <p className="obs-panel__hint">Color = sign, thickness = strength, dashed = lag.</p>
+              <h2 className="obs-panel__title">Network</h2>
+              <p className="obs-panel__hint">Color = sign, thickness = strength</p>
             </div>
             <MapLegend />
             <PoolMap
@@ -477,28 +457,6 @@ export function ObservatoryLayout() {
       )}
     </div>
   )
-}
-
-function parseObservatoryHash(hash: string): ObservatoryRouteState {
-  const raw = hash.trim()
-  const fallback: ObservatoryRouteState = { page: 'observatory', coin: null, interval: null, time: null }
-  if (!raw) return fallback
-
-  const withoutHash = raw.startsWith('#') ? raw.slice(1) : raw
-  if (!withoutHash.startsWith('/observatory')) return fallback
-
-  const [pathPart = '', queryPart = ''] = withoutHash.split('?')
-  const page: ObservatoryRoutePage = pathPart.includes('/report') ? 'report' : 'observatory'
-  const query = new URLSearchParams(queryPart)
-  const rawCoin = query.get('coin')
-  const rawInterval = query.get('interval')
-  const rawTime = query.get('time')
-
-  const coin = rawCoin && TRACKED_COINS.includes(rawCoin as TrackedCoin) ? rawCoin as TrackedCoin : null
-  const interval = rawInterval === '4h' || rawInterval === '1d' ? rawInterval : null
-  const time = rawTime && Number.isFinite(Number(rawTime)) ? Number(rawTime) : null
-
-  return { page, coin, interval, time }
 }
 
 function MapLegend() {

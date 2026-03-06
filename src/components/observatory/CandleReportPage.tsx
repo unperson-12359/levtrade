@@ -1,6 +1,6 @@
 ﻿import { useMemo } from 'react'
 import { PriceChart } from '../chart/PriceChart'
-import type { CandleHitCluster, IndicatorCategory, IndicatorHitEvent } from '../../observatory/types'
+import type { CandleHitCluster, IndicatorCategory, IndicatorHitEvent, IndicatorMetric } from '../../observatory/types'
 import type { TrackedCoin } from '../../types/market'
 
 const LANE_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Flow', 'Structure']
@@ -9,16 +9,22 @@ interface CandleReportPageProps {
   coin: TrackedCoin
   timeframe: '4h' | '1d'
   cluster: CandleHitCluster | null
+  allIndicators: IndicatorMetric[]
   loading: boolean
   onBack: () => void
+  onPrev: (() => void) | null
+  onNext: (() => void) | null
 }
 
 export function CandleReportPage({
   coin,
   timeframe,
   cluster,
+  allIndicators,
   loading,
   onBack,
+  onPrev,
+  onNext,
 }: CandleReportPageProps) {
   const groupedEvents = useMemo(() => {
     if (!cluster) return []
@@ -32,10 +38,28 @@ export function CandleReportPage({
       .filter((group) => group.events.length > 0)
   }, [cluster])
 
+  const inactiveGroups = useMemo(() => {
+    if (!cluster || allIndicators.length === 0) return []
+    const activeIds = new Set(cluster.events.map((e) => e.indicatorId))
+    return LANE_ORDER
+      .map((category) => ({
+        category,
+        indicators: allIndicators
+          .filter((ind) => ind.category === category && !activeIds.has(ind.id))
+          .map((ind) => ({ id: ind.id, label: ind.label })),
+      }))
+      .filter((group) => group.indicators.length > 0)
+  }, [cluster, allIndicators])
+
+  const activeCount = cluster?.events.length ?? 0
+  const totalCount = allIndicators.length
+
   if (!cluster) {
     return (
       <section className="obs-report obs-report--empty" data-testid="obs-candle-report-page">
-        <button type="button" className="obs-report__back" onClick={onBack} data-testid="obs-candle-report-back">Back to Heatmap</button>
+        <div className="obs-report__nav">
+          <button type="button" className="obs-report__nav-btn" onClick={onBack} data-testid="obs-candle-report-back">Back to Heatmap</button>
+        </div>
         <div className="obs-report__empty-copy">Candle report is unavailable for this timestamp. Select another heatmap cell.</div>
       </section>
     )
@@ -44,17 +68,21 @@ export function CandleReportPage({
   return (
     <section className="obs-report" data-testid="obs-candle-report-page">
       <header className="obs-report__header">
-        <button type="button" className="obs-report__back" onClick={onBack} data-testid="obs-candle-report-back">Back to Heatmap</button>
+        <div className="obs-report__nav">
+          <button type="button" className="obs-report__nav-btn" disabled={!onPrev} onClick={onPrev ?? undefined} data-testid="obs-candle-report-prev">&lt; Prev</button>
+          <button type="button" className="obs-report__nav-btn" onClick={onBack} data-testid="obs-candle-report-back">Back to Heatmap</button>
+          <button type="button" className="obs-report__nav-btn" disabled={!onNext} onClick={onNext ?? undefined} data-testid="obs-candle-report-next">Next &gt;</button>
+        </div>
         <div className="obs-report__title-wrap">
           <h2 className="obs-report__title">Candle Report</h2>
-          <p className="obs-report__hint">{new Date(cluster.time).toLocaleString()} | {cluster.totalHits} fired indicators</p>
+          <p className="obs-report__hint">{new Date(cluster.time).toLocaleString()} | {activeCount} of {totalCount} active</p>
         </div>
       </header>
 
       <div className="obs-panel obs-panel--report-chart" data-testid="obs-candle-report-chart">
         <div className="obs-panel__title-row">
-          <h3 className="obs-panel__title">{coin} Price Context ({timeframe})</h3>
-          <p className="obs-panel__hint">{loading ? 'Refreshing canonical snapshot...' : 'Chart context for selected candle.'}</p>
+          <h3 className="obs-panel__title">{coin} Price</h3>
+          {loading && <p className="obs-panel__hint">Refreshing...</p>}
         </div>
         <div className="obs-chart-compact">
           <PriceChart coin={coin} embedded showHeader={false} />
@@ -62,50 +90,64 @@ export function CandleReportPage({
       </div>
 
       <div className="obs-report__price" data-testid="obs-cluster-candle-price">
-        <div>O {formatPrice(cluster.price.open)} H {formatPrice(cluster.price.high)}</div>
-        <div>L {formatPrice(cluster.price.low)} C {formatPrice(cluster.price.close)}</div>
-        <div className={cluster.price.changePct >= 0 ? 'obs-report__price-up' : 'obs-report__price-down'}>
-          Candle {formatSignedPct(cluster.price.changePct)} | Range {Math.abs(cluster.price.rangePct).toFixed(2)}%
-        </div>
+        <span className={cluster.price.changePct >= 0 ? 'obs-report__price-up' : 'obs-report__price-down'}>
+          {formatSignedPct(cluster.price.changePct)}
+        </span>
+        <span className="obs-report__price-range">{formatPrice(cluster.price.close)}</span>
       </div>
 
       <div className="obs-report__sections" data-testid="obs-cluster-report">
-        {groupedEvents.map((group) => (
-          <section key={group.category} className="obs-report__category">
-            <div className="obs-report__category-head">
-              <span>{group.category}</span>
-              <span>{group.events.length}</span>
-            </div>
-            <div className="obs-report__events">
-              {group.events.map((hit) => (
-                <article key={hit.id} className="obs-report__event" data-testid="obs-cluster-report-row">
-                  <div className="obs-report__event-line">
-                    <span className="obs-report__event-indicator">{hit.indicatorLabel}</span>
-                    <span className={`obs-report__event-kind obs-report__event-kind--${hit.kind}`}>{toKindLabel(hit.kind)}</span>
-                  </div>
-                  <div className="obs-report__event-meta">
-                    <span>{`${hit.fromState} -> ${hit.toState}`}</span>
-                    <span>{formatDuration(hit, timeframe)}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
+        <div className="obs-report__section-label obs-report__section-label--active">Active ({activeCount})</div>
+        {groupedEvents.length > 0 ? (
+          groupedEvents.map((group) => (
+            <section key={group.category} className="obs-report__category">
+              <div className="obs-report__category-head">
+                <span>{group.category}</span>
+                <span>{group.events.length}</span>
+              </div>
+              <div className="obs-report__events">
+                {group.events.map((hit) => (
+                  <article key={hit.id} className="obs-report__event" data-testid="obs-cluster-report-row">
+                    <div className="obs-report__event-line">
+                      <span className="obs-report__event-indicator">{hit.indicatorLabel}</span>
+                      <span className="obs-report__event-yes">YES</span>
+                      <span className="obs-report__event-duration">{formatDuration(hit, timeframe)}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ))
+        ) : (
+          <div className="obs-report__empty-copy">No indicators fired on this candle.</div>
+        )}
 
-        {groupedEvents.length === 0 && (
-          <div className="obs-report__empty-copy">No indicator transitions fired on this candle.</div>
+        {inactiveGroups.length > 0 && (
+          <>
+            <div className="obs-report__section-label obs-report__section-label--inactive">Inactive ({totalCount - activeCount})</div>
+            {inactiveGroups.map((group) => (
+              <section key={group.category} className="obs-report__category obs-report__category--inactive">
+                <div className="obs-report__category-head">
+                  <span>{group.category}</span>
+                  <span>{group.indicators.length}</span>
+                </div>
+                <div className="obs-report__events">
+                  {group.indicators.map((ind) => (
+                    <article key={ind.id} className="obs-report__event obs-report__event--inactive" data-testid="obs-cluster-report-row">
+                      <div className="obs-report__event-line">
+                        <span className="obs-report__event-indicator">{ind.label}</span>
+                        <span className="obs-report__inactive-dot">&middot;</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </>
         )}
       </div>
     </section>
   )
-}
-
-function toKindLabel(kind: IndicatorHitEvent['kind']): string {
-  if (kind === 'flip') return 'Flip'
-  if (kind === 'exit_to_neutral') return 'Normalize'
-  if (kind === 'enter_high') return 'High'
-  return 'Low'
 }
 
 function formatDuration(hit: IndicatorHitEvent, timeframe: '4h' | '1d'): string {
