@@ -1211,7 +1211,7 @@ button {
 
 .obs-report {
   display: grid;
-  gap: 0.28rem;
+  gap: 0.2rem;
 }
 
 .obs-report--empty {
@@ -1233,8 +1233,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.3rem 0.4rem;
+  gap: 0.4rem;
+  padding: 0.22rem 0.35rem;
   border: 1px solid rgba(148, 163, 184, 0.06);
   border-radius: 0.6rem;
   background: rgba(8, 12, 24, 0.5);
@@ -1370,27 +1370,27 @@ button {
 .obs-report__grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.25rem;
+  gap: 0.18rem;
   align-items: start;
 }
 
 .obs-report__col {
   border: 1px solid rgba(148, 163, 184, 0.06);
-  border-radius: 0.6rem;
+  border-radius: 0.4rem;
   background: rgba(8, 12, 24, 0.4);
-  padding: 0.22rem;
+  padding: 0.16rem;
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.06rem;
 }
 
 .obs-report__col-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 0.1rem;
+  padding-bottom: 0.06rem;
   border-bottom: 1px solid rgba(148, 163, 184, 0.06);
-  margin-bottom: 0.04rem;
+  margin-bottom: 0.02rem;
 }
 
 .obs-report__col-label {
@@ -1411,7 +1411,7 @@ button {
 .obs-report__col-items {
   display: flex;
   flex-direction: column;
-  gap: 0.04rem;
+  gap: 0.02rem;
 }
 
 /* Indicator row */
@@ -1420,8 +1420,8 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 0.2rem;
-  padding: 0.12rem 0.18rem;
-  border-radius: 0.3rem;
+  padding: 0.08rem 0.14rem;
+  border-radius: 0.2rem;
   transition: all 150ms ease;
 }
 
@@ -1443,31 +1443,26 @@ button {
 /* Active indicator -- green glow IS the signal */
 .obs-report__ind--active {
   background: rgba(52, 211, 153, 0.08);
-  border: 1px solid rgba(52, 211, 153, 0.2);
-  box-shadow: 0 0 6px rgba(52, 211, 153, 0.06);
 }
 
 .obs-report__ind--active .obs-report__ind-name {
   color: rgba(52, 211, 153, 0.95);
   font-weight: 650;
-  font-size: 0.62rem;
+  font-size: 0.65rem;
 }
 
 .obs-report__ind--active:hover {
-  background: rgba(52, 211, 153, 0.12);
-  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.14);
 }
 
 /* Inactive indicator -- deeply dimmed */
 .obs-report__ind--inactive {
-  background: transparent;
-  border: 1px solid transparent;
   opacity: 0.3;
 }
 
 .obs-report__ind--inactive .obs-report__ind-name {
   color: rgba(148, 163, 184, 0.7);
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   font-weight: 400;
 }
 
