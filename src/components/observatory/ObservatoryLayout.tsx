@@ -37,6 +37,8 @@ export function ObservatoryLayout() {
   const [clusterMode, setClusterMode] = useState<ClusterPresentationMode>('simple')
   const [showRuntimeDetail, setShowRuntimeDetail] = useState(false)
   const [showHealthDetail, setShowHealthDetail] = useState(false)
+  const [chartCollapsed, setChartCollapsed] = useState(false)
+  const [catalogOpen, setCatalogOpen] = useState(true)
 
   useEffect(() => {
     if (selectedInterval !== '4h' && selectedInterval !== '1d') {
@@ -171,7 +173,7 @@ export function ObservatoryLayout() {
     <div className="obs-app" data-testid="obs-shell">
       <div className="obs-backdrop-grid" />
       <header className="obs-command-bar" data-testid="obs-command-bar">
-        <div className="obs-command-bar__primary">
+        <div className="obs-command-bar__row">
           <div className="obs-brand">LEVTRADE</div>
 
           <div className="obs-command-bar__nav-group">
@@ -200,6 +202,67 @@ export function ObservatoryLayout() {
             ))}
           </div>
 
+          {!isReportPage && (
+            <>
+              <span className="obs-command-bar__sep" />
+              <button
+                type="button"
+                className={`obs-chip obs-chip--sm ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
+                onClick={() => setPrimaryView('timeline')}
+                data-testid="obs-view-timeline"
+              >
+                Timeline
+              </button>
+              <button
+                type="button"
+                className={`obs-chip obs-chip--sm ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
+                onClick={() => setPrimaryView('network')}
+                data-testid="obs-view-network"
+              >
+                Network
+              </button>
+            </>
+          )}
+
+          <span className="obs-command-bar__sep" />
+          <button
+            type="button"
+            className={`obs-chip obs-chip--sm ${viewMode === 'basic' ? 'obs-chip--active' : ''}`}
+            onClick={() => setViewMode('basic')}
+            data-testid="obs-mode-basic"
+          >
+            Basic
+          </button>
+          <button
+            type="button"
+            className={`obs-chip obs-chip--sm ${viewMode === 'advanced' ? 'obs-chip--active' : ''}`}
+            onClick={() => setViewMode('advanced')}
+            data-testid="obs-mode-advanced"
+          >
+            Advanced
+          </button>
+          {!isReportPage && primaryView === 'timeline' && (
+            <>
+              <span className="obs-command-bar__sep" />
+              <button
+                type="button"
+                className={`obs-chip obs-chip--sm ${clusterMode === 'simple' ? 'obs-chip--active' : ''}`}
+                onClick={() => setClusterMode('simple')}
+                data-testid="obs-cluster-mode-simple"
+              >
+                Simple
+              </button>
+              <button
+                type="button"
+                className={`obs-chip obs-chip--sm ${clusterMode === 'pro' ? 'obs-chip--active' : ''}`}
+                onClick={() => setClusterMode('pro')}
+                data-testid="obs-cluster-mode-pro"
+              >
+                Pro
+              </button>
+            </>
+          )}
+
           <div className="obs-command-bar__price-hero" data-testid="obs-price-strip">
             <span className="obs-price-hero__value">{formatPrice(priceContext.lastPrice)}</span>
             <span className={`obs-price-hero__change obs-price-hero__change--${toneFromNumber(priceContext.change24hPct)}`}>
@@ -217,79 +280,6 @@ export function ObservatoryLayout() {
             >
               {healthLabel}
             </button>
-          </div>
-        </div>
-
-        <div className="obs-command-bar__secondary">
-          <div className="obs-command-bar__mode-group">
-            {!isReportPage && (
-              <>
-                <button
-                  type="button"
-                  className={`obs-chip obs-chip--sm ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
-                  onClick={() => setPrimaryView('timeline')}
-                  data-testid="obs-view-timeline"
-                >
-                  Timeline
-                </button>
-                <button
-                  type="button"
-                  className={`obs-chip obs-chip--sm ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
-                  onClick={() => setPrimaryView('network')}
-                  data-testid="obs-view-network"
-                >
-                  Network
-                </button>
-                <span className="obs-command-bar__sep" />
-              </>
-            )}
-            <button
-              type="button"
-              className={`obs-chip obs-chip--sm ${viewMode === 'basic' ? 'obs-chip--active' : ''}`}
-              onClick={() => setViewMode('basic')}
-              data-testid="obs-mode-basic"
-            >
-              Basic
-            </button>
-            <button
-              type="button"
-              className={`obs-chip obs-chip--sm ${viewMode === 'advanced' ? 'obs-chip--active' : ''}`}
-              onClick={() => setViewMode('advanced')}
-              data-testid="obs-mode-advanced"
-            >
-              Advanced
-            </button>
-            {!isReportPage && primaryView === 'timeline' && (
-              <>
-                <span className="obs-command-bar__sep" />
-                <button
-                  type="button"
-                  className={`obs-chip obs-chip--sm ${clusterMode === 'simple' ? 'obs-chip--active' : ''}`}
-                  onClick={() => setClusterMode('simple')}
-                  data-testid="obs-cluster-mode-simple"
-                >
-                  Simple
-                </button>
-                <button
-                  type="button"
-                  className={`obs-chip obs-chip--sm ${clusterMode === 'pro' ? 'obs-chip--active' : ''}`}
-                  onClick={() => setClusterMode('pro')}
-                  data-testid="obs-cluster-mode-pro"
-                >
-                  Pro
-                </button>
-              </>
-            )}
-          </div>
-
-          <div className="obs-command-bar__meta-group">
-            <CommandMetric label={`${timeframe}`} value={formatSignedPct(priceContext.intervalReturnPct)} tone={toneFromNumber(priceContext.intervalReturnPct)} />
-            <CommandMetric label="Indicators" value={String(snapshot.indicators.length)} tone="neutral" />
-            <CommandMetric label="Signals" value={String(snapshot.timeline.length)} tone="neutral" />
-            <CommandMetric label="Density" value={density.toFixed(2)} tone="neutral" />
-          </div>
-
-          <div className="obs-command-bar__status-row">
             <button
               type="button"
               className={`obs-chip obs-chip--sm obs-chip--toggle ${runtimeDiagnostics.length > 0 ? 'obs-chip--warn' : ''}`}
@@ -299,6 +289,13 @@ export function ObservatoryLayout() {
               {runtimeDiagnostics.length > 0 ? `Runtime ${runtimeDiagnostics.length}` : 'OK'}
             </button>
             <div className={`obs-freshness obs-freshness--${freshness}`}>{source === 'canonical' ? freshness : 'local'}</div>
+          </div>
+
+          <div className="obs-command-bar__metrics-inline">
+            <CommandMetric label={`${timeframe}`} value={formatSignedPct(priceContext.intervalReturnPct)} tone={toneFromNumber(priceContext.intervalReturnPct)} />
+            <CommandMetric label="Indicators" value={String(snapshot.indicators.length)} tone="neutral" />
+            <CommandMetric label="Signals" value={String(snapshot.timeline.length)} tone="neutral" />
+            <CommandMetric label="Density" value={density.toFixed(2)} tone="neutral" />
           </div>
         </div>
       </header>
@@ -356,13 +353,16 @@ export function ObservatoryLayout() {
       ) : primaryView === 'timeline' ? (
         <section className="obs-timeline-stack">
           <div className="obs-panel">
-            <div className="obs-panel__title-row">
+            <button type="button" className="obs-chart-drawer__toggle" onClick={() => setChartCollapsed((v) => !v)}>
               <h2 className="obs-panel__title">Price</h2>
-              <p className="obs-panel__hint">{loading ? 'Refreshing...' : ''}</p>
-            </div>
-            <div className="obs-chart-compact">
-              <PriceChart coin={selectedCoin} embedded showHeader={false} />
-            </div>
+              <span className="obs-chart-drawer__chevron">{chartCollapsed ? '\u25B8' : '\u25BE'}</span>
+              {loading && <span className="obs-chart-drawer__refreshing">Refreshing...</span>}
+            </button>
+            {!chartCollapsed && (
+              <div className="obs-chart-compact">
+                <PriceChart coin={selectedCoin} embedded showHeader={false} />
+              </div>
+            )}
           </div>
 
           <div className="obs-panel">
@@ -378,31 +378,46 @@ export function ObservatoryLayout() {
         </section>
       ) : (
         <main className="obs-grid">
-          <aside className="obs-panel obs-panel--list">
-            <h2 className="obs-panel__title">Indicator Catalog</h2>
-            <div className="obs-panel__scroll">
-              {CATEGORY_ORDER.map((category) => {
-                const indicators = indicatorsByCategory[category]
-                if (indicators.length === 0) return null
-                return (
-                  <div key={category} className="obs-category">
-                    <div className="obs-category__title">{category}</div>
-                    {indicators.map((indicator) => (
-                      <button
-                        key={indicator.id}
-                        type="button"
-                        className={`obs-indicator-row ${indicator.id === selectedIndicatorId ? 'obs-indicator-row--active' : ''}`}
-                        onClick={() => setSelectedIndicatorId(indicator.id)}
-                        data-testid={`obs-indicator-row-${indicator.id}`}
-                      >
-                        <span>{indicator.label}</span>
-                        <span className={`obs-state obs-state--${indicator.currentState}`}>{indicator.currentState}</span>
-                      </button>
-                    ))}
+          <aside className={`obs-panel obs-panel--list ${catalogOpen ? '' : 'obs-panel--list-collapsed'}`}>
+            <button type="button" className="obs-catalog-toggle" onClick={() => setCatalogOpen((v) => !v)}>
+              <h2 className="obs-panel__title">Catalog</h2>
+              <span className="obs-catalog-toggle__chevron">{catalogOpen ? '\u25C0' : '\u25B6'}</span>
+            </button>
+            {catalogOpen && (
+              <div className="obs-panel__scroll">
+                {CATEGORY_ORDER.map((category) => {
+                  const indicators = indicatorsByCategory[category]
+                  if (indicators.length === 0) return null
+                  return (
+                    <div key={category} className="obs-category">
+                      <div className="obs-category__title">{category}</div>
+                      {indicators.map((indicator) => (
+                        <button
+                          key={indicator.id}
+                          type="button"
+                          className={`obs-indicator-row ${indicator.id === selectedIndicatorId ? 'obs-indicator-row--active' : ''}`}
+                          onClick={() => setSelectedIndicatorId(indicator.id)}
+                          data-testid={`obs-indicator-row-${indicator.id}`}
+                        >
+                          <span>{indicator.label}</span>
+                          <span className={`obs-state obs-state--${indicator.currentState}`}>{indicator.currentState}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {!catalogOpen && (
+              <div className="obs-catalog-badges">
+                {CATEGORY_ORDER.map((category) => (
+                  <div key={category} className="obs-catalog-badge">
+                    <span className="obs-catalog-badge__label">{category.slice(0, 3)}</span>
+                    <span className={`obs-catalog-badge__dot obs-catalog-badge__dot--${indicatorsByCategory[category].some((i) => i.currentState === 'high') ? 'active' : 'idle'}`} />
                   </div>
-                )
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </aside>
 
           <section className="obs-panel obs-panel--map">

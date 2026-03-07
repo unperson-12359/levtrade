@@ -43,6 +43,8 @@ export function CandleReportPage({
           label: ind.label,
           active: activeMap.has(ind.id),
           event: activeMap.get(ind.id) ?? null,
+          value: ind.currentValue,
+          unit: ind.unit,
         }))
         .sort((a, b) => {
           if (a.active && !b.active) return -1
@@ -73,10 +75,8 @@ export function CandleReportPage({
           <button type="button" className="obs-report__bar-btn" disabled={!onNext} onClick={onNext ?? undefined} data-testid="obs-candle-report-next">&rarr;</button>
         </nav>
 
-        <div className="obs-report__bar-meta">
-          <time className="obs-report__bar-time">{new Date(cluster.time).toLocaleString()}</time>
-          <span className="obs-report__bar-hits">{activeCount}/{totalCount}</span>
-        </div>
+        <time className="obs-report__bar-time">{new Date(cluster.time).toLocaleString()}</time>
+        <span className="obs-report__bar-hits">{activeCount}/{totalCount}</span>
 
         <div className="obs-report__bar-price" data-testid="obs-cluster-candle-price">
           <span className={cluster.price.changePct >= 0 ? 'obs-report__bar-up' : 'obs-report__bar-down'}>
@@ -119,7 +119,11 @@ export function CandleReportPage({
                   className={`obs-report__ind ${ind.active ? 'obs-report__ind--active' : 'obs-report__ind--inactive'}`}
                   data-testid="obs-cluster-report-row"
                 >
+                  <span className={`obs-report__ind-led obs-report__ind-led--${ind.active ? 'on' : 'off'}`} />
                   <span className="obs-report__ind-name">{ind.label}</span>
+                  {ind.value !== null && ind.value !== undefined && (
+                    <span className="obs-report__ind-val">{formatCompactValue(ind.value, ind.unit)}</span>
+                  )}
                   {ind.active && ind.event && (
                     <span className="obs-report__ind-dur">{formatDuration(ind.event, timeframe)}</span>
                   )}
@@ -145,6 +149,13 @@ function formatDuration(hit: IndicatorHitEvent, timeframe: '4h' | '1d'): string 
 function formatPrice(value: number): string {
   if (!Number.isFinite(value)) return '--'
   return value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+}
+
+function formatCompactValue(value: number | null, unit: string): string {
+  if (value === null || !Number.isFinite(value)) return ''
+  if (unit === '%') return `${value.toFixed(1)}%`
+  if (unit === 'bp') return `${value.toFixed(1)}bp`
+  return value.toFixed(2)
 }
 
 function formatSignedPct(value: number): string {

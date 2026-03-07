@@ -57,7 +57,7 @@ export function PoolMap({ indicators, edges, selectedId, onSelect, viewMode }: P
               y1={from.y}
               x2={to.x}
               y2={to.y}
-              stroke={tone >= 0 ? 'rgba(103, 232, 249, 0.45)' : 'rgba(251, 113, 133, 0.45)'}
+              stroke={tone >= 0 ? 'rgba(212, 168, 83, 0.45)' : 'rgba(200, 149, 110, 0.35)'}
               strokeWidth={Math.max(0.12, edge.strength * 0.35)}
               strokeDasharray={edge.lagBars === 0 ? undefined : '1.2 0.8'}
             />
@@ -128,7 +128,7 @@ function shortLabel(label: string): string {
 }
 
 function nodeTone(state: IndicatorMetric['currentState']): string {
-  if (state === 'high') return '#f87171'
-  if (state === 'low') return '#67e8f9'
-  return '#fde68a'
+  if (state === 'high') return '#e5443d'
+  if (state === 'low') return '#d4a853'
+  return '#e5a825'
 }

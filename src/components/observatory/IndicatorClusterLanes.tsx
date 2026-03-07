@@ -58,6 +58,20 @@ export function IndicatorClusterLanes({
         <div className="obs-cluster__hint">Click a cell to open full candle report page.</div>
       </div>
 
+      <div className="obs-cluster__summary-strip">
+        {LANE_ORDER.map((lane) => {
+          const latest = clusters[clusters.length - 1]
+          const count = latest?.laneCounts[lane] ?? 0
+          const level = intensityLevel(count, maxLaneCount)
+          return (
+            <div key={lane} className="obs-cluster__summary-dot-group">
+              <span className={`obs-cluster__summary-dot obs-cluster__summary-dot--${level}`} />
+              <span className="obs-cluster__summary-dot-label">{lane.slice(0, 3)}</span>
+            </div>
+          )
+        })}
+      </div>
+
       <div className="obs-cluster__heatmap obs-cluster__heatmap--compact">
         {LANE_ORDER.map((lane) => (
           <div key={lane} className="obs-cluster__lane obs-cluster__lane--compact">

@@ -99,29 +99,29 @@ export function PriceChart({
     })
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#22c55e',
-      downColor: '#ef4444',
-      wickUpColor: '#22c55e',
-      wickDownColor: '#ef4444',
+      upColor: '#3dd68c',
+      downColor: '#e5443d',
+      wickUpColor: '#3dd68c',
+      wickDownColor: '#e5443d',
       borderVisible: false,
       priceLineVisible: false,
       lastValueVisible: false,
     })
     const meanSeries = chart.addSeries(LineSeries, {
-      color: '#60a5fa',
+      color: '#d4a853',
       lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: false,
     })
     const upperSeries = chart.addSeries(LineSeries, {
-      color: 'rgba(234, 179, 8, 0.9)',
+      color: 'rgba(200, 149, 110, 0.7)',
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
       priceLineVisible: false,
       lastValueVisible: false,
     })
     const lowerSeries = chart.addSeries(LineSeries, {
-      color: 'rgba(234, 179, 8, 0.9)',
+      color: 'rgba(200, 149, 110, 0.7)',
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
       priceLineVisible: false,
