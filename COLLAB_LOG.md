@@ -3776,3 +3776,34 @@ Deploy commit `0771b53` (separate candle report route page + compact heatmap ref
 
 ### Remaining risks / follow-up
 - Consider adding prev/next candle navigation inside report route for faster sequential forensic review.
+
+## 2026-03-08 - Codex - Observatory hardening pass on current workspace baseline
+
+### Goal
+Stabilize the current observatory runtime on top of the existing in-progress workspace: fix the live build break, update stale logic/E2E checks to match the shipped observatory product, and reduce product-identity drift in release/docs copy.
+
+### Files changed
+- `src/components/observatory/IndicatorClusterLanes.tsx`
+- `tests/e2e/critical-flows.spec.ts`
+- `tests/run-logic-tests.mjs`
+- `docs/release-gate.md`
+- `src/components/guide/HowItWorks.tsx`
+
+### What changed
+- Removed the unused heatmap-loop variable that was failing the TypeScript/Vite production build.
+- Replaced stale logic-suite source checks that depended on deleted dashboard-era files (`DashboardLayout`, `MethodologyBanner`) with checks against the active observatory shell, report route, and hash-router behavior.
+- Replaced the removed policy-chip E2E assertion with a current health-panel assertion from the observatory command bar.
+- Updated release-gate documentation so the documented critical E2E scope matches the observatory runtime rather than the removed dashboard workflow.
+- Rewrote the dormant `HowItWorks` guide so it describes the current observatory product instead of the old trade-decision dashboard.
+
+### Verification
+- `npm.cmd run build` - PASS
+- `npm.cmd run test:logic` - PASS
+- `npm.cmd run test:e2e:critical` - PASS (required elevated Playwright run because local sandbox returned `spawn EPERM`)
+
+### Follow-up risks / next steps
+- `docs/release-signoff.md` remains a historical signoff document from the previous release; it was not refreshed because this pass did not include a new manual signoff/deployment cycle.
+- Several legacy dashboard files are still deleted or modified in the current workspace baseline outside this pass; they were treated as intentional baseline changes and not restored.
+- Dead compatibility surfaces like `MenuDrawer`, `AnalyticsPage`, and `TrustPanel` still exist in the repo but are not mounted by the current app shell; a dedicated cleanup/removal pass is still available if desired.
+### Addendum
+- Generated verification artifacts also changed in this pass: `api/_signals.mjs`, `api/_collector.mjs`.

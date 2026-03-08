@@ -56,11 +56,45 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-detail-title')).toContainText('Funding Z 20')
   })
 
-  test('@critical strict no-recommendation copy is visible', async ({ page }) => {
+  test('@critical health detail is visible from the command bar', async ({ page }) => {
     await page.goto('/')
     await seedObservatoryState(page)
-    await page.getByTestId('obs-chip-policy').click()
-    await expect(page.getByTestId('obs-no-reco-copy')).toContainText('it does not output trading calls')
+    await page.getByTestId('obs-health-chip').click()
+    await expect(page.getByTestId('obs-health-detail')).toBeVisible()
+    await expect(page.getByTestId('obs-health-detail')).toContainText('indicators healthy')
+  })
+
+  test('@critical prev/next candle navigation and browser back returns to heatmap', async ({ page }) => {
+    await page.goto('/')
+    await seedObservatoryState(page)
+
+    // Open a report from a heatmap cell
+    await page.locator('.obs-cluster__cell').first().click()
+    await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
+    const initialUrl = page.url()
+
+    // Step to next candle (if available)
+    const nextBtn = page.getByTestId('obs-candle-report-next')
+    await expect(nextBtn).toBeVisible()
+    if (await nextBtn.isEnabled()) {
+      await nextBtn.click()
+      await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
+      // URL should change (replaceState, so same history entry)
+      expect(page.url()).not.toBe(initialUrl)
+    }
+
+    // Step to prev candle (if available)
+    const prevBtn = page.getByTestId('obs-candle-report-prev')
+    await expect(prevBtn).toBeVisible()
+    if (await prevBtn.isEnabled()) {
+      await prevBtn.click()
+      await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
+    }
+
+    // Browser back should return to heatmap (prev/next used replaceState)
+    await page.goBack()
+    await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
+    await expect(page).toHaveURL(/#\/observatory$/)
   })
 
   test('@critical runtime diagnostics keep app visible under failure signals', async ({ page }) => {

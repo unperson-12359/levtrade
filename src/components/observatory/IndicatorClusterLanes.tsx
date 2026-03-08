@@ -77,14 +77,14 @@ export function IndicatorClusterLanes({
           <div key={lane} className="obs-cluster__lane obs-cluster__lane--compact">
             <div className="obs-cluster__lane-label">{lane}</div>
             <div className="obs-cluster__cells obs-cluster__cells--compact">
-              {clusters.map((cluster, index) => {
+              {clusters.map((cluster) => {
                 const count = cluster.laneCounts[lane] ?? 0
                 const selected = cluster.time === activeTime
                 const level = intensityLevel(count, maxLaneCount)
                 const showCount = mode === 'pro' ? count > 0 : count >= 3
                 return (
                   <button
-                    key={`${lane}:${cluster.time}:${index}`}
+                    key={`${lane}:${cluster.time}`}
                     type="button"
                     className={`obs-cluster__cell obs-cluster__cell--${level} ${selected ? 'obs-cluster__cell--selected' : ''}`}
                     onClick={() => {

@@ -47,6 +47,10 @@ export function useChartModel(
   const isHistoricalReview = options?.reviewMode === 'historical'
 
   return useMemo(() => {
+    if (!sourceCandles || sourceCandles.length === 0) {
+      return { candles: [], meanLine: [], upperBandLine: [], lowerBandLine: [], markers: [], priceLines: [], focusRange: null, latestClose: null, legend: [] }
+    }
+
     const candleData: CandlestickData[] = sourceCandles.map((candle) => ({
       time: Math.floor(candle.time / 1000) as UTCTimestamp,
       open: candle.open,

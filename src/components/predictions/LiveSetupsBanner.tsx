@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useLiveSetups, type HeatTier } from '../../hooks/useHotPredictions'
+import { useLiveSetups, type HeatTier } from '../../hooks/useLiveSetups'
 import { formatPercent, timeAgo } from '../../utils/format'
 import type { TrackedSetup } from '../../types/setup'
 import { SignalDrawer } from '../shared/SignalDrawer'

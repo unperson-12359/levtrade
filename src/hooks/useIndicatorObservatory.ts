@@ -113,6 +113,9 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
   )
 
   const localPriceContext = useMemo(() => {
+    if (!candles || candles.length === 0) {
+      return { lastPrice: livePrice ?? null, change24hPct: null, intervalReturnPct: null, updatedAt: new Date().toISOString() }
+    }
     const latestClose = candles[candles.length - 1]?.close ?? null
     const lastPrice = livePrice ?? latestClose ?? null
     const barsFor24h = canonicalInterval === '4h' ? 6 : 1

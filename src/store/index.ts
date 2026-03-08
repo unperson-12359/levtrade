@@ -83,7 +83,6 @@ export const useStore = create<AppStore>()(
         trackedOutcomes: state.trackedOutcomes,
         trackerLastRunAt: state.trackerLastRunAt,
         riskInputsUpdatedAt: state.riskInputsUpdatedAt,
-        analyticsTab: state.analyticsTab,
         lastSignalComputedAt: state.lastSignalComputedAt,
       }),
       merge: (persistedState, currentState) => {

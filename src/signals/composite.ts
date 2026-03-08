@@ -19,7 +19,9 @@ export function computeComposite(
   ]
 
   // Raw average of directional signals
-  const rawComposite = directionalSignals.reduce((s, v) => s + v, 0) / directionalSignals.length
+  const rawComposite = directionalSignals.length > 0
+    ? directionalSignals.reduce((s, v) => s + v, 0) / directionalSignals.length
+    : 0
 
   // Regime confidence multiplier
   let regimeMultiplier: number

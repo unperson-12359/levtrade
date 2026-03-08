@@ -33,8 +33,12 @@ The gate script requires the signoff file to include:
 
 `tests/e2e/critical-flows.spec.ts` covers:
 
-1. App load, coin switch, interval switch, and chart presence
-2. Step lock state and readiness `%` parity with light count
-3. Canonical vs fallback setup-history messaging
-4. Analytics drawer tab interactions
-5. Runtime diagnostics visibility without losing app shell
+1. App load, coin switch, interval switch, price chart, and cluster heatmap render
+2. Heatmap cell navigation into the candle report route and return to the heatmap
+3. Timeline/network and basic/advanced mode interactions, including indicator drilldown
+4. Health detail and runtime diagnostics visibility from the command bar
+5. Runtime diagnostics visibility without losing the observatory shell
+
+## Manual verification intent
+
+- `Trust source verification` means validating current data-source and fallback messaging for the observatory, not the removed dashboard-era setup workflow.

@@ -6,8 +6,6 @@ import type { CandleInterval } from '../config/intervals'
 import type { AppStore } from '.'
 import type { ExecutionEventV1, FreshnessStatusV1 } from '../contracts/v1'
 
-export type AnalyticsTab = 'performance' | 'accuracy' | 'history' | 'storage'
-
 export interface RuntimeDiagnostic {
   id: string
   time: number
@@ -25,7 +23,6 @@ export interface UISlice {
   riskInputs: RiskInputs
   riskInputsLocked: boolean
   riskInputsUpdatedAt: number | null
-  analyticsTab: AnalyticsTab
   runtimeDiagnostics: RuntimeDiagnostic[]
   canonicalFreshness: FreshnessStatusV1
   signalAccuracyFreshness: FreshnessStatusV1
@@ -39,7 +36,6 @@ export interface UISlice {
   updateRiskInput: <K extends keyof RiskInputs>(field: K, value: RiskInputs[K]) => void
   setRiskInputsLocked: (locked: boolean) => void
   resetRiskInputs: () => void
-  setAnalyticsTab: (tab: AnalyticsTab) => void
   pushRuntimeDiagnostic: (diagnostic: {
     source: string
     message: string
@@ -61,7 +57,6 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
   riskInputs: { ...DEFAULT_RISK_INPUTS },
   riskInputsLocked: false,
   riskInputsUpdatedAt: null,
-  analyticsTab: 'performance',
   runtimeDiagnostics: [],
   canonicalFreshness: 'stale',
   signalAccuracyFreshness: 'stale',
@@ -96,8 +91,6 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
   setRiskInputsLocked: (locked) => set({ riskInputsLocked: locked }),
 
   setInterval: (interval) => set({ selectedInterval: interval }),
-
-  setAnalyticsTab: (tab) => set({ analyticsTab: tab }),
 
   pushRuntimeDiagnostic: (diagnostic) =>
     set((state) => {

@@ -66,10 +66,10 @@ npm.cmd run build:collector
 
 ## Browser verification
 After deploy:
-- open Setup History and confirm canonical rows appear without a full reload after the collector resolves new outcomes
-- confirm a post-deadline `72h` row no longer stays stale if the collector has already updated it
-- confirm Accuracy uses canonical server data when available
-- confirm fallback copy appears only when canonical endpoints are unavailable or empty
+- open the observatory shell and confirm the default timeline view loads with the price chart and indicator heatmap
+- confirm heatmap cell selection opens the candle report route and browser back returns to the heatmap
+- confirm network view still renders indicator drilldown correctly after the cleanup pass
+- confirm health/runtime/freshness states remain visible and fallback copy appears only when canonical endpoints are unavailable or empty
 
 ## Vercel verification
 - `/api/server-setups` returns canonical setup rows

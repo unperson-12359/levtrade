@@ -536,7 +536,7 @@ function computeComposite(hurst, zScore, funding, oiDelta) {
     funding.normalizedSignal,
     oiDelta.normalizedSignal
   ];
-  const rawComposite = directionalSignals.reduce((s, v) => s + v, 0) / directionalSignals.length;
+  const rawComposite = directionalSignals.length > 0 ? directionalSignals.reduce((s, v) => s + v, 0) / directionalSignals.length : 0;
   let regimeMultiplier;
   if (hurst.value < 0.45) {
     regimeMultiplier = 1 + (0.45 - hurst.value) * 3;
