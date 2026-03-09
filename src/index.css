@@ -6862,6 +6862,11 @@ button {
   box-shadow: var(--obs-shadow-soft);
 }
 
+.obs-rail > .obs-runtime,
+.obs-rail > .obs-health-panel {
+  margin-top: 0;
+}
+
 .obs-runtime__clear {
   color: var(--obs-ink);
 }

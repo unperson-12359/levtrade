@@ -166,6 +166,8 @@ async function seedObservatoryState(page: Page) {
       }
     }
   }, { prices, candlesByCoin, fundingByCoin, oiByCoin })
+
+  await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 }
 
 function buildCandles(basePrice: number, now: number) {

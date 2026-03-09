@@ -543,53 +543,43 @@ export function ObservatoryLayout() {
                 </>
               )}
 
-              <section className="obs-panel obs-panel--rail">
-                <div className="obs-panel__eyebrow">System</div>
-                <div className="obs-system-grid">
-                  <ShellStat label="Connection" value={connectionStatus} tone={connectionTone(connectionStatus)} />
-                  <ShellStat label="Freshness" value={source === 'canonical' ? freshness : 'local'} tone={freshnessTone(source, freshness)} />
-                  <ShellStat label="Runtime" value={runtimeDiagnostics.length > 0 ? String(runtimeDiagnostics.length) : 'OK'} tone={runtimeDiagnostics.length > 0 ? 'warn' : 'good'} />
-                  <ShellStat label="Indicators" value={healthLabel} tone={healthTone} />
-                </div>
+              {showRuntimeDetail && (
+                <section className="obs-runtime" data-testid="obs-runtime-detail">
+                  <span className="obs-runtime__tag">Runtime</span>
+                  <span className="obs-runtime__msg">{latestRuntimeMessage ?? 'No runtime warnings currently.'}</span>
+                  <button
+                    type="button"
+                    className="obs-runtime__clear"
+                    onClick={() => {
+                      clearRuntimeDiagnostics()
+                      setShowRuntimeDetail(false)
+                    }}
+                  >
+                    Clear
+                  </button>
+                </section>
+              )}
 
-                {showRuntimeDetail && (
-                  <section className="obs-runtime" data-testid="obs-runtime-detail">
-                    <span className="obs-runtime__tag">Runtime</span>
-                    <span className="obs-runtime__msg">{latestRuntimeMessage ?? 'No runtime warnings currently.'}</span>
-                    <button
-                      type="button"
-                      className="obs-runtime__clear"
-                      onClick={() => {
-                        clearRuntimeDiagnostics()
-                        setShowRuntimeDetail(false)
-                      }}
-                    >
-                      Clear
-                    </button>
-                  </section>
-                )}
-
-                {showHealthDetail && (
-                  <section className="obs-health-panel" data-testid="obs-health-detail">
-                    <div className="obs-health-panel__head">
-                      <span className={`obs-health-panel__status obs-health-panel__status--${healthTone}`}>{snapshot.health.status}</span>
-                      <span>{snapshot.health.valid}/{snapshot.health.total} indicators healthy</span>
+              {showHealthDetail && (
+                <section className="obs-health-panel" data-testid="obs-health-detail">
+                  <div className="obs-health-panel__head">
+                    <span className={`obs-health-panel__status obs-health-panel__status--${healthTone}`}>{snapshot.health.status}</span>
+                    <span>{snapshot.health.valid}/{snapshot.health.total} indicators healthy</span>
+                  </div>
+                  {snapshot.health.warnings.length > 0 ? (
+                    <div className="obs-health-panel__warnings">
+                      {snapshot.health.warnings.map((warning) => (
+                        <div key={`${warning.indicatorId}:${warning.kind}:${warning.message}`} className="obs-health-panel__warning">
+                          <strong>{warning.indicatorLabel}</strong>
+                          <span>{warning.message}</span>
+                        </div>
+                      ))}
                     </div>
-                    {snapshot.health.warnings.length > 0 ? (
-                      <div className="obs-health-panel__warnings">
-                        {snapshot.health.warnings.map((warning) => (
-                          <div key={`${warning.indicatorId}:${warning.kind}:${warning.message}`} className="obs-health-panel__warning">
-                            <strong>{warning.indicatorLabel}</strong>
-                            <span>{warning.message}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="obs-health-panel__ok">All indicator checks passed.</div>
-                    )}
-                  </section>
-                )}
-              </section>
+                  ) : (
+                    <div className="obs-health-panel__ok">All indicator checks passed.</div>
+                  )}
+                </section>
+              )}
             </aside>
           </div>
         )}
@@ -641,20 +631,6 @@ function toneFromHealthStatus(status: IndicatorHealthStatus): 'good' | 'warn' | 
 
 function statusTone(status: IndicatorHealthStatus): 'good' | 'warn' | 'critical' {
   return toneFromHealthStatus(status)
-}
-
-function connectionTone(status: string): 'good' | 'warn' | 'critical' | 'neutral' {
-  if (status === 'connected') return 'good'
-  if (status === 'connecting' || status === 'disconnected') return 'warn'
-  if (status === 'error') return 'critical'
-  return 'neutral'
-}
-
-function freshnessTone(source: 'canonical' | 'local', freshness: 'fresh' | 'delayed' | 'stale' | 'error'): 'good' | 'warn' | 'critical' {
-  if (source !== 'canonical') return 'warn'
-  if (freshness === 'fresh') return 'good'
-  if (freshness === 'error') return 'critical'
-  return 'warn'
 }
 
 function formatPrice(value: number | null): string {

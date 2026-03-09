@@ -3914,3 +3914,26 @@ Refine the shipped editorial observatory with a second-pass polish grounded in c
 
 ### Remaining risks / follow-up
 - This pass intentionally avoided another layout rewrite; if the site still feels too tall after production review, the next step should be a targeted density pass on report and right-rail content rather than more visual ornament.
+## 2026-03-09 - Codex - Remove duplicated rail system summary
+
+### Goal
+Remove the duplicated right-rail system summary because connection, freshness, runtime, and indicator health already appear in the sticky header chips.
+
+### Files changed
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/index.css`
+- `tests/e2e/critical-flows.spec.ts`
+
+### What changed
+- Removed the right-rail `System` summary panel that repeated header status information.
+- Kept the runtime and health detail panels accessible from the existing header chips, rendering them as standalone rail items when opened.
+- Reset standalone rail detail spacing so the removed wrapper does not leave dead vertical offset.
+- Hardened the E2E seed helper to wait for the seeded observatory timeline before exercising network drilldown, eliminating a timing race exposed during this pass.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS
+
+### Remaining risks / follow-up
+- This pass removes duplicated summary content only; if the rail still feels visually heavy, the next step should be a density pass on drilldown and report modules rather than restoring status cards.
