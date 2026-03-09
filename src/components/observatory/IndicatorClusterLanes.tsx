@@ -6,6 +6,7 @@ const LANE_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Vol
 export type ClusterPresentationMode = 'simple' | 'pro'
 
 interface IndicatorClusterLanesProps {
+  layout?: 'default' | 'side-rail'
   timeline: CandleHitCluster[]
   timeframe: '4h' | '1d'
   mode: ClusterPresentationMode
@@ -15,6 +16,7 @@ interface IndicatorClusterLanesProps {
 }
 
 export function IndicatorClusterLanes({
+  layout = 'default',
   timeline,
   timeframe,
   mode,
@@ -23,19 +25,30 @@ export function IndicatorClusterLanes({
   onOpenReport,
 }: IndicatorClusterLanesProps) {
   const isNarrowViewport = typeof window !== 'undefined' && window.innerWidth <= 760
+  const isDesktopSideRail = layout === 'side-rail' && !isNarrowViewport
   const windowSize = isNarrowViewport
     ? mode === 'pro'
       ? (timeframe === '4h' ? 72 : 54)
       : (timeframe === '4h' ? 48 : 36)
+    : isDesktopSideRail
+      ? mode === 'pro'
+        ? (timeframe === '4h' ? 96 : 72)
+        : (timeframe === '4h' ? 72 : 54)
     : mode === 'pro'
       ? (timeframe === '4h' ? 120 : 90)
       : (timeframe === '4h' ? 96 : 72)
   const source = useMemo(() => timeline.slice(-windowSize), [timeline, windowSize])
   const clusters = useMemo(() => {
     if (mode === 'pro') return source
-    const targetPoints = isNarrowViewport ? (timeframe === '4h' ? 24 : 18) : timeframe === '4h' ? 48 : 38
+    const targetPoints = isNarrowViewport
+      ? (timeframe === '4h' ? 24 : 18)
+      : isDesktopSideRail
+        ? (timeframe === '4h' ? 30 : 24)
+        : timeframe === '4h'
+          ? 48
+          : 38
     return downsampleClusters(source, targetPoints)
-  }, [isNarrowViewport, mode, source, timeframe])
+  }, [isDesktopSideRail, isNarrowViewport, mode, source, timeframe])
 
   const maxLaneCount = useMemo(() => {
     let maxCount = 0
@@ -67,24 +80,22 @@ export function IndicatorClusterLanes({
         </div>
       </div>
 
-      <div className="obs-cluster__summary-strip">
-        {LANE_ORDER.map((lane) => {
-          const latest = clusters[clusters.length - 1]
-          const count = latest?.laneCounts[lane] ?? 0
-          const level = intensityLevel(count, maxLaneCount)
-          return (
-            <div key={lane} className="obs-cluster__summary-dot-group">
-              <span className={`obs-cluster__summary-dot obs-cluster__summary-dot--${level}`} />
-              <span className="obs-cluster__summary-dot-label">{lane.slice(0, 3)}</span>
-            </div>
-          )
-        })}
-      </div>
-
       <div className="obs-cluster__heatmap obs-cluster__heatmap--compact">
         {LANE_ORDER.map((lane) => (
           <div key={lane} className="obs-cluster__lane obs-cluster__lane--compact">
-            <div className="obs-cluster__lane-label">{lane}</div>
+            {(() => {
+              const latest = clusters[clusters.length - 1]
+              const latestCount = latest?.laneCounts[lane] ?? 0
+              const latestLevel = intensityLevel(latestCount, maxLaneCount)
+              return (
+                <div className="obs-cluster__lane-head">
+                  <div className="obs-cluster__lane-label">{lane}</div>
+                  <div className={`obs-cluster__lane-count obs-cluster__lane-count--${latestLevel}`}>
+                    {latestCount > 0 ? latestCount : ''}
+                  </div>
+                </div>
+              )
+            })()}
             <div className="obs-cluster__cells obs-cluster__cells--compact">
               {clusters.map((cluster) => {
                 const count = cluster.laneCounts[lane] ?? 0

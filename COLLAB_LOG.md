@@ -3987,3 +3987,27 @@ Move the heatmap to the right of the chart in desktop timeline mode, place it be
 
 ### Remaining risks / follow-up
 - If the desktop right column still feels too dense after live review, the next pass should tune heatmap density or panel padding rather than shrinking the chart again.
+## 2026-03-09 - Codex - Optimize heatmap spacing for side-column layout
+
+### Goal
+Improve the heatmap spacing in the desktop side-column layout by reclaiming the left label gutter, reducing column density, and making the cells visibly larger and easier to scan.
+
+### Files changed
+- `src/components/observatory/IndicatorClusterLanes.tsx`
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/index.css`
+
+### What changed
+- Added a `side-rail` layout mode for the heatmap component so the desktop right-column version can use a shorter rolling window / stronger downsampling.
+- Removed the separate summary strip and restructured each lane into a stacked layout: lane title on top, heatmap row underneath.
+- Added a compact per-lane count marker to use the reclaimed header space instead of the old left label gutter.
+- Increased desktop side-column cell size and spacing so the heatmap breathes more without introducing horizontal overflow.
+- Preserved the existing mobile density fallback and report-click interaction behavior.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS
+
+### Remaining risks / follow-up
+- If the heatmap still feels dense on the live site, the next pass should tune the exact desktop target point count rather than reintroducing the old summary strip or left-label gutter.

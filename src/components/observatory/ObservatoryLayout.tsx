@@ -399,6 +399,7 @@ export function ObservatoryLayout() {
 
                   <section className="obs-panel obs-panel--rail obs-panel--heatmap-rail">
                     <IndicatorClusterLanes
+                      layout="side-rail"
                       timeline={snapshot.timeline}
                       timeframe={timeframe}
                       mode={clusterMode}

@@ -7123,3 +7123,112 @@ button {
     height: 100%;
   }
 }
+
+/* Heatmap spacing optimization */
+.obs-cluster {
+  gap: 0.38rem;
+}
+
+.obs-cluster__header {
+  margin-bottom: 0.08rem;
+}
+
+.obs-cluster__summary-strip {
+  display: none;
+}
+
+.obs-cluster__heatmap {
+  padding: 0.52rem;
+  gap: 0.42rem;
+}
+
+.obs-cluster__lane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.18rem;
+}
+
+.obs-cluster__lane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.obs-cluster__lane-label {
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--obs-muted-2);
+}
+
+.obs-cluster__lane-count {
+  min-width: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  line-height: 1;
+  text-align: right;
+}
+
+.obs-cluster__lane-count--none {
+  color: rgba(21, 17, 12, 0.26);
+}
+
+.obs-cluster__lane-count--l1 {
+  color: rgba(186, 122, 26, 0.62);
+}
+
+.obs-cluster__lane-count--l2 {
+  color: rgba(186, 122, 26, 0.82);
+}
+
+.obs-cluster__lane-count--l3 {
+  color: rgba(206, 75, 43, 0.74);
+}
+
+.obs-cluster__lane-count--l4 {
+  color: rgba(206, 75, 43, 0.96);
+}
+
+.obs-cluster__cells {
+  grid-auto-columns: minmax(9px, 1fr);
+  gap: 0.12rem;
+}
+
+.obs-cluster__cell {
+  min-height: 18px;
+}
+
+@media (min-width: 1101px) {
+  .obs-panel--heatmap-rail .obs-cluster__heatmap {
+    padding: 0.58rem;
+  }
+
+  .obs-panel--heatmap-rail .obs-cluster__cells {
+    grid-auto-columns: minmax(11px, 1fr);
+    gap: 0.14rem;
+  }
+
+  .obs-panel--heatmap-rail .obs-cluster__cell {
+    min-height: 20px;
+    font-size: 0.5rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .obs-cluster__heatmap {
+    gap: 0.34rem;
+  }
+
+  .obs-cluster__cells {
+    grid-auto-columns: minmax(4px, 1fr);
+    gap: 1px;
+  }
+
+  .obs-cluster__cell {
+    font-size: 0;
+    min-height: 14px;
+    padding: 0;
+  }
+}
