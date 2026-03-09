@@ -3937,3 +3937,30 @@ Remove the duplicated right-rail system summary because connection, freshness, r
 
 ### Remaining risks / follow-up
 - This pass removes duplicated summary content only; if the rail still feels visually heavy, the next step should be a density pass on drilldown and report modules rather than restoring status cards.
+## 2026-03-09 - Codex - Remove non-essential observatory chrome
+
+### Goal
+Strip visible UI chrome that does not add end-user value: decorative labels, duplicate metrics, and duplicate session context, while keeping the core observatory controls and analysis surfaces intact.
+
+### Files changed
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/components/observatory/IndicatorClusterLanes.tsx`
+- `src/components/observatory/CandleReportPage.tsx`
+- `src/index.css`
+
+### What changed
+- Removed the header brand meta chips under the LevTrade lockup.
+- Removed the market-strip metrics cards and kept only the tracked market selector row.
+- Removed decorative frame codes from the chart and network panel headers.
+- Removed the timeline Session rail block and kept only the Latest pulse rail panel.
+- Removed the heatmap metadata chips that repeated header state.
+- Removed the report-page context strip and kept only navigation, time, hit count, and price change.
+- Tightened layout rules so the reduced chrome does not leave empty grid tracks behind.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS
+
+### Remaining risks / follow-up
+- The next cleanup target, if desired, should be advanced drilldown density rather than more shell removal; the remaining surfaces are mostly analysis-bearing rather than decorative.

@@ -7072,3 +7072,18 @@ button {
     transform: none !important;
   }
 }
+
+/* Observatory chrome cleanup */
+.obs-market-strip {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.obs-report__bar {
+  grid-template-columns: auto auto auto auto;
+}
+
+@media (max-width: 1280px) {
+  .obs-report__bar {
+    grid-template-columns: auto auto auto auto;
+  }
+}

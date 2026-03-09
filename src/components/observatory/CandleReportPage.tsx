@@ -74,11 +74,6 @@ export function CandleReportPage({
           <button type="button" className="obs-report__bar-btn" onClick={onBack} data-testid="obs-candle-report-back">Heatmap</button>
           <button type="button" className="obs-report__bar-btn" disabled={!onNext} onClick={onNext ?? undefined} data-testid="obs-candle-report-next">&rarr;</button>
         </nav>
-
-        <div className="obs-report__bar-context">
-          <span className="obs-report__bar-kicker">Candle report</span>
-          <span className="obs-report__bar-symbol">{coin} / {timeframe}</span>
-        </div>
         <time className="obs-report__bar-time">{new Date(cluster.time).toLocaleString()}</time>
         <span className="obs-report__bar-hits">{activeCount}/{totalCount}</span>
 
