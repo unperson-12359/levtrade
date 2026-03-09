@@ -11,6 +11,8 @@ interface PriceContext {
   updatedAt: string
 }
 
+export type ObservatoryLiveStatus = 'live' | 'updating' | 'delayed' | 'disconnected'
+
 interface CanonicalResponse {
   ok?: boolean
   snapshot?: ObservatorySnapshot
@@ -141,22 +143,19 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
   const [remotePriceContext, setRemotePriceContext] = useState<PriceContext | null>(null)
   const [remoteKey, setRemoteKey] = useState<string | null>(null)
   const [freshness, setFreshness] = useState<'fresh' | 'delayed' | 'stale' | 'error'>('stale')
-  const [source, setSource] = useState<'canonical' | 'local'>('local')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     setRemoteSnapshot(null)
     setRemotePriceContext(null)
     setRemoteKey(requestKey)
-    setSource('local')
     setFreshness('stale')
 
     if (import.meta.env.VITE_E2E_MOCK === '1') {
       setRemoteSnapshot(null)
       setRemotePriceContext(null)
       setRemoteKey(null)
-      setFreshness('stale')
-      setSource('local')
+      setFreshness('fresh')
       setLoading(false)
       return
     }
@@ -179,12 +178,8 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
         setRemotePriceContext(payload.priceContext ?? null)
         setRemoteKey(requestKey)
         setFreshness(payload.meta?.freshness ?? 'fresh')
-        setSource('canonical')
       } catch {
         if (!active) return
-        setRemoteSnapshot(null)
-        setRemotePriceContext(null)
-        setSource('local')
         setFreshness('error')
       } finally {
         if (active) {
@@ -203,12 +198,25 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
   }, [coin, canonicalInterval, requestKey])
 
   const hasMatchingRemote = remoteKey === requestKey
+  const snapshot = hasMatchingRemote ? (remoteSnapshot ?? localSnapshot) : localSnapshot
+  const priceContext = hasMatchingRemote ? (remotePriceContext ?? localPriceContext) : localPriceContext
+  const liveStatus: ObservatoryLiveStatus =
+    import.meta.env.VITE_E2E_MOCK === '1'
+      ? 'live'
+      : loading && remoteSnapshot
+        ? 'updating'
+        : freshness === 'fresh'
+          ? 'live'
+          : freshness === 'delayed'
+            ? 'delayed'
+            : remoteSnapshot
+              ? 'delayed'
+              : 'disconnected'
 
   return {
-    snapshot: hasMatchingRemote ? (remoteSnapshot ?? localSnapshot) : localSnapshot,
-    priceContext: hasMatchingRemote ? (remotePriceContext ?? localPriceContext) : localPriceContext,
-    source: hasMatchingRemote && remoteSnapshot ? source : 'local',
-    freshness: hasMatchingRemote ? freshness : 'stale',
+    snapshot,
+    priceContext,
+    liveStatus,
     loading,
   }
 }

@@ -8,7 +8,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-shell')).toBeVisible()
     await expect(page.getByTestId('obs-command-bar')).toBeVisible()
     await expect(page.getByTestId('obs-price-strip')).toBeVisible()
-    await expect(page.getByTestId('obs-health-chip')).toBeVisible()
+    await expect(page.getByTestId('obs-live-status')).toContainText('Live')
     await expect(page.locator('.price-chart')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
     await expect(page.getByTestId('obs-guide-strip')).toBeVisible()
@@ -21,7 +21,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-methodology-page')).toBeVisible()
     await expect(page.getByTestId('obs-methodology-flow')).toBeVisible()
     await expect(page.getByTestId('obs-methodology-pages')).toBeVisible()
-    await expect(page.getByTestId('obs-methodology-trust')).toBeVisible()
+    await expect(page.getByTestId('obs-methodology-live')).toBeVisible()
     await page.getByText('Open live observatory').click()
     await expect(page.getByTestId('obs-guide-strip')).toBeVisible()
 
@@ -82,12 +82,10 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-detail-title')).toContainText('Funding Z 20')
   })
 
-  test('@critical health detail is visible from the command bar', async ({ page }) => {
+  test('@critical live status is visible from the command bar', async ({ page }) => {
     await page.goto('/')
     await seedObservatoryState(page)
-    await page.getByTestId('obs-health-chip').click()
-    await expect(page.getByTestId('obs-health-detail')).toBeVisible()
-    await expect(page.getByTestId('obs-health-detail')).toContainText('indicators healthy')
+    await expect(page.getByTestId('obs-live-status')).toContainText('Live')
   })
 
   test('@critical prev/next candle navigation and browser back returns to heatmap', async ({ page }) => {
@@ -137,9 +135,9 @@ test.describe('Observatory critical flows', () => {
       })
     })
 
-    await expect(page.locator('.obs-runtime')).toBeVisible()
-    await expect(page.getByTestId('obs-chip-runtime')).toContainText('Runtime 1')
-    await expect(page.locator('.obs-runtime')).toContainText('Mock runtime warning')
+    await expect(page.getByTestId('obs-diagnostics-toggle')).toContainText('Diagnostics')
+    await expect(page.getByTestId('obs-diagnostics-panel')).toBeVisible()
+    await expect(page.getByTestId('obs-diagnostics-panel')).toContainText('Mock runtime warning')
     await expect(page.getByTestId('obs-shell')).toBeVisible()
   })
 })

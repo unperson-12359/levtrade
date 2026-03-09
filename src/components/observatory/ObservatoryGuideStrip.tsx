@@ -1,10 +1,12 @@
+import type { ObservatoryLiveStatus } from '../../hooks/useIndicatorObservatory'
 import { OBSERVATORY_READING_STEPS } from './methodologyContent'
 
 interface ObservatoryGuideStripProps {
   coin: string
   timeframe: '4h' | '1d'
   primaryView: 'timeline' | 'network'
-  freshness: 'fresh' | 'delayed' | 'stale' | 'error'
+  liveStatus: ObservatoryLiveStatus
+  updatedAt: string
   selectedClusterLabel: string
   selectedClusterHits: number | null
   onOpenMethodology: () => void
@@ -14,13 +16,14 @@ export function ObservatoryGuideStrip({
   coin,
   timeframe,
   primaryView,
-  freshness,
+  liveStatus,
+  updatedAt,
   selectedClusterLabel,
   selectedClusterHits,
   onOpenMethodology,
 }: ObservatoryGuideStripProps) {
   const currentStepId =
-    freshness === 'error' || freshness === 'stale'
+    liveStatus === 'delayed' || liveStatus === 'disconnected'
       ? 'market'
       : primaryView === 'network'
         ? 'deep-dive'
@@ -42,7 +45,8 @@ export function ObservatoryGuideStrip({
 
       <div className="obs-guide__meta">
         <span>{coin} / {timeframe}</span>
-        <span>Freshness: {freshness}</span>
+        <span>Status: {formatGuideStatus(liveStatus)}</span>
+        <span>Updated: {formatGuideUpdatedAt(updatedAt)}</span>
         <span>Selected candle: {selectedClusterLabel}</span>
       </div>
 
@@ -64,4 +68,17 @@ export function ObservatoryGuideStrip({
       </div>
     </section>
   )
+}
+
+function formatGuideStatus(status: ObservatoryLiveStatus): string {
+  if (status === 'live') return 'Live'
+  if (status === 'updating') return 'Updating'
+  if (status === 'delayed') return 'Delayed'
+  return 'Disconnected'
+}
+
+function formatGuideUpdatedAt(updatedAt: string): string {
+  const time = Date.parse(updatedAt)
+  if (!Number.isFinite(time)) return '--'
+  return new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }

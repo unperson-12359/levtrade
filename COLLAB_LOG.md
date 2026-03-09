@@ -4145,3 +4145,24 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - Section jumps now use in-page scroll buttons instead of raw hash anchors, which keeps `#/methodology` stable.
 - Remaining incomplete work:
   - None for this fix.
+## 2026-03-09 - Codex GPT-5
+- Goal: Implement the first live-first observatory pass by removing provenance-heavy UX, trimming methodology content, and replacing header trust/fallback language with compact live status plus secondary diagnostics.
+- Files changed:
+  - `src/hooks/useIndicatorObservatory.ts`
+  - `src/components/observatory/ObservatoryLayout.tsx`
+  - `src/components/observatory/ObservatoryGuideStrip.tsx`
+  - `src/components/observatory/MethodologyPage.tsx`
+  - `src/components/observatory/methodologyContent.ts`
+  - `src/index.css`
+  - `tests/run-logic-tests.mjs`
+  - `tests/e2e/critical-flows.spec.ts`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - This pass changes the observatory’s live-first UX contract and preserves the underlying fallback/setup/collector systems internally.
+  - Canonical/setup/collector architecture is still present in the repo and should be isolated further in later passes so those systems no longer shape product behavior outside diagnostics.
+  - Methodology now explains live reading and shell status, but analytics and older setup-oriented surfaces elsewhere in the repo still need a separate demotion pass if they are to stop leaking the old product model.
+- Remaining incomplete work:
+  - No backend transport rewrite was done in this pass; SSE/polling/collector behavior is unchanged beyond being less visible in the observatory UX.

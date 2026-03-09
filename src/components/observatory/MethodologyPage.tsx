@@ -2,9 +2,9 @@ import type { TrackedCoin } from '../../types/market'
 import {
   OBSERVATORY_CATEGORY_EXPLANATIONS,
   OBSERVATORY_DAILY_WORKFLOW,
+  OBSERVATORY_LIVE_STATUS_NOTES,
   OBSERVATORY_PAGE_PURPOSES,
   OBSERVATORY_READING_STEPS,
-  OBSERVATORY_TRUST_TERMS,
 } from './methodologyContent'
 
 interface MethodologyPageProps {
@@ -60,7 +60,7 @@ export function MethodologyPage({
         <button type="button" onClick={scrollToSection('obs-methodology-flow')}>Reading flow</button>
         <button type="button" onClick={scrollToSection('obs-methodology-pages')}>Pages</button>
         <button type="button" onClick={scrollToSection('obs-methodology-categories')}>Categories</button>
-        <button type="button" onClick={scrollToSection('obs-methodology-trust')}>Trust and context</button>
+        <button type="button" onClick={scrollToSection('obs-methodology-live')}>Live mode</button>
         <button type="button" onClick={scrollToSection('obs-methodology-workflow')}>Daily workflow</button>
       </div>
 
@@ -117,17 +117,17 @@ export function MethodologyPage({
         </div>
       </section>
 
-      <section id="obs-methodology-trust" className="obs-panel" data-testid="obs-methodology-trust">
+      <section id="obs-methodology-live" className="obs-panel" data-testid="obs-methodology-live">
         <div className="obs-panel__title-row">
           <div>
-            <div className="obs-panel__eyebrow">Trust and context</div>
-            <h2 className="obs-panel__title">How to know what you can trust</h2>
+            <div className="obs-panel__eyebrow">Live mode</div>
+            <h2 className="obs-panel__title">What the shell is telling you right now</h2>
           </div>
         </div>
         <div className="obs-methodology__trust-list">
-          {OBSERVATORY_TRUST_TERMS.map((entry) => (
-            <div key={entry.term} className="obs-methodology__trust-row">
-              <strong>{entry.term}</strong>
+          {OBSERVATORY_LIVE_STATUS_NOTES.map((entry) => (
+            <div key={entry.label} className="obs-methodology__trust-row">
+              <strong>{entry.label}</strong>
               <span>{entry.meaning}</span>
             </div>
           ))}

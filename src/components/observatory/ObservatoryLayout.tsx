@@ -28,7 +28,6 @@ export function ObservatoryLayout() {
   const setInterval = useStore((state) => state.setInterval)
   const connectionStatus = useStore((state) => state.connectionStatus)
   const runtimeDiagnostics = useStore((state) => state.runtimeDiagnostics)
-  const clearRuntimeDiagnostics = useStore((state) => state.clearRuntimeDiagnostics)
   const prices = useStore((state) => state.prices)
 
   const {
@@ -40,14 +39,13 @@ export function ObservatoryLayout() {
     navigateToReport,
   } = useHashRouter()
 
-  const { snapshot, priceContext, source, freshness, loading } = useIndicatorObservatory(selectedCoin)
+  const { snapshot, priceContext, liveStatus, loading } = useIndicatorObservatory(selectedCoin)
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null)
   const [selectedClusterTime, setSelectedClusterTime] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('basic')
   const [primaryView, setPrimaryView] = useState<PrimaryView>('timeline')
   const [clusterMode, setClusterMode] = useState<ClusterPresentationMode>('simple')
-  const [showRuntimeDetail, setShowRuntimeDetail] = useState(false)
-  const [showHealthDetail, setShowHealthDetail] = useState(false)
+  const [showDiagnostics, setShowDiagnostics] = useState(false)
   const [chartCollapsed, setChartCollapsed] = useState(false)
   const [catalogOpen, setCatalogOpen] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -89,12 +87,6 @@ export function ObservatoryLayout() {
       setSelectedClusterTime(snapshot.timeline[snapshot.timeline.length - 1]?.time ?? null)
     }
   }, [selectedClusterTime, snapshot.timeline, route.page])
-
-  useEffect(() => {
-    if (runtimeDiagnostics.length > 0) {
-      setShowRuntimeDetail(true)
-    }
-  }, [runtimeDiagnostics.length])
 
   useEffect(() => {
     setMenuOpen(false)
@@ -193,12 +185,22 @@ export function ObservatoryLayout() {
     }
   }, [isReportPage, route.time, snapshot.timeline, navigateToReport, selectedCoin, timeframe])
 
-  const latestRuntimeMessage = runtimeDiagnostics[runtimeDiagnostics.length - 1]?.message ?? null
   const healthStatus = snapshot.health.status
   const healthTone = toneFromHealthStatus(healthStatus)
-  const healthLabel = snapshot.health.total > 0 ? `${snapshot.health.valid}/${snapshot.health.total} indicators` : '--'
+  const diagnosticsCount = runtimeDiagnostics.length + Math.max(snapshot.health.warnings.length, snapshot.health.status === 'healthy' ? 0 : 1)
+  const hasDiagnostics = runtimeDiagnostics.length > 0 || snapshot.health.status !== 'healthy'
+  const liveDisplayStatus = resolveDisplayLiveStatus(connectionStatus, liveStatus)
+  const latestRuntimeMessage = runtimeDiagnostics[runtimeDiagnostics.length - 1]?.message ?? null
   const isTimelineView = primaryView === 'timeline'
   const selectedClusterCategory = selectedTimelineCluster ? strongestCategory(selectedTimelineCluster) : null
+
+  useEffect(() => {
+    if (hasDiagnostics) {
+      setShowDiagnostics(true)
+      return
+    }
+    setShowDiagnostics(false)
+  }, [hasDiagnostics])
 
   return (
     <div className="obs-app" data-testid="obs-shell">
@@ -338,8 +340,8 @@ export function ObservatoryLayout() {
                 </span>
               </div>
               <div className="obs-command-bar__hero-meta">
-                <span>{source === 'canonical' ? freshness : 'local'}</span>
-                <span>{healthLabel}</span>
+                <span>Status · {formatLiveStatus(liveDisplayStatus)}</span>
+                <span>{formatUpdatedAt(priceContext.updatedAt)}</span>
               </div>
             </div>
           </div>
@@ -381,28 +383,22 @@ export function ObservatoryLayout() {
             </div>
 
             <div className="obs-command-bar__utility-group obs-command-bar__utility-group--status">
-              <div className={`obs-connection obs-connection--${connectionStatus}`}>{connectionStatus}</div>
-              <div className={`obs-freshness obs-freshness--${freshness}`}>{source === 'canonical' ? freshness : 'local'}</div>
-              <button
-                type="button"
-                className={`obs-chip obs-chip--toggle obs-chip--${healthTone}`}
-                onClick={() => setShowHealthDetail((value) => !value)}
-                aria-expanded={showHealthDetail}
-                aria-controls="obs-health-detail"
-                data-testid="obs-health-chip"
-              >
-                {healthLabel}
-              </button>
-              <button
-                type="button"
-                className={`obs-chip obs-chip--toggle ${runtimeDiagnostics.length > 0 ? 'obs-chip--warn' : ''}`}
-                onClick={() => setShowRuntimeDetail((value) => !value)}
-                aria-expanded={showRuntimeDetail}
-                aria-controls="obs-runtime-detail"
-                data-testid="obs-chip-runtime"
-              >
-                {runtimeDiagnostics.length > 0 ? `Runtime ${runtimeDiagnostics.length}` : 'OK'}
-              </button>
+              <div className={`obs-connection obs-connection--${connectionStatus}`}>{formatConnectionStatus(connectionStatus)}</div>
+              <div className={`obs-live-status obs-live-status--${liveDisplayStatus}`} data-testid="obs-live-status">
+                {formatLiveStatus(liveDisplayStatus)}
+              </div>
+              {hasDiagnostics ? (
+                <button
+                  type="button"
+                  className={`obs-chip obs-chip--toggle obs-chip--${healthTone}`}
+                  onClick={() => setShowDiagnostics((value) => !value)}
+                  aria-expanded={showDiagnostics}
+                  aria-controls="obs-diagnostics-detail"
+                  data-testid="obs-diagnostics-toggle"
+                >
+                  Diagnostics {diagnosticsCount}
+                </button>
+              ) : null}
             </div>
           </div>
         </header>
@@ -456,7 +452,8 @@ export function ObservatoryLayout() {
               coin={selectedCoin}
               timeframe={timeframe}
               primaryView={primaryView}
-              freshness={freshness}
+              liveStatus={liveDisplayStatus}
+              updatedAt={priceContext.updatedAt}
               selectedClusterLabel={selectedTimelineCluster ? new Date(selectedTimelineCluster.time).toLocaleString() : 'No selection yet'}
               selectedClusterHits={selectedTimelineCluster?.totalHits ?? null}
               onOpenMethodology={navigateToMethodology}
@@ -484,7 +481,7 @@ export function ObservatoryLayout() {
                     </div>
 
                     <p className="obs-panel__lead">
-                      Read the live price, 24h change, and freshness first. The heatmap matters more when the market context above feels coherent and trustworthy.
+                      Read the live price, 24h change, and last update first. The heatmap matters more when the market context above feels coherent.
                     </p>
 
                     {!chartCollapsed && (
@@ -689,41 +686,49 @@ export function ObservatoryLayout() {
                 </>
               )}
 
-              {showRuntimeDetail && (
-                <section id="obs-runtime-detail" className="obs-runtime" data-testid="obs-runtime-detail">
-                  <span className="obs-runtime__tag">Runtime</span>
-                  <span className="obs-runtime__msg">{latestRuntimeMessage ?? 'No runtime warnings currently.'}</span>
-                  <button
-                    type="button"
-                    className="obs-runtime__clear"
-                    onClick={() => {
-                      clearRuntimeDiagnostics()
-                      setShowRuntimeDetail(false)
-                    }}
-                  >
-                    Clear
-                  </button>
-                </section>
-              )}
-
-              {showHealthDetail && (
-                <section id="obs-health-detail" className="obs-health-panel" data-testid="obs-health-detail">
-                  <div className="obs-health-panel__head">
-                    <span className={`obs-health-panel__status obs-health-panel__status--${healthTone}`}>{snapshot.health.status}</span>
-                    <span>{snapshot.health.valid}/{snapshot.health.total} indicators healthy</span>
-                  </div>
-                  {snapshot.health.warnings.length > 0 ? (
-                    <div className="obs-health-panel__warnings">
-                      {snapshot.health.warnings.map((warning) => (
-                        <div key={`${warning.indicatorId}:${warning.kind}:${warning.message}`} className="obs-health-panel__warning">
-                          <strong>{warning.indicatorLabel}</strong>
-                          <span>{warning.message}</span>
-                        </div>
-                      ))}
+              {showDiagnostics && hasDiagnostics && (
+                <section id="obs-diagnostics-detail" className="obs-diagnostics-panel" data-testid="obs-diagnostics-panel">
+                  <div className="obs-diagnostics-panel__head">
+                    <div>
+                      <div className="obs-panel__eyebrow">Diagnostics</div>
+                      <h2 className="obs-panel__title">Secondary checks, not the primary read</h2>
                     </div>
-                  ) : (
-                    <div className="obs-health-panel__ok">All indicator checks passed.</div>
-                  )}
+                    <button
+                      type="button"
+                      className="obs-runtime__clear"
+                      onClick={() => setShowDiagnostics(false)}
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  <div className="obs-diagnostics-panel__grid">
+                    <div className="obs-diagnostics-card">
+                      <span className={`obs-health-panel__status obs-health-panel__status--${healthTone}`}>{snapshot.health.status}</span>
+                      <div className="obs-runtime__msg">
+                        {snapshot.health.valid}/{snapshot.health.total} indicators healthy
+                      </div>
+                      {snapshot.health.warnings.length > 0 ? (
+                        <div className="obs-health-panel__warnings">
+                          {snapshot.health.warnings.map((warning) => (
+                            <div key={`${warning.indicatorId}:${warning.kind}:${warning.message}`} className="obs-health-panel__warning">
+                              <strong>{warning.indicatorLabel}</strong>
+                              <span>{warning.message}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="obs-health-panel__ok">No indicator warnings are active.</div>
+                      )}
+                    </div>
+
+                    <div className="obs-diagnostics-card">
+                      <span className="obs-runtime__tag">Runtime</span>
+                      <span className="obs-runtime__msg">{latestRuntimeMessage ?? 'No runtime warnings currently.'}</span>
+                      <div className="obs-health-panel__ok">
+                        Connection {formatConnectionStatus(connectionStatus).toLowerCase()} · {formatLiveStatus(liveDisplayStatus).toLowerCase()}
+                      </div>
+                    </div>
+                  </div>
                 </section>
               )}
             </aside>
@@ -757,6 +762,35 @@ function toneFromHealthStatus(status: IndicatorHealthStatus): 'good' | 'warn' | 
   if (status === 'healthy') return 'good'
   if (status === 'warning') return 'warn'
   return 'critical'
+}
+
+function resolveDisplayLiveStatus(
+  connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error',
+  liveStatus: 'live' | 'updating' | 'delayed' | 'disconnected',
+): 'live' | 'updating' | 'delayed' | 'disconnected' {
+  if (connectionStatus === 'error' || connectionStatus === 'disconnected') return 'disconnected'
+  if (connectionStatus === 'connecting' && liveStatus === 'live') return 'updating'
+  return liveStatus
+}
+
+function formatLiveStatus(status: 'live' | 'updating' | 'delayed' | 'disconnected'): string {
+  if (status === 'live') return 'Live'
+  if (status === 'updating') return 'Updating'
+  if (status === 'delayed') return 'Delayed'
+  return 'Disconnected'
+}
+
+function formatConnectionStatus(status: 'connecting' | 'connected' | 'disconnected' | 'error'): string {
+  if (status === 'connected') return 'Feed connected'
+  if (status === 'connecting') return 'Feed connecting'
+  if (status === 'disconnected') return 'Feed offline'
+  return 'Feed error'
+}
+
+function formatUpdatedAt(updatedAt: string): string {
+  const time = Date.parse(updatedAt)
+  if (!Number.isFinite(time)) return 'Updated --'
+  return `Updated ${new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
 }
 
 function formatPrice(value: number | null): string {

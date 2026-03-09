@@ -18,8 +18,8 @@ export interface CategoryExplanation {
   summary: string
 }
 
-export interface TrustTerm {
-  term: string
+export interface LiveStatusNote {
+  label: string
   meaning: string
 }
 
@@ -28,7 +28,7 @@ export const OBSERVATORY_READING_STEPS: ObservatoryReadingStep[] = [
     id: 'market',
     step: '01',
     title: 'Start with market state',
-    question: 'What is price doing right now, and can I trust the live context?',
+    question: 'What is price doing right now, and does the live read feel coherent?',
     readNext: 'Then move to the heatmap to see where signal pressure is clustering.',
   },
   {
@@ -96,27 +96,27 @@ export const OBSERVATORY_CATEGORY_EXPLANATIONS: CategoryExplanation[] = [
   },
 ]
 
-export const OBSERVATORY_TRUST_TERMS: TrustTerm[] = [
+export const OBSERVATORY_LIVE_STATUS_NOTES: LiveStatusNote[] = [
   {
-    term: 'Freshness',
-    meaning: 'How recent the canonical snapshot is. Read this before trusting detailed interpretation.',
+    label: 'Live',
+    meaning: 'Updates are flowing normally. Read the shell as an active market surface.',
   },
   {
-    term: 'Canonical vs local',
-    meaning: 'Canonical means the server snapshot loaded. Local means the browser built the view from currently held data as a fallback.',
+    label: 'Updating',
+    meaning: 'The app is refreshing in the background. Keep reading the current state while new context arrives.',
   },
   {
-    term: 'Health',
-    meaning: 'Whether the indicator set has enough valid data and whether any indicators look unreliable or under-sampled.',
+    label: 'Delayed',
+    meaning: 'The shell still has context, but new market data is arriving slower than normal. Read broad structure before acting on small changes.',
   },
   {
-    term: 'Runtime',
-    meaning: 'Operational warnings from the browser data pipeline. Runtime issues do not always invalidate the page, but they change trust.',
+    label: 'Disconnected',
+    meaning: 'Live transport is interrupted. Use the current view as context only until updates resume.',
   },
 ]
 
 export const OBSERVATORY_DAILY_WORKFLOW: string[] = [
-  'Pick the market and timeframe, then read freshness and health before interpreting any signal cluster.',
+  'Pick the market and timeframe, then check whether the shell is live, updating, or delayed before interpreting pressure.',
   'Use the chart and 24h change to frame the move before looking at the heatmap.',
   'Scan the heatmap for broad, repeated, or unusually dense category pressure rather than reacting to one isolated light-up.',
   'Select the candle that looks most important and read the selected-day card before opening the full report.',
