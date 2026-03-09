@@ -3859,3 +3859,33 @@ Complete the release record for the legacy cleanup plus observatory API repair b
 ### Remaining risks / follow-up
 - `docs/release-signoff.md` records candidate `d9e84ed`, which is the runtime repair commit. The follow-up docs/log commit that records the signoff is bookkeeping-only and does not change the deployed runtime behavior.
 - Backend parity documentation still covers non-observatory canonical endpoints because those APIs remain supported; if the product surface continues narrowing around the observatory, a separate docs reduction pass is still available.
+## 2026-03-09 - Codex - Observatory editorial redesign from screenshot reference
+
+### Goal
+Rework the live observatory interface using the provided screenshot references as a loose visual/layout model: editorial paper surfaces, stronger framing, shorter above-the-fold desktop layout, and a real right rail instead of the prior long stacked shell.
+
+### Files changed
+- `index.html`
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/components/observatory/IndicatorClusterLanes.tsx`
+- `src/index.css`
+
+### What changed
+- Rebuilt the observatory shell into a masthead + utility row + market strip + main canvas + right rail composition.
+- Reframed the UI around an editorial paper theme with hard ink borders, mono utility typography, compact stat tiles, and reduced visual chrome.
+- Moved session/pulse/system content into a persistent rail so timeline mode is materially shorter and more structured on desktop.
+- Restyled the embedded chart, heatmap, catalog, network map, and report surfaces to match the new shell.
+- Added mobile-specific heatmap density reduction so the cluster view no longer forces horizontal page width on narrow screens.
+- Updated the document title and initial body background to match the observatory redesign and prevent a dark-theme flash before hydration.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS (required elevated execution because local sandbox blocks Playwright browser spawn)
+- Local desktop screenshot review: PASS
+- Local mobile screenshot review: PASS
+- Mobile viewport width recheck (`390px`): document `scrollWidth` returned to `390`
+
+### Remaining risks / follow-up
+- The preview screenshots naturally showed `freshness: local` because local preview does not hit the production canonical endpoint the same way as deployed Vercel.
+- If desired, the next refinement should target report-page visual density and the right-rail information hierarchy now that the shell language is established.

@@ -22,13 +22,20 @@ export function IndicatorClusterLanes({
   onSelectTime,
   onOpenReport,
 }: IndicatorClusterLanesProps) {
-  const windowSize = mode === 'pro' ? (timeframe === '4h' ? 120 : 90) : (timeframe === '4h' ? 96 : 72)
+  const isNarrowViewport = typeof window !== 'undefined' && window.innerWidth <= 760
+  const windowSize = isNarrowViewport
+    ? mode === 'pro'
+      ? (timeframe === '4h' ? 72 : 54)
+      : (timeframe === '4h' ? 48 : 36)
+    : mode === 'pro'
+      ? (timeframe === '4h' ? 120 : 90)
+      : (timeframe === '4h' ? 96 : 72)
   const source = useMemo(() => timeline.slice(-windowSize), [timeline, windowSize])
   const clusters = useMemo(() => {
     if (mode === 'pro') return source
-    const targetPoints = timeframe === '4h' ? 48 : 38
+    const targetPoints = isNarrowViewport ? (timeframe === '4h' ? 24 : 18) : timeframe === '4h' ? 48 : 38
     return downsampleClusters(source, targetPoints)
-  }, [mode, source, timeframe])
+  }, [isNarrowViewport, mode, source, timeframe])
 
   const maxLaneCount = useMemo(() => {
     let maxCount = 0
@@ -81,7 +88,7 @@ export function IndicatorClusterLanes({
                 const count = cluster.laneCounts[lane] ?? 0
                 const selected = cluster.time === activeTime
                 const level = intensityLevel(count, maxLaneCount)
-                const showCount = mode === 'pro' ? count > 0 : count >= 3
+                const showCount = !isNarrowViewport && (mode === 'pro' ? count > 0 : count >= 3)
                 return (
                   <button
                     key={`${lane}:${cluster.time}`}

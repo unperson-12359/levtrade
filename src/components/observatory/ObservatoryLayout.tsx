@@ -26,6 +26,7 @@ export function ObservatoryLayout() {
   const connectionStatus = useStore((state) => state.connectionStatus)
   const runtimeDiagnostics = useStore((state) => state.runtimeDiagnostics)
   const clearRuntimeDiagnostics = useStore((state) => state.clearRuntimeDiagnostics)
+  const prices = useStore((state) => state.prices)
 
   const { route, navigateToHeatmap, navigateToReport } = useHashRouter()
 
@@ -46,7 +47,6 @@ export function ObservatoryLayout() {
     }
   }, [selectedInterval, setInterval])
 
-  // Sync coin/interval from route (e.g. browser back to a report URL)
   useEffect(() => {
     if (route.coin && route.coin !== selectedCoin) {
       selectCoin(route.coin)
@@ -67,7 +67,6 @@ export function ObservatoryLayout() {
     }
   }, [selectedIndicatorId, snapshot.indicators])
 
-  // Auto-select latest cluster time on heatmap only
   useEffect(() => {
     if (route.page === 'report') return
     if (snapshot.timeline.length === 0) {
@@ -144,17 +143,30 @@ export function ObservatoryLayout() {
     return snapshot.timeline.find((cluster) => cluster.time === route.time) ?? null
   }, [isReportPage, route.time, snapshot.timeline])
 
+  const activeTimelineCluster = useMemo(() => {
+    if (snapshot.timeline.length === 0) return null
+    return snapshot.timeline.find((cluster) => cluster.time === selectedClusterTime) ?? snapshot.timeline[snapshot.timeline.length - 1] ?? null
+  }, [selectedClusterTime, snapshot.timeline])
+
+  const pulseSummary = useMemo(
+    () =>
+      CATEGORY_ORDER.map((category) => ({
+        category,
+        count: activeTimelineCluster?.laneCounts[category] ?? 0,
+      })),
+    [activeTimelineCluster],
+  )
+
   const openCandleReport = useCallback(
     (time: number) => navigateToReport(selectedCoin, timeframe, time),
     [navigateToReport, selectedCoin, timeframe],
   )
 
-  // Prev/next candle navigation (replaceState so browser back returns to heatmap)
   const { onPrev, onNext } = useMemo(() => {
     if (!isReportPage || route.time === null || snapshot.timeline.length === 0) {
       return { onPrev: null, onNext: null }
     }
-    const idx = snapshot.timeline.findIndex((c) => c.time === route.time)
+    const idx = snapshot.timeline.findIndex((cluster) => cluster.time === route.time)
     if (idx === -1) return { onPrev: null, onNext: null }
     const prevTime = idx > 0 ? snapshot.timeline[idx - 1]!.time : null
     const nextTime = idx < snapshot.timeline.length - 1 ? snapshot.timeline[idx + 1]!.time : null
@@ -172,304 +184,395 @@ export function ObservatoryLayout() {
   return (
     <div className="obs-app" data-testid="obs-shell">
       <div className="obs-backdrop-grid" />
-      <header className="obs-command-bar" data-testid="obs-command-bar">
-        <div className="obs-command-bar__row">
-          <div className="obs-brand">LEVTRADE</div>
+      <div className="obs-shell-frame">
+        <header className="obs-command-bar" data-testid="obs-command-bar">
+          <div className="obs-command-bar__masthead">
+            <div className="obs-brand-lockup">
+              <div className="obs-brand">LevTrade</div>
+              <div className="obs-brand-sub">Observatory / Hyperliquid market forensics</div>
+            </div>
 
-          <div className="obs-command-bar__nav-group">
+            <div className="obs-command-bar__view-switch">
+              {!isReportPage && (
+                <>
+                  <button
+                    type="button"
+                    className={`obs-chip obs-chip--nav ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
+                    onClick={() => setPrimaryView('timeline')}
+                    data-testid="obs-view-timeline"
+                  >
+                    Timeline
+                  </button>
+                  <button
+                    type="button"
+                    className={`obs-chip obs-chip--nav ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
+                    onClick={() => setPrimaryView('network')}
+                    data-testid="obs-view-network"
+                  >
+                    Network
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                className={`obs-chip obs-chip--nav ${viewMode === 'basic' ? 'obs-chip--active' : ''}`}
+                onClick={() => setViewMode('basic')}
+                data-testid="obs-mode-basic"
+              >
+                Basic
+              </button>
+              <button
+                type="button"
+                className={`obs-chip obs-chip--nav ${viewMode === 'advanced' ? 'obs-chip--active' : ''}`}
+                onClick={() => setViewMode('advanced')}
+                data-testid="obs-mode-advanced"
+              >
+                Advanced
+              </button>
+            </div>
+
+            <div className="obs-command-bar__hero" data-testid="obs-price-strip">
+              <div className="obs-command-bar__hero-label">{selectedCoin} / {timeframe}</div>
+              <div className="obs-command-bar__hero-main">
+                <span className="obs-price-hero__value">{formatPrice(priceContext.lastPrice)}</span>
+                <span className={`obs-price-hero__change obs-price-hero__change--${toneFromNumber(priceContext.change24hPct)}`}>
+                  {formatSignedPct(priceContext.change24hPct)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="obs-command-bar__utility">
+            <div className="obs-command-bar__utility-group">
+              {ALLOWED_INTERVALS.map((interval) => (
+                <button
+                  key={interval}
+                  type="button"
+                  className={`obs-chip obs-chip--nav ${interval === timeframe ? 'obs-chip--active' : ''}`}
+                  onClick={() => setInterval(interval)}
+                  data-testid={`obs-interval-${interval}`}
+                >
+                  {interval}
+                </button>
+              ))}
+
+              {!isReportPage && primaryView === 'timeline' && (
+                <>
+                  <button
+                    type="button"
+                    className={`obs-chip obs-chip--nav ${clusterMode === 'simple' ? 'obs-chip--active' : ''}`}
+                    onClick={() => setClusterMode('simple')}
+                    data-testid="obs-cluster-mode-simple"
+                  >
+                    Simple
+                  </button>
+                  <button
+                    type="button"
+                    className={`obs-chip obs-chip--nav ${clusterMode === 'pro' ? 'obs-chip--active' : ''}`}
+                    onClick={() => setClusterMode('pro')}
+                    data-testid="obs-cluster-mode-pro"
+                  >
+                    Pro
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="obs-command-bar__utility-group obs-command-bar__utility-group--status">
+              <div className={`obs-connection obs-connection--${connectionStatus}`}>{connectionStatus}</div>
+              <div className={`obs-freshness obs-freshness--${freshness}`}>{source === 'canonical' ? freshness : 'local'}</div>
+              <button
+                type="button"
+                className={`obs-chip obs-chip--toggle obs-chip--${healthTone}`}
+                onClick={() => setShowHealthDetail((value) => !value)}
+                data-testid="obs-health-chip"
+              >
+                {healthLabel}
+              </button>
+              <button
+                type="button"
+                className={`obs-chip obs-chip--toggle ${runtimeDiagnostics.length > 0 ? 'obs-chip--warn' : ''}`}
+                onClick={() => setShowRuntimeDetail((value) => !value)}
+                data-testid="obs-chip-runtime"
+              >
+                {runtimeDiagnostics.length > 0 ? `Runtime ${runtimeDiagnostics.length}` : 'OK'}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <section className="obs-market-strip">
+          <div className="obs-market-strip__track">
             {TRACKED_COINS.map((coin) => (
               <button
                 key={coin}
                 type="button"
-                className={`obs-chip ${coin === selectedCoin ? 'obs-chip--active' : ''}`}
+                className={`obs-market-tile ${coin === selectedCoin ? 'obs-market-tile--active obs-chip--active' : ''}`}
                 onClick={() => selectCoin(coin)}
                 data-testid={`obs-coin-${coin}`}
               >
-                {coin}
-              </button>
-            ))}
-            <span className="obs-command-bar__sep" />
-            {ALLOWED_INTERVALS.map((interval) => (
-              <button
-                key={interval}
-                type="button"
-                className={`obs-chip ${interval === timeframe ? 'obs-chip--active' : ''}`}
-                onClick={() => setInterval(interval)}
-                data-testid={`obs-interval-${interval}`}
-              >
-                {interval}
+                <span className="obs-market-tile__symbol">{coin}</span>
+                <span className="obs-market-tile__price">{formatTickerPrice(prices[coin], coin === selectedCoin ? priceContext.lastPrice : null)}</span>
               </button>
             ))}
           </div>
 
-          {!isReportPage && (
-            <>
-              <span className="obs-command-bar__sep" />
-              <button
-                type="button"
-                className={`obs-chip obs-chip--sm ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
-                onClick={() => setPrimaryView('timeline')}
-                data-testid="obs-view-timeline"
-              >
-                Timeline
-              </button>
-              <button
-                type="button"
-                className={`obs-chip obs-chip--sm ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
-                onClick={() => setPrimaryView('network')}
-                data-testid="obs-view-network"
-              >
-                Network
-              </button>
-            </>
-          )}
-
-          <span className="obs-command-bar__sep" />
-          <button
-            type="button"
-            className={`obs-chip obs-chip--sm ${viewMode === 'basic' ? 'obs-chip--active' : ''}`}
-            onClick={() => setViewMode('basic')}
-            data-testid="obs-mode-basic"
-          >
-            Basic
-          </button>
-          <button
-            type="button"
-            className={`obs-chip obs-chip--sm ${viewMode === 'advanced' ? 'obs-chip--active' : ''}`}
-            onClick={() => setViewMode('advanced')}
-            data-testid="obs-mode-advanced"
-          >
-            Advanced
-          </button>
-          {!isReportPage && primaryView === 'timeline' && (
-            <>
-              <span className="obs-command-bar__sep" />
-              <button
-                type="button"
-                className={`obs-chip obs-chip--sm ${clusterMode === 'simple' ? 'obs-chip--active' : ''}`}
-                onClick={() => setClusterMode('simple')}
-                data-testid="obs-cluster-mode-simple"
-              >
-                Simple
-              </button>
-              <button
-                type="button"
-                className={`obs-chip obs-chip--sm ${clusterMode === 'pro' ? 'obs-chip--active' : ''}`}
-                onClick={() => setClusterMode('pro')}
-                data-testid="obs-cluster-mode-pro"
-              >
-                Pro
-              </button>
-            </>
-          )}
-
-          <div className="obs-command-bar__price-hero" data-testid="obs-price-strip">
-            <span className="obs-price-hero__value">{formatPrice(priceContext.lastPrice)}</span>
-            <span className={`obs-price-hero__change obs-price-hero__change--${toneFromNumber(priceContext.change24hPct)}`}>
-              {formatSignedPct(priceContext.change24hPct)}
-            </span>
-          </div>
-
-          <div className="obs-command-bar__status-compact">
-            <div className={`obs-connection obs-connection--${connectionStatus}`}>{connectionStatus}</div>
-            <button
-              type="button"
-              className={`obs-chip obs-chip--toggle obs-chip--${healthTone}`}
-              onClick={() => setShowHealthDetail((value) => !value)}
-              data-testid="obs-health-chip"
-            >
-              {healthLabel}
-            </button>
-            <button
-              type="button"
-              className={`obs-chip obs-chip--sm obs-chip--toggle ${runtimeDiagnostics.length > 0 ? 'obs-chip--warn' : ''}`}
-              onClick={() => setShowRuntimeDetail((value) => !value)}
-              data-testid="obs-chip-runtime"
-            >
-              {runtimeDiagnostics.length > 0 ? `Runtime ${runtimeDiagnostics.length}` : 'OK'}
-            </button>
-            <div className={`obs-freshness obs-freshness--${freshness}`}>{source === 'canonical' ? freshness : 'local'}</div>
-          </div>
-
-          <div className="obs-command-bar__metrics-inline">
-            <CommandMetric label={`${timeframe}`} value={formatSignedPct(priceContext.intervalReturnPct)} tone={toneFromNumber(priceContext.intervalReturnPct)} />
-            <CommandMetric label="Indicators" value={String(snapshot.indicators.length)} tone="neutral" />
-            <CommandMetric label="Signals" value={String(snapshot.timeline.length)} tone="neutral" />
-            <CommandMetric label="Density" value={density.toFixed(2)} tone="neutral" />
-          </div>
-        </div>
-      </header>
-
-      {showRuntimeDetail && (
-        <section className="obs-runtime" data-testid="obs-runtime-detail">
-          <span className="obs-runtime__tag">Runtime</span>
-          <span className="obs-runtime__msg">{latestRuntimeMessage ?? 'No runtime warnings currently.'}</span>
-          <button
-            type="button"
-            className="obs-runtime__clear"
-            onClick={() => {
-              clearRuntimeDiagnostics()
-              setShowRuntimeDetail(false)
-            }}
-          >
-            Clear
-          </button>
-        </section>
-      )}
-
-
-      {showHealthDetail && (
-        <section className="obs-health-panel" data-testid="obs-health-detail">
-          <div className="obs-health-panel__head">
-            <span className={`obs-health-panel__status obs-health-panel__status--${healthTone}`}>{snapshot.health.status}</span>
-            <span>{snapshot.health.valid}/{snapshot.health.total} indicators healthy</span>
-          </div>
-          {snapshot.health.warnings.length > 0 ? (
-            <div className="obs-health-panel__warnings">
-              {snapshot.health.warnings.map((warning) => (
-                <div key={`${warning.indicatorId}:${warning.kind}:${warning.message}`} className="obs-health-panel__warning">
-                  <strong>{warning.indicatorLabel}</strong>
-                  <span>{warning.message}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="obs-health-panel__ok">All indicator checks passed.</div>
-          )}
-        </section>
-      )}
-
-      {isReportPage ? (
-        <CandleReportPage
-          coin={selectedCoin}
-          timeframe={timeframe}
-          cluster={reportCluster}
-          allIndicators={snapshot.indicators}
-          loading={loading}
-          onBack={navigateToHeatmap}
-          onPrev={onPrev}
-          onNext={onNext}
-        />
-      ) : primaryView === 'timeline' ? (
-        <section className="obs-timeline-stack">
-          <div className="obs-panel">
-            <button type="button" className="obs-chart-drawer__toggle" onClick={() => setChartCollapsed((v) => !v)}>
-              <h2 className="obs-panel__title">Price</h2>
-              <span className="obs-chart-drawer__chevron">{chartCollapsed ? '\u25B8' : '\u25BE'}</span>
-              {loading && <span className="obs-chart-drawer__refreshing">Refreshing...</span>}
-            </button>
-            {!chartCollapsed && (
-              <div className="obs-chart-compact">
-                <PriceChart coin={selectedCoin} embedded showHeader={false} />
-              </div>
-            )}
-          </div>
-
-          <div className="obs-panel">
-            <IndicatorClusterLanes
-              timeline={snapshot.timeline}
-              timeframe={timeframe}
-              mode={clusterMode}
-              selectedTime={selectedClusterTime}
-              onSelectTime={setSelectedClusterTime}
-              onOpenReport={openCandleReport}
+          <div className="obs-market-strip__stats">
+            <ShellStat label="Indicators" value={String(snapshot.indicators.length)} />
+            <ShellStat label="Signals" value={String(snapshot.timeline.length)} />
+            <ShellStat label="Density" value={density.toFixed(2)} />
+            <ShellStat
+              label={`${timeframe} move`}
+              value={formatSignedPct(priceContext.intervalReturnPct)}
+              tone={toneFromNumber(priceContext.intervalReturnPct)}
             />
           </div>
         </section>
-      ) : (
-        <main className="obs-grid">
-          <aside className={`obs-panel obs-panel--list ${catalogOpen ? '' : 'obs-panel--list-collapsed'}`}>
-            <button type="button" className="obs-catalog-toggle" onClick={() => setCatalogOpen((v) => !v)}>
-              <h2 className="obs-panel__title">Catalog</h2>
-              <span className="obs-catalog-toggle__chevron">{catalogOpen ? '\u25C0' : '\u25B6'}</span>
-            </button>
-            {catalogOpen && (
-              <div className="obs-panel__scroll">
-                {CATEGORY_ORDER.map((category) => {
-                  const indicators = indicatorsByCategory[category]
-                  if (indicators.length === 0) return null
-                  return (
-                    <div key={category} className="obs-category">
-                      <div className="obs-category__title">{category}</div>
-                      {indicators.map((indicator) => (
-                        <button
-                          key={indicator.id}
-                          type="button"
-                          className={`obs-indicator-row ${indicator.id === selectedIndicatorId ? 'obs-indicator-row--active' : ''}`}
-                          onClick={() => setSelectedIndicatorId(indicator.id)}
-                          data-testid={`obs-indicator-row-${indicator.id}`}
-                        >
-                          <span>{indicator.label}</span>
-                          <span className={`obs-state obs-state--${indicator.currentState}`}>{indicator.currentState}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            {!catalogOpen && (
-              <div className="obs-catalog-badges">
-                {CATEGORY_ORDER.map((category) => (
-                  <div key={category} className="obs-catalog-badge">
-                    <span className="obs-catalog-badge__label">{category.slice(0, 3)}</span>
-                    <span className={`obs-catalog-badge__dot obs-catalog-badge__dot--${indicatorsByCategory[category].some((i) => i.currentState === 'high') ? 'active' : 'idle'}`} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </aside>
 
-          <section className="obs-panel obs-panel--map">
-            <div className="obs-panel__title-row">
-              <h2 className="obs-panel__title">Network</h2>
-              <p className="obs-panel__hint">Color = sign, thickness = strength</p>
-            </div>
-            <MapLegend />
-            <PoolMap
-              indicators={mapIndicators}
-              edges={mapEdges}
-              selectedId={selectedIndicatorId}
-              onSelect={setSelectedIndicatorId}
-              viewMode={viewMode}
+        {isReportPage ? (
+          <section className="obs-report-shell">
+            <CandleReportPage
+              coin={selectedCoin}
+              timeframe={timeframe}
+              cluster={reportCluster}
+              allIndicators={snapshot.indicators}
+              loading={loading}
+              onBack={navigateToHeatmap}
+              onPrev={onPrev}
+              onNext={onNext}
             />
           </section>
-
-          <aside className="obs-panel obs-panel--detail">
-            <h2 className="obs-panel__title">Indicator Drilldown</h2>
-            {selectedIndicator ? (
-              <>
-                <div className="obs-detail-head">
-                  <div data-testid="obs-detail-title">{selectedIndicator.label}</div>
-                  <div className={`obs-state obs-state--${selectedIndicator.currentState}`}>{selectedIndicator.currentState}</div>
-                </div>
-                <div className="obs-detail-metrics">
-                  <div className="obs-detail-kv"><span>Current</span><span>{formatValue(selectedIndicator.currentValue, selectedIndicator.unit)}</span></div>
-                  <div className="obs-detail-kv"><span>Quantile</span><span>{selectedIndicator.quantileBucket ?? '--'} ({formatPct(selectedIndicator.quantileRank)})</span></div>
-                  <div className="obs-detail-kv"><span>Event active rate</span><span>{formatPct(selectedIndicator.frequency.activeRate)}</span></div>
-                </div>
-                <p className="obs-detail-copy">{selectedIndicator.description}</p>
-                <div className="obs-detail-subtitle">Strongest links</div>
-                <div className="obs-correlation-list">
-                  {selectedEdges.map((edge) => {
-                    const counterpartId = edge.a === selectedIndicator.id ? edge.b : edge.a
-                    const counterpart = snapshot.indicators.find((indicator) => indicator.id === counterpartId)
-                    if (!counterpart) return null
-                    return (
-                      <button key={`${edge.a}-${edge.b}`} type="button" className="obs-correlation-row" onClick={() => setSelectedIndicatorId(counterpart.id)}>
-                        <span>{counterpart.label}</span>
-                        <span>{edge.strength.toFixed(2)}</span>
+        ) : (
+          <div className="obs-workspace">
+            <main className="obs-main">
+              {primaryView === 'timeline' ? (
+                <section className="obs-canvas">
+                  <div className="obs-panel obs-panel--canvas">
+                    <div className="obs-panel__title-row">
+                      <div>
+                        <div className="obs-panel__eyebrow">Live chart</div>
+                        <h2 className="obs-panel__title">Price geometry</h2>
+                      </div>
+                      <button type="button" className="obs-panel__toggle" onClick={() => setChartCollapsed((value) => !value)}>
+                        {chartCollapsed ? 'Open chart' : 'Collapse chart'}
                       </button>
-                    )
-                  })}
+                    </div>
+
+                    {!chartCollapsed && (
+                      <div className="obs-chart-compact">
+                        <PriceChart coin={selectedCoin} embedded showHeader={false} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="obs-panel obs-panel--canvas">
+                    <IndicatorClusterLanes
+                      timeline={snapshot.timeline}
+                      timeframe={timeframe}
+                      mode={clusterMode}
+                      selectedTime={selectedClusterTime}
+                      onSelectTime={setSelectedClusterTime}
+                      onOpenReport={openCandleReport}
+                    />
+                  </div>
+                </section>
+              ) : (
+                <section className="obs-panel obs-panel--network-surface">
+                  <div className="obs-panel__title-row">
+                    <div>
+                      <div className="obs-panel__eyebrow">Correlation surface</div>
+                      <h2 className="obs-panel__title">Indicator network</h2>
+                    </div>
+                    <p className="obs-panel__hint">Color = sign, thickness = strength, dashed = lag</p>
+                  </div>
+                  <MapLegend />
+                  <PoolMap
+                    indicators={mapIndicators}
+                    edges={mapEdges}
+                    selectedId={selectedIndicatorId}
+                    onSelect={setSelectedIndicatorId}
+                    viewMode={viewMode}
+                  />
+                </section>
+              )}
+            </main>
+
+            <aside className="obs-rail">
+              {primaryView === 'timeline' ? (
+                <>
+                  <section className="obs-panel obs-panel--rail">
+                    <div className="obs-panel__eyebrow">Session</div>
+                    <div className="obs-rail-card__headline">{selectedCoin} / {timeframe}</div>
+                    <div className="obs-rail-stats">
+                      <ShellStat label="Observed bars" value={String(snapshot.timeline.length)} />
+                      <ShellStat label="Active view" value={clusterMode} />
+                      <ShellStat label="Mode" value={viewMode} />
+                      <ShellStat label="Health" value={snapshot.health.status} tone={statusTone(snapshot.health.status)} />
+                    </div>
+                  </section>
+
+                  <section className="obs-panel obs-panel--rail">
+                    <div className="obs-panel__eyebrow">Latest pulse</div>
+                    <div className="obs-rail-card__headline">
+                      {activeTimelineCluster ? new Date(activeTimelineCluster.time).toLocaleString() : 'No live cluster'}
+                    </div>
+                    <div className="obs-pulse-list">
+                      {pulseSummary.map((item) => (
+                        <div key={item.category} className="obs-pulse-row">
+                          <span>{item.category}</span>
+                          <span>{item.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {activeTimelineCluster && (
+                      <button type="button" className="obs-panel__action" onClick={() => openCandleReport(activeTimelineCluster.time)}>
+                        Open candle report
+                      </button>
+                    )}
+                  </section>
+                </>
+              ) : (
+                <>
+                  <section className="obs-panel obs-panel--rail">
+                    <button type="button" className="obs-catalog-toggle" onClick={() => setCatalogOpen((value) => !value)}>
+                      <div>
+                        <div className="obs-panel__eyebrow">Catalog</div>
+                        <h2 className="obs-panel__title">Indicator inventory</h2>
+                      </div>
+                      <span className="obs-catalog-toggle__chevron">{catalogOpen ? '\u2212' : '+'}</span>
+                    </button>
+
+                    {catalogOpen ? (
+                      <div className="obs-panel__scroll">
+                        {CATEGORY_ORDER.map((category) => {
+                          const indicators = indicatorsByCategory[category]
+                          if (indicators.length === 0) return null
+                          return (
+                            <div key={category} className="obs-category">
+                              <div className="obs-category__title">{category}</div>
+                              {indicators.map((indicator) => (
+                                <button
+                                  key={indicator.id}
+                                  type="button"
+                                  className={`obs-indicator-row ${indicator.id === selectedIndicatorId ? 'obs-indicator-row--active' : ''}`}
+                                  onClick={() => setSelectedIndicatorId(indicator.id)}
+                                  data-testid={`obs-indicator-row-${indicator.id}`}
+                                >
+                                  <span>{indicator.label}</span>
+                                  <span className={`obs-state obs-state--${indicator.currentState}`}>{indicator.currentState}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="obs-catalog-badges">
+                        {CATEGORY_ORDER.map((category) => (
+                          <div key={category} className="obs-catalog-badge">
+                            <span className="obs-catalog-badge__label">{category.slice(0, 3)}</span>
+                            <span
+                              className={`obs-catalog-badge__dot ${
+                                indicatorsByCategory[category].some((indicator) => indicator.currentState === 'high')
+                                  ? 'obs-catalog-badge__dot--active'
+                                  : 'obs-catalog-badge__dot--idle'
+                              }`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="obs-panel obs-panel--rail">
+                    <div className="obs-panel__eyebrow">Selected indicator</div>
+                    <h2 className="obs-panel__title">Drilldown</h2>
+                    {selectedIndicator ? (
+                      <>
+                        <div className="obs-detail-head">
+                          <div data-testid="obs-detail-title">{selectedIndicator.label}</div>
+                          <div className={`obs-state obs-state--${selectedIndicator.currentState}`}>{selectedIndicator.currentState}</div>
+                        </div>
+                        <div className="obs-detail-metrics">
+                          <div className="obs-detail-kv"><span>Current</span><span>{formatValue(selectedIndicator.currentValue, selectedIndicator.unit)}</span></div>
+                          <div className="obs-detail-kv"><span>Quantile</span><span>{selectedIndicator.quantileBucket ?? '--'} ({formatPct(selectedIndicator.quantileRank)})</span></div>
+                          <div className="obs-detail-kv"><span>Event active rate</span><span>{formatPct(selectedIndicator.frequency.activeRate)}</span></div>
+                        </div>
+                        <p className="obs-detail-copy">{selectedIndicator.description}</p>
+                        <div className="obs-detail-subtitle">Strongest links</div>
+                        <div className="obs-correlation-list">
+                          {selectedEdges.map((edge) => {
+                            const counterpartId = edge.a === selectedIndicator.id ? edge.b : edge.a
+                            const counterpart = snapshot.indicators.find((indicator) => indicator.id === counterpartId)
+                            if (!counterpart) return null
+                            return (
+                              <button key={`${edge.a}-${edge.b}`} type="button" className="obs-correlation-row" onClick={() => setSelectedIndicatorId(counterpart.id)}>
+                                <span>{counterpart.label}</span>
+                                <span>{edge.strength.toFixed(2)}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="obs-empty">Select an indicator from the list.</div>
+                    )}
+                  </section>
+                </>
+              )}
+
+              <section className="obs-panel obs-panel--rail">
+                <div className="obs-panel__eyebrow">System</div>
+                <div className="obs-system-grid">
+                  <ShellStat label="Connection" value={connectionStatus} tone={connectionTone(connectionStatus)} />
+                  <ShellStat label="Freshness" value={source === 'canonical' ? freshness : 'local'} tone={freshnessTone(source, freshness)} />
+                  <ShellStat label="Runtime" value={runtimeDiagnostics.length > 0 ? String(runtimeDiagnostics.length) : 'OK'} tone={runtimeDiagnostics.length > 0 ? 'warn' : 'good'} />
+                  <ShellStat label="Indicators" value={healthLabel} tone={healthTone} />
                 </div>
-              </>
-            ) : (
-              <div className="obs-empty">Select an indicator from the list.</div>
-            )}
-          </aside>
-        </main>
-      )}
+
+                {showRuntimeDetail && (
+                  <section className="obs-runtime" data-testid="obs-runtime-detail">
+                    <span className="obs-runtime__tag">Runtime</span>
+                    <span className="obs-runtime__msg">{latestRuntimeMessage ?? 'No runtime warnings currently.'}</span>
+                    <button
+                      type="button"
+                      className="obs-runtime__clear"
+                      onClick={() => {
+                        clearRuntimeDiagnostics()
+                        setShowRuntimeDetail(false)
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </section>
+                )}
+
+                {showHealthDetail && (
+                  <section className="obs-health-panel" data-testid="obs-health-detail">
+                    <div className="obs-health-panel__head">
+                      <span className={`obs-health-panel__status obs-health-panel__status--${healthTone}`}>{snapshot.health.status}</span>
+                      <span>{snapshot.health.valid}/{snapshot.health.total} indicators healthy</span>
+                    </div>
+                    {snapshot.health.warnings.length > 0 ? (
+                      <div className="obs-health-panel__warnings">
+                        {snapshot.health.warnings.map((warning) => (
+                          <div key={`${warning.indicatorId}:${warning.kind}:${warning.message}`} className="obs-health-panel__warning">
+                            <strong>{warning.indicatorLabel}</strong>
+                            <span>{warning.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="obs-health-panel__ok">All indicator checks passed.</div>
+                    )}
+                  </section>
+                )}
+              </section>
+            </aside>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -480,24 +583,24 @@ function MapLegend() {
       <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--pos" /> Positive correlation</div>
       <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--neg" /> Negative correlation</div>
       <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--thick" /> Thicker = stronger</div>
-      <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--lag" /> Dashed = lead/lag</div>
+      <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--lag" /> Dashed = lead / lag</div>
     </div>
   )
 }
 
-function CommandMetric({
+function ShellStat({
   label,
   value,
-  tone,
+  tone = 'neutral',
 }: {
   label: string
   value: string
-  tone: 'up' | 'down' | 'neutral'
+  tone?: 'up' | 'down' | 'neutral' | 'good' | 'warn' | 'critical'
 }) {
   return (
-    <article className={`obs-command-metric obs-command-metric--${tone}`}>
-      <div className="obs-command-metric__label">{label}</div>
-      <div className="obs-command-metric__value">{value}</div>
+    <article className={`obs-shell-stat obs-shell-stat--${tone}`}>
+      <div className="obs-shell-stat__label">{label}</div>
+      <div className="obs-shell-stat__value">{value}</div>
     </article>
   )
 }
@@ -515,9 +618,38 @@ function toneFromHealthStatus(status: IndicatorHealthStatus): 'good' | 'warn' | 
   return 'critical'
 }
 
+function statusTone(status: IndicatorHealthStatus): 'good' | 'warn' | 'critical' {
+  return toneFromHealthStatus(status)
+}
+
+function connectionTone(status: string): 'good' | 'warn' | 'critical' | 'neutral' {
+  if (status === 'connected') return 'good'
+  if (status === 'connecting' || status === 'disconnected') return 'warn'
+  if (status === 'error') return 'critical'
+  return 'neutral'
+}
+
+function freshnessTone(source: 'canonical' | 'local', freshness: 'fresh' | 'delayed' | 'stale' | 'error'): 'good' | 'warn' | 'critical' {
+  if (source !== 'canonical') return 'warn'
+  if (freshness === 'fresh') return 'good'
+  if (freshness === 'error') return 'critical'
+  return 'warn'
+}
+
 function formatPrice(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '--'
   return `$${value.toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+}
+
+function formatTickerPrice(value: string | number | null | undefined, fallback: number | null): string {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseFloat(value) : Number.NaN
+  if (Number.isFinite(numeric)) {
+    return `$${numeric.toLocaleString(undefined, { maximumFractionDigits: numeric >= 1000 ? 0 : 2 })}`
+  }
+  if (fallback !== null && Number.isFinite(fallback)) {
+    return `$${fallback.toLocaleString(undefined, { maximumFractionDigits: fallback >= 1000 ? 0 : 2 })}`
+  }
+  return '--'
 }
 
 function formatSignedPct(value: number | null): string {
