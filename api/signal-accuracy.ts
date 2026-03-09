@@ -137,8 +137,11 @@ function resolveSince(query: VercelRequest['query']): string {
 }
 
 function resolveDays(query: VercelRequest['query']): number {
-  const rawDays = firstQueryValue(query.days)
-  return Math.min(MAX_DAYS, parseInt(rawDays ?? '', 10) || DEFAULT_DAYS)
+  const rawDays = parseInt(firstQueryValue(query.days) ?? '', 10)
+  if (!Number.isFinite(rawDays)) {
+    return DEFAULT_DAYS
+  }
+  return Math.max(1, Math.min(MAX_DAYS, rawDays))
 }
 
 function firstQueryValue(value: string | string[] | undefined): string | null {

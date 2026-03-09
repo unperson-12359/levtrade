@@ -183,9 +183,27 @@ export function CandleReportPage({
     <section className="obs-report" data-testid="obs-candle-report-page">
       <header className="obs-report__bar">
         <nav className="obs-report__bar-nav">
-          <button type="button" className="obs-report__bar-btn" disabled={!onPrev} onClick={onPrev ?? undefined} data-testid="obs-candle-report-prev">&larr;</button>
+          <button
+            type="button"
+            className="obs-report__bar-btn"
+            disabled={!onPrev}
+            onClick={onPrev ?? undefined}
+            aria-label="Previous candle"
+            data-testid="obs-candle-report-prev"
+          >
+            &larr;
+          </button>
           <button type="button" className="obs-report__bar-btn" onClick={onBack} data-testid="obs-candle-report-back">Heatmap</button>
-          <button type="button" className="obs-report__bar-btn" disabled={!onNext} onClick={onNext ?? undefined} data-testid="obs-candle-report-next">&rarr;</button>
+          <button
+            type="button"
+            className="obs-report__bar-btn"
+            disabled={!onNext}
+            onClick={onNext ?? undefined}
+            aria-label="Next candle"
+            data-testid="obs-candle-report-next"
+          >
+            &rarr;
+          </button>
         </nav>
         <time className="obs-report__bar-time">{new Date(cluster.time).toLocaleString()}</time>
         <span className="obs-report__bar-hits">{activeCount}/{totalCount}</span>
@@ -203,13 +221,15 @@ export function CandleReportPage({
           type="button"
           className={`obs-report__chart-toggle ${chartOpen ? 'obs-report__chart-toggle--open' : ''}`}
           onClick={() => setChartOpen((value) => !value)}
+          aria-expanded={chartOpen}
+          aria-controls="obs-report-chart-panel"
         >
           <span>{coin} Chart</span>
           <span className="obs-report__chart-chevron">{chartOpen ? '\u25BE' : '\u25B8'}</span>
           {loading && <span className="obs-report__chart-refreshing">Refreshing...</span>}
         </button>
         {chartOpen && (
-          <div className="obs-report__chart-body">
+          <div id="obs-report-chart-panel" className="obs-report__chart-body">
             <PriceChart coin={coin} embedded showHeader={false} />
           </div>
         )}

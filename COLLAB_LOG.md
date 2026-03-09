@@ -4070,3 +4070,41 @@ Make the candle report page much sharper and more detailed so the selected-candl
 ### Remaining risks / follow-up
 - The report page now uses much more of the available width; if you want another pass after live review, the next likely improvement is column-density tuning for mobile rather than adding more modules.
 - Analytics still complements the report instead of replacing it; if you later want cross-coin analytics, that should be a separate data-model pass.
+## 2026-03-09 - Codex - Full-stack audit execution and targeted observatory hardening
+
+### Goal
+Execute the approved multi-track audit program across the current LevTrade observatory stack, record the findings as agent-style audit artifacts, and ship the highest-confidence browser/API fixes discovered in that audit.
+
+### Files changed
+- `audits/agent-a-frontend-shell-audit.md`
+- `audits/agent-b-dataflow-logic-audit.md`
+- `audits/agent-c-api-parity-audit.md`
+- `audits/agent-d-collector-persistence-audit.md`
+- `audits/agent-e-test-release-audit.md`
+- `audits/master-audit-synthesis-2026-03-09.md`
+- `src/hooks/useIndicatorObservatory.ts`
+- `src/components/observatory/IndicatorClusterLanes.tsx`
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/components/observatory/CandleReportPage.tsx`
+- `api/server-setups.ts`
+- `api/signal-accuracy.ts`
+- `tests/run-logic-tests.mjs`
+- `COLLAB_LOG.md`
+
+### What changed
+- Wrote five track-specific audit reports plus a master synthesis document covering frontend shell UX, browser truth paths, API/parity risks, collector/persistence risks, and the regression net.
+- Fixed a real observatory correctness bug where canonical remote snapshot data could briefly show the previous coin or interval after a user switch by keying remote data to the active request and falling back to local state immediately.
+- Made heatmap density responsive to live viewport resizing instead of relying on a one-time `window.innerWidth` read during render.
+- Added accessibility semantics to current toggle/report controls: runtime and health detail chips, chart collapse, catalog collapse, report chart drawer, and labeled previous/next report navigation.
+- Hardened API query handling by clamping `days` query values to a sane minimum and fixed `/api/server-setups` freshness metadata so incremental no-op refreshes do not incorrectly imply degraded canonical freshness.
+- Added logic-regression checks for the new observatory reset behavior, resize responsiveness, accessibility hooks, and API day clamping.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS
+
+### Remaining risks / next steps
+- Collector hardening was intentionally audited but not changed in this pass. Remaining work includes surfacing silent persistence failures and resolution backlog ceilings from `src/server/collector/runCollector.ts`.
+- Non-report route URLs still do not preserve coin/interval query state when switching between `#/observatory` and `#/analytics`; this was documented as follow-up rather than changed here.
+- The execution-event feed remains a snapshot-style SSE plus polling/reconciliation hybrid. If a true long-lived stream is required, that should be a dedicated runtime pass.

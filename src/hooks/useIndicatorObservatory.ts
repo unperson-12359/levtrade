@@ -99,6 +99,7 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
   const livePrice = useStore((state) => state.prices[coin])
 
   const canonicalInterval = interval === '1d' ? '1d' : '4h'
+  const requestKey = `${coin}:${canonicalInterval}`
 
   const localSnapshot = useMemo(
     () =>
@@ -138,14 +139,22 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
 
   const [remoteSnapshot, setRemoteSnapshot] = useState<ObservatorySnapshot | null>(null)
   const [remotePriceContext, setRemotePriceContext] = useState<PriceContext | null>(null)
+  const [remoteKey, setRemoteKey] = useState<string | null>(null)
   const [freshness, setFreshness] = useState<'fresh' | 'delayed' | 'stale' | 'error'>('stale')
   const [source, setSource] = useState<'canonical' | 'local'>('local')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    setRemoteSnapshot(null)
+    setRemotePriceContext(null)
+    setRemoteKey(requestKey)
+    setSource('local')
+    setFreshness('stale')
+
     if (import.meta.env.VITE_E2E_MOCK === '1') {
       setRemoteSnapshot(null)
       setRemotePriceContext(null)
+      setRemoteKey(null)
       setFreshness('stale')
       setSource('local')
       setLoading(false)
@@ -168,6 +177,7 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
 
         setRemoteSnapshot(normalizeSnapshot(payload.snapshot))
         setRemotePriceContext(payload.priceContext ?? null)
+        setRemoteKey(requestKey)
         setFreshness(payload.meta?.freshness ?? 'fresh')
         setSource('canonical')
       } catch {
@@ -190,13 +200,15 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
       controller.abort()
       if (timer) clearTimeout(timer)
     }
-  }, [coin, canonicalInterval])
+  }, [coin, canonicalInterval, requestKey])
+
+  const hasMatchingRemote = remoteKey === requestKey
 
   return {
-    snapshot: remoteSnapshot ?? localSnapshot,
-    priceContext: remotePriceContext ?? localPriceContext,
-    source,
-    freshness,
+    snapshot: hasMatchingRemote ? (remoteSnapshot ?? localSnapshot) : localSnapshot,
+    priceContext: hasMatchingRemote ? (remotePriceContext ?? localPriceContext) : localPriceContext,
+    source: hasMatchingRemote && remoteSnapshot ? source : 'local',
+    freshness: hasMatchingRemote ? freshness : 'stale',
     loading,
   }
 }

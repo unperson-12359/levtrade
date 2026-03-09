@@ -44,7 +44,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const since = resolveSince(req.query)
     const updatedSince = resolveUpdatedSince(req.query)
-    const rows = await fetchServerSetupsFromSupabase(supabase, since, updatedSince)
+    const [rows, latestSuccessfulAtMs] = await Promise.all([
+      fetchServerSetupsFromSupabase(supabase, since, updatedSince),
+      fetchLatestServerSetupUpdatedAt(supabase),
+    ])
 
     const setups = rows.map((row) => {
       const outcomes = normalizeOutcomes(row.outcomes_json)
@@ -55,9 +58,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         outcomes,
       }
     })
-    const latestUpdatedAtMs = rows.length > 0
-      ? Math.max(...rows.map((row) => Date.parse(row.updated_at ?? row.generated_at)))
-      : null
     const latestGeneratedAt = rows[0]?.generated_at ?? null
 
     return res.status(200).json({
@@ -72,8 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       maxRowsApplied: rows.length >= MAX_FETCH_ROWS ? MAX_FETCH_ROWS : null,
       meta: buildContractMeta({
         source: 'canonical',
-        lastSuccessfulAtMs: latestUpdatedAtMs,
-        freshness: rows.length === 0 ? 'delayed' : undefined,
+        lastSuccessfulAtMs: latestSuccessfulAtMs,
+        freshness: latestSuccessfulAtMs === null ? 'delayed' : undefined,
         staleAfterMs: MS_PER_DAY,
       }),
     })
@@ -158,7 +158,7 @@ function resolveSince(query: VercelRequest['query']): string {
     return new Date(parsedSince).toISOString()
   }
 
-  const days = Math.min(MAX_DAYS, parseInt(firstQueryValue(query.days) ?? '', 10) || DEFAULT_DAYS)
+  const days = resolveDays(query)
   return new Date(Date.now() - days * MS_PER_DAY).toISOString()
 }
 
@@ -170,6 +170,34 @@ function resolveUpdatedSince(query: VercelRequest['query']): string | null {
   }
 
   return new Date(parsedUpdatedSince).toISOString()
+}
+
+function resolveDays(query: VercelRequest['query']): number {
+  const parsedDays = parseInt(firstQueryValue(query.days) ?? '', 10)
+  if (!Number.isFinite(parsedDays)) {
+    return DEFAULT_DAYS
+  }
+  return Math.max(1, Math.min(MAX_DAYS, parsedDays))
+}
+
+async function fetchLatestServerSetupUpdatedAt(supabase: SupabaseEnv): Promise<number | null> {
+  const rows = await fetchSupabaseRows<{
+    generated_at: string
+    updated_at: string | null
+  }>({
+    env: supabase,
+    table: 'server_setups',
+    query: new URLSearchParams({
+      scope: `eq.${GLOBAL_SCOPE}`,
+      order: 'updated_at.desc',
+      limit: '1',
+      select: 'generated_at,updated_at',
+    }),
+  })
+
+  const row = rows[0]
+  if (!row) return null
+  return Date.parse(row.updated_at ?? row.generated_at)
 }
 
 function normalizeOutcomes(raw: Record<string, unknown> | null): Record<SetupWindow, SetupOutcome> {

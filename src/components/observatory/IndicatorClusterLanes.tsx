@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CandleHitCluster, IndicatorCategory } from '../../observatory/types'
 
 const LANE_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Flow', 'Structure']
@@ -22,7 +22,17 @@ export function IndicatorClusterLanes({
   selectedTime,
   onSelectTime,
 }: IndicatorClusterLanesProps) {
-  const isNarrowViewport = typeof window !== 'undefined' && window.innerWidth <= 760
+  const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1024))
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const syncViewportWidth = () => setViewportWidth(window.innerWidth)
+    window.addEventListener('resize', syncViewportWidth)
+    return () => window.removeEventListener('resize', syncViewportWidth)
+  }, [])
+
+  const isNarrowViewport = viewportWidth <= 760
   const isDesktopSideRail = layout === 'side-rail' && !isNarrowViewport
   const windowSize = isNarrowViewport
     ? mode === 'pro'
@@ -32,9 +42,9 @@ export function IndicatorClusterLanes({
       ? mode === 'pro'
         ? (timeframe === '4h' ? 96 : 72)
         : (timeframe === '4h' ? 72 : 54)
-    : mode === 'pro'
-      ? (timeframe === '4h' ? 120 : 90)
-      : (timeframe === '4h' ? 96 : 72)
+      : mode === 'pro'
+        ? (timeframe === '4h' ? 120 : 90)
+        : (timeframe === '4h' ? 96 : 72)
   const source = useMemo(() => timeline.slice(-windowSize), [timeline, windowSize])
   const clusters = useMemo(() => {
     if (mode === 'pro') return source

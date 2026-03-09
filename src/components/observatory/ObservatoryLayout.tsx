@@ -358,6 +358,8 @@ export function ObservatoryLayout() {
                 type="button"
                 className={`obs-chip obs-chip--toggle obs-chip--${healthTone}`}
                 onClick={() => setShowHealthDetail((value) => !value)}
+                aria-expanded={showHealthDetail}
+                aria-controls="obs-health-detail"
                 data-testid="obs-health-chip"
               >
                 {healthLabel}
@@ -366,6 +368,8 @@ export function ObservatoryLayout() {
                 type="button"
                 className={`obs-chip obs-chip--toggle ${runtimeDiagnostics.length > 0 ? 'obs-chip--warn' : ''}`}
                 onClick={() => setShowRuntimeDetail((value) => !value)}
+                aria-expanded={showRuntimeDetail}
+                aria-controls="obs-runtime-detail"
                 data-testid="obs-chip-runtime"
               >
                 {runtimeDiagnostics.length > 0 ? `Runtime ${runtimeDiagnostics.length}` : 'OK'}
@@ -421,13 +425,19 @@ export function ObservatoryLayout() {
                         <div className="obs-panel__eyebrow">Live chart</div>
                         <h2 className="obs-panel__title">Price geometry</h2>
                       </div>
-                      <button type="button" className="obs-panel__toggle" onClick={() => setChartCollapsed((value) => !value)}>
+                      <button
+                        type="button"
+                        className="obs-panel__toggle"
+                        onClick={() => setChartCollapsed((value) => !value)}
+                        aria-expanded={!chartCollapsed}
+                        aria-controls="obs-live-chart-panel"
+                      >
                         {chartCollapsed ? 'Open chart' : 'Collapse chart'}
                       </button>
                     </div>
 
                     {!chartCollapsed && (
-                      <div className="obs-chart-compact">
+                      <div id="obs-live-chart-panel" className="obs-chart-compact">
                         <PriceChart coin={selectedCoin} embedded showHeader={false} />
                       </div>
                     )}
@@ -529,7 +539,13 @@ export function ObservatoryLayout() {
               ) : (
                 <>
                   <section className="obs-panel obs-panel--rail">
-                    <button type="button" className="obs-catalog-toggle" onClick={() => setCatalogOpen((value) => !value)}>
+                    <button
+                      type="button"
+                      className="obs-catalog-toggle"
+                      onClick={() => setCatalogOpen((value) => !value)}
+                      aria-expanded={catalogOpen}
+                      aria-controls="obs-catalog-panel"
+                    >
                       <div>
                         <div className="obs-panel__eyebrow">Catalog</div>
                         <h2 className="obs-panel__title">Indicator inventory</h2>
@@ -538,7 +554,7 @@ export function ObservatoryLayout() {
                     </button>
 
                     {catalogOpen ? (
-                      <div className="obs-panel__scroll">
+                      <div id="obs-catalog-panel" className="obs-panel__scroll">
                         {CATEGORY_ORDER.map((category) => {
                           const indicators = indicatorsByCategory[category]
                           if (indicators.length === 0) return null
@@ -562,7 +578,7 @@ export function ObservatoryLayout() {
                         })}
                       </div>
                     ) : (
-                      <div className="obs-catalog-badges">
+                      <div id="obs-catalog-panel" className="obs-catalog-badges">
                         {CATEGORY_ORDER.map((category) => (
                           <div key={category} className="obs-catalog-badge">
                             <span className="obs-catalog-badge__label">{category.slice(0, 3)}</span>
@@ -617,7 +633,7 @@ export function ObservatoryLayout() {
               )}
 
               {showRuntimeDetail && (
-                <section className="obs-runtime" data-testid="obs-runtime-detail">
+                <section id="obs-runtime-detail" className="obs-runtime" data-testid="obs-runtime-detail">
                   <span className="obs-runtime__tag">Runtime</span>
                   <span className="obs-runtime__msg">{latestRuntimeMessage ?? 'No runtime warnings currently.'}</span>
                   <button
@@ -634,7 +650,7 @@ export function ObservatoryLayout() {
               )}
 
               {showHealthDetail && (
-                <section className="obs-health-panel" data-testid="obs-health-detail">
+                <section id="obs-health-detail" className="obs-health-panel" data-testid="obs-health-detail">
                   <div className="obs-health-panel__head">
                     <span className={`obs-health-panel__status obs-health-panel__status--${healthTone}`}>{snapshot.health.status}</span>
                     <span>{snapshot.health.valid}/{snapshot.health.total} indicators healthy</span>

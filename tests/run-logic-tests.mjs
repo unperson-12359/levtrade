@@ -42,6 +42,10 @@ runRuntimeStabilitySourceCheck()
 runObservatoryIndicatorHealthTest()
 runDeterministicReplayCheck()
 runContractInterfaceSourceCheck()
+runObservatoryRemoteResetSourceCheck()
+runClusterResizeSourceCheck()
+runObservatoryAccessibilitySourceCheck()
+runApiDaysClampSourceCheck()
 runBundleDriftCheck()
 
 console.log('Logic regression checks passed')
@@ -804,6 +808,43 @@ function runContractInterfaceSourceCheck() {
   assert.match(apiClientSource, /fetchExecutionEvents/)
   assert.match(apiClientSource, /fetchPortfolioSnapshot/)
   assert.match(apiClientSource, /fetchBacktestResult/)
+}
+
+function runObservatoryRemoteResetSourceCheck() {
+  const hookSource = readFileSync(join(__dirname, '../src/hooks/useIndicatorObservatory.ts'), 'utf8')
+  assert.match(hookSource, /const requestKey = `\$\{coin\}:\$\{canonicalInterval\}`/)
+  assert.match(hookSource, /const \[remoteKey, setRemoteKey\] = useState<string \| null>\(null\)/)
+  assert.match(hookSource, /setRemoteSnapshot\(null\)/)
+  assert.match(hookSource, /setRemotePriceContext\(null\)/)
+  assert.match(hookSource, /setRemoteKey\(requestKey\)/)
+  assert.match(hookSource, /const hasMatchingRemote = remoteKey === requestKey/)
+}
+
+function runClusterResizeSourceCheck() {
+  const clusterSource = readFileSync(join(__dirname, '../src/components/observatory/IndicatorClusterLanes.tsx'), 'utf8')
+  assert.match(clusterSource, /const \[viewportWidth, setViewportWidth\] = useState/)
+  assert.match(clusterSource, /window\.addEventListener\('resize', syncViewportWidth\)/)
+  assert.match(clusterSource, /const isNarrowViewport = viewportWidth <= 760/)
+}
+
+function runObservatoryAccessibilitySourceCheck() {
+  const layoutSource = readFileSync(join(__dirname, '../src/components/observatory/ObservatoryLayout.tsx'), 'utf8')
+  const reportSource = readFileSync(join(__dirname, '../src/components/observatory/CandleReportPage.tsx'), 'utf8')
+  assert.match(layoutSource, /aria-controls="obs-health-detail"/)
+  assert.match(layoutSource, /aria-controls="obs-runtime-detail"/)
+  assert.match(layoutSource, /aria-controls="obs-live-chart-panel"/)
+  assert.match(layoutSource, /aria-controls="obs-catalog-panel"/)
+  assert.match(reportSource, /aria-label="Previous candle"/)
+  assert.match(reportSource, /aria-label="Next candle"/)
+  assert.match(reportSource, /aria-controls="obs-report-chart-panel"/)
+}
+
+function runApiDaysClampSourceCheck() {
+  const serverSetupsSource = readFileSync(join(__dirname, '../api/server-setups.ts'), 'utf8')
+  const signalAccuracySource = readFileSync(join(__dirname, '../api/signal-accuracy.ts'), 'utf8')
+  assert.match(serverSetupsSource, /Math\.max\(1, Math\.min\(MAX_DAYS, parsedDays\)\)/)
+  assert.match(serverSetupsSource, /fetchLatestServerSetupUpdatedAt/)
+  assert.match(signalAccuracySource, /Math\.max\(1, Math\.min\(MAX_DAYS, rawDays\)\)/)
 }
 
 function candle(time, open, high, low, close) {
