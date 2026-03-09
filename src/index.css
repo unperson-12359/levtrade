@@ -7087,3 +7087,39 @@ button {
     grid-template-columns: auto auto auto auto;
   }
 }
+
+@media (min-width: 1101px) {
+  .obs-workspace--timeline {
+    grid-template-columns: minmax(0, 1.72fr) minmax(400px, 0.98fr);
+    align-items: stretch;
+  }
+
+  .obs-main--timeline,
+  .obs-rail--timeline {
+    align-self: stretch;
+  }
+
+  .obs-canvas--timeline,
+  .obs-main--timeline .obs-panel--canvas,
+  .obs-panel--heatmap-rail {
+    height: 100%;
+  }
+
+  .obs-main--timeline .price-chart {
+    height: clamp(500px, 58vh, 680px);
+  }
+
+  .obs-rail--timeline {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .obs-panel--heatmap-rail {
+    display: grid;
+  }
+
+  .obs-panel--heatmap-rail .obs-cluster {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    height: 100%;
+  }
+}

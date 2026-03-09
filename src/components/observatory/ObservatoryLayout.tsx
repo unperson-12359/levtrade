@@ -175,6 +175,7 @@ export function ObservatoryLayout() {
   const healthStatus = snapshot.health.status
   const healthTone = toneFromHealthStatus(healthStatus)
   const healthLabel = snapshot.health.total > 0 ? `${snapshot.health.valid}/${snapshot.health.total} indicators` : '--'
+  const isTimelineView = primaryView === 'timeline'
 
   return (
     <div className="obs-app" data-testid="obs-shell">
@@ -335,10 +336,10 @@ export function ObservatoryLayout() {
             />
           </section>
         ) : (
-          <div className="obs-workspace">
-            <main className="obs-main">
-              {primaryView === 'timeline' ? (
-                <section className="obs-canvas">
+          <div className={`obs-workspace ${isTimelineView ? 'obs-workspace--timeline' : ''}`}>
+            <main className={`obs-main ${isTimelineView ? 'obs-main--timeline' : ''}`}>
+              {isTimelineView ? (
+                <section className="obs-canvas obs-canvas--timeline">
                   <div className="obs-panel obs-panel--canvas">
                     <div className="obs-panel__title-row">
                       <div>
@@ -355,17 +356,6 @@ export function ObservatoryLayout() {
                         <PriceChart coin={selectedCoin} embedded showHeader={false} />
                       </div>
                     )}
-                  </div>
-
-                  <div className="obs-panel obs-panel--canvas">
-                    <IndicatorClusterLanes
-                      timeline={snapshot.timeline}
-                      timeframe={timeframe}
-                      mode={clusterMode}
-                      selectedTime={selectedClusterTime}
-                      onSelectTime={setSelectedClusterTime}
-                      onOpenReport={openCandleReport}
-                    />
                   </div>
                 </section>
               ) : (
@@ -389,22 +379,35 @@ export function ObservatoryLayout() {
               )}
             </main>
 
-            <aside className="obs-rail">
-              {primaryView === 'timeline' ? (
-                <section className="obs-panel obs-panel--rail">
-                  <div className="obs-panel__eyebrow">Latest pulse</div>
-                  <div className="obs-rail-card__headline">
-                    {activeTimelineCluster ? new Date(activeTimelineCluster.time).toLocaleString() : 'No live cluster'}
-                  </div>
-                  <div className="obs-pulse-list">
-                    {pulseSummary.map((item) => (
-                      <div key={item.category} className="obs-pulse-row">
-                        <span>{item.category}</span>
-                        <span>{item.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+            <aside className={`obs-rail ${isTimelineView ? 'obs-rail--timeline' : ''}`}>
+              {isTimelineView ? (
+                <>
+                  <section className="obs-panel obs-panel--rail">
+                    <div className="obs-panel__eyebrow">Latest pulse</div>
+                    <div className="obs-rail-card__headline">
+                      {activeTimelineCluster ? new Date(activeTimelineCluster.time).toLocaleString() : 'No live cluster'}
+                    </div>
+                    <div className="obs-pulse-list">
+                      {pulseSummary.map((item) => (
+                        <div key={item.category} className="obs-pulse-row">
+                          <span>{item.category}</span>
+                          <span>{item.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="obs-panel obs-panel--rail obs-panel--heatmap-rail">
+                    <IndicatorClusterLanes
+                      timeline={snapshot.timeline}
+                      timeframe={timeframe}
+                      mode={clusterMode}
+                      selectedTime={selectedClusterTime}
+                      onSelectTime={setSelectedClusterTime}
+                      onOpenReport={openCandleReport}
+                    />
+                  </section>
+                </>
               ) : (
                 <>
                   <section className="obs-panel obs-panel--rail">

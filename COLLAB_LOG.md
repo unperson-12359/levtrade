@@ -3964,3 +3964,26 @@ Strip visible UI chrome that does not add end-user value: decorative labels, dup
 
 ### Remaining risks / follow-up
 - The next cleanup target, if desired, should be advanced drilldown density rather than more shell removal; the remaining surfaces are mostly analysis-bearing rather than decorative.
+## 2026-03-09 - Codex - Reflow desktop timeline with right-column heatmap
+
+### Goal
+Move the heatmap to the right of the chart in desktop timeline mode, place it below the Latest pulse card, and make the chart feel wider and more square like a conventional charting surface.
+
+### Files changed
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/index.css`
+
+### What changed
+- Moved the timeline heatmap panel out of the left canvas stack and into the right column directly below the Latest pulse panel.
+- Kept the rest of the observatory shell and network/report flows unchanged.
+- Added a desktop-only timeline grid that gives the chart a larger width share and a taller chart area.
+- Stretched the right timeline column so the heatmap panel extends down the chart area instead of sitting as a short block.
+- Preserved the existing stacked fallback on tablet/mobile widths.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS
+
+### Remaining risks / follow-up
+- If the desktop right column still feels too dense after live review, the next pass should tune heatmap density or panel padding rather than shrinking the chart again.
