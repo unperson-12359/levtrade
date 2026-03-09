@@ -12,7 +12,6 @@ interface IndicatorClusterLanesProps {
   mode: ClusterPresentationMode
   selectedTime: number | null
   onSelectTime: (time: number) => void
-  onOpenReport: (time: number) => void
 }
 
 export function IndicatorClusterLanes({
@@ -22,7 +21,6 @@ export function IndicatorClusterLanes({
   mode,
   selectedTime,
   onSelectTime,
-  onOpenReport,
 }: IndicatorClusterLanesProps) {
   const isNarrowViewport = typeof window !== 'undefined' && window.innerWidth <= 760
   const isDesktopSideRail = layout === 'side-rail' && !isNarrowViewport
@@ -76,7 +74,7 @@ export function IndicatorClusterLanes({
       <div className="obs-cluster__header">
         <div>
           <div className="obs-cluster__title">Indicator Heatmap</div>
-          <div className="obs-cluster__hint">Click a cell to open full candle report page.</div>
+          <div className="obs-cluster__hint">Select a cell to inspect the day below or open the full report.</div>
         </div>
       </div>
 
@@ -107,10 +105,9 @@ export function IndicatorClusterLanes({
                     key={`${lane}:${cluster.time}`}
                     type="button"
                     className={`obs-cluster__cell obs-cluster__cell--${level} ${selected ? 'obs-cluster__cell--selected' : ''}`}
-                    onClick={() => {
-                      onSelectTime(cluster.time)
-                      onOpenReport(cluster.time)
-                    }}
+                    onClick={() => onSelectTime(cluster.time)}
+                    aria-pressed={selected}
+                    data-testid="obs-cluster-cell"
                     title={`${new Date(cluster.time).toLocaleString()} | ${lane}: ${count} hit${count === 1 ? '' : 's'}`}
                   >
                     {showCount ? count : ''}

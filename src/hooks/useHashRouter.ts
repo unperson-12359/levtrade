@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { TRACKED_COINS, type TrackedCoin } from '../types/market'
 
 type AllowedInterval = '4h' | '1d'
-type ObservatoryRoutePage = 'observatory' | 'report'
+type ObservatoryRoutePage = 'observatory' | 'report' | 'analytics'
 
 export interface ObservatoryRoute {
   page: ObservatoryRoutePage
@@ -17,10 +17,14 @@ function parseHash(hash: string): ObservatoryRoute {
   if (!raw) return fallback
 
   const withoutHash = raw.startsWith('#') ? raw.slice(1) : raw
-  if (!withoutHash.startsWith('/observatory')) return fallback
+  if (!withoutHash.startsWith('/observatory') && !withoutHash.startsWith('/analytics')) return fallback
 
   const [pathPart = '', queryPart = ''] = withoutHash.split('?')
-  const page: ObservatoryRoutePage = pathPart.includes('/report') ? 'report' : 'observatory'
+  const page: ObservatoryRoutePage = pathPart.startsWith('/analytics')
+    ? 'analytics'
+    : pathPart.includes('/report')
+      ? 'report'
+      : 'observatory'
   const query = new URLSearchParams(queryPart)
   const rawCoin = query.get('coin')
   const rawInterval = query.get('interval')
@@ -39,6 +43,10 @@ function buildReportHash(coin: string, interval: string, time: number): string {
   params.set('interval', interval)
   params.set('time', String(time))
   return `#/observatory/report?${params.toString()}`
+}
+
+function buildAnalyticsHash(): string {
+  return '#/analytics'
 }
 
 export function useHashRouter() {
@@ -73,6 +81,10 @@ export function useHashRouter() {
     navigate('#/observatory')
   }, [navigate])
 
+  const navigateToObservatory = useCallback(() => {
+    navigate('#/observatory')
+  }, [navigate])
+
   const navigateToReport = useCallback(
     (coin: string, interval: string, time: number, opts?: { replace?: boolean }) => {
       navigate(buildReportHash(coin, interval, time), opts)
@@ -80,5 +92,9 @@ export function useHashRouter() {
     [navigate],
   )
 
-  return { route, navigate, navigateToHeatmap, navigateToReport } as const
+  const navigateToAnalytics = useCallback(() => {
+    navigate(buildAnalyticsHash())
+  }, [navigate])
+
+  return { route, navigate, navigateToHeatmap, navigateToObservatory, navigateToAnalytics, navigateToReport } as const
 }

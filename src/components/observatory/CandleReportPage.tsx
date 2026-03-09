@@ -30,6 +30,7 @@ export function CandleReportPage({
 
   const activeCount = cluster?.events.length ?? 0
   const totalCount = allIndicators.length
+  const strongestLane = useMemo(() => (cluster ? strongestCategory(cluster) : null), [cluster])
 
   const unifiedGrid = useMemo(() => {
     if (!cluster) return []
@@ -102,6 +103,21 @@ export function CandleReportPage({
         )}
       </div>
 
+      <div className="obs-report__summary">
+        <div className="obs-report__summary-card">
+          <span className="obs-report__summary-label">Strongest lane</span>
+          <strong className="obs-report__summary-value">{strongestLane ?? '--'}</strong>
+        </div>
+        <div className="obs-report__summary-card">
+          <span className="obs-report__summary-label">Range</span>
+          <strong className="obs-report__summary-value">{formatSignedPct(cluster.price.rangePct)}</strong>
+        </div>
+        <div className="obs-report__summary-card obs-report__summary-card--wide">
+          <span className="obs-report__summary-label">Top events</span>
+          <strong className="obs-report__summary-value">{cluster.topHits.slice(0, 3).map((event) => event.indicatorLabel).join(' / ') || '--'}</strong>
+        </div>
+      </div>
+
       <div className="obs-report__grid" data-testid="obs-cluster-report">
         {unifiedGrid.map((group) => (
           <section key={group.category} className="obs-report__col">
@@ -160,4 +176,17 @@ function formatCompactValue(value: number | null, unit: string): string {
 function formatSignedPct(value: number): string {
   if (!Number.isFinite(value)) return '--'
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+}
+
+function strongestCategory(cluster: CandleHitCluster) {
+  let strongest: IndicatorCategory | null = null
+  let count = -1
+  for (const lane of LANE_ORDER) {
+    const laneCount = cluster.laneCounts[lane] ?? 0
+    if (laneCount > count) {
+      strongest = lane
+      count = laneCount
+    }
+  }
+  return count > 0 ? strongest : null
 }

@@ -12,8 +12,14 @@ test.describe('Observatory critical flows', () => {
     await expect(page.locator('.price-chart')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-mode-simple')).toHaveClass(/obs-chip--active/)
+    await expect(page.getByTestId('obs-nav-observatory')).toBeVisible()
+    await expect(page.getByTestId('obs-nav-analytics')).toBeVisible()
 
-    await page.locator('.obs-cluster__cell').first().click()
+    await page.getByTestId('obs-cluster-cell').first().click()
+    await expect(page.getByTestId('obs-selected-cluster-card')).toBeVisible()
+    await expect(page.getByTestId('obs-selected-cluster-open-report')).toBeVisible()
+    await expect(page).toHaveURL(/#\/observatory$/)
+    await page.getByTestId('obs-selected-cluster-open-report').click()
     await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
     await expect(page.getByTestId('obs-candle-report-chart')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-candle-price')).toBeVisible()
@@ -38,6 +44,12 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-mode-advanced')).toHaveClass(/obs-chip--active/)
     await page.getByTestId('obs-mode-basic').click()
     await expect(page.getByTestId('obs-mode-basic')).toHaveClass(/obs-chip--active/)
+
+    await page.getByTestId('obs-nav-analytics').click()
+    await expect(page.getByTestId('obs-analytics-page')).toBeVisible()
+    await expect(page.getByTestId('obs-analytics-table')).toBeVisible()
+    await page.getByTestId('obs-nav-observatory').click()
+    await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 
     await page.getByTestId('obs-view-network').click()
     await expect(page.getByTestId('obs-map-legend')).toBeVisible()
@@ -69,7 +81,8 @@ test.describe('Observatory critical flows', () => {
     await seedObservatoryState(page)
 
     // Open a report from a heatmap cell
-    await page.locator('.obs-cluster__cell').first().click()
+    await page.getByTestId('obs-cluster-cell').first().click()
+    await page.getByTestId('obs-selected-cluster-open-report').click()
     await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
     const initialUrl = page.url()
 

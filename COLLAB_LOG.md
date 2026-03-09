@@ -4011,3 +4011,34 @@ Improve the heatmap spacing in the desktop side-column layout by reclaiming the 
 
 ### Remaining risks / follow-up
 - If the heatmap still feels dense on the live site, the next pass should tune the exact desktop target point count rather than reintroducing the old summary strip or left-label gutter.
+## 2026-03-09 - Codex - Add analytics route and selected-day heatmap detail
+
+### Goal
+Turn the observatory shell into a multi-page product with professional navigation, fill the desktop heatmap whitespace with a selected-day detail module, and add an analytics page for indicator frequency and streak tracking.
+
+### Files changed
+- `src/components/observatory/AnalyticsPage.tsx`
+- `src/components/observatory/CandleReportPage.tsx`
+- `src/components/observatory/IndicatorClusterLanes.tsx`
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/hooks/useHashRouter.ts`
+- `src/index.css`
+- `tests/e2e/critical-flows.spec.ts`
+- `tests/run-logic-tests.mjs`
+
+### What changed
+- Added a route-aware header with visible desktop navigation and a mobile hamburger menu for `Observatory` and `Analytics`.
+- Extended the hash router with a new `#/analytics` page while preserving the existing observatory and report routes.
+- Changed heatmap interaction to selection-first, added a selected-day detail card under the heatmap, and moved full report access to an explicit CTA.
+- Added a new analytics page that ranks indicators by hit frequency, active rate, and streak persistence using existing observatory snapshot data.
+- Tightened the timeline rail so the heatmap no longer stretches to create empty space, and added a compact summary strip to the report page.
+- Updated logic and critical E2E coverage for the analytics route and the new heatmap-to-report flow.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS
+
+### Remaining risks / follow-up
+- Mobile header behavior is functionally covered, but if the global nav grows beyond two destinations the next step should be a fuller drawer/overlay pattern rather than more chips in the header.
+- Analytics is intentionally frequency/streak-first; if deeper co-occurrence analysis is needed later, it should probably extend the existing network surface instead of bloating the analytics page.

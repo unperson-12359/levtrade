@@ -6,6 +6,7 @@ import type { IndicatorCategory, IndicatorHealthStatus } from '../../observatory
 import { useStore } from '../../store'
 import { TRACKED_COINS } from '../../types/market'
 import { PriceChart } from '../chart/PriceChart'
+import { AnalyticsPage } from './AnalyticsPage'
 import { IndicatorClusterLanes, type ClusterPresentationMode } from './IndicatorClusterLanes'
 import { CandleReportPage } from './CandleReportPage'
 import { PoolMap } from './PoolMap'
@@ -28,7 +29,7 @@ export function ObservatoryLayout() {
   const clearRuntimeDiagnostics = useStore((state) => state.clearRuntimeDiagnostics)
   const prices = useStore((state) => state.prices)
 
-  const { route, navigateToHeatmap, navigateToReport } = useHashRouter()
+  const { route, navigateToHeatmap, navigateToObservatory, navigateToAnalytics, navigateToReport } = useHashRouter()
 
   const { snapshot, priceContext, source, freshness, loading } = useIndicatorObservatory(selectedCoin)
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null)
@@ -40,6 +41,7 @@ export function ObservatoryLayout() {
   const [showHealthDetail, setShowHealthDetail] = useState(false)
   const [chartCollapsed, setChartCollapsed] = useState(false)
   const [catalogOpen, setCatalogOpen] = useState(true)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     if (selectedInterval !== '4h' && selectedInterval !== '1d') {
@@ -84,6 +86,10 @@ export function ObservatoryLayout() {
       setShowRuntimeDetail(true)
     }
   }, [runtimeDiagnostics.length])
+
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [route.page])
 
   const selectedIndicator = useMemo(
     () => snapshot.indicators.find((indicator) => indicator.id === selectedIndicatorId) ?? null,
@@ -133,23 +139,29 @@ export function ObservatoryLayout() {
 
   const timeframe = (selectedInterval === '1d' ? '1d' : '4h') as AllowedInterval
   const isReportPage = route.page === 'report'
+  const isAnalyticsPage = route.page === 'analytics'
   const reportCluster = useMemo(() => {
     if (!isReportPage || route.time === null) return null
     return snapshot.timeline.find((cluster) => cluster.time === route.time) ?? null
   }, [isReportPage, route.time, snapshot.timeline])
 
-  const activeTimelineCluster = useMemo(() => {
+  const selectedTimelineCluster = useMemo(() => {
     if (snapshot.timeline.length === 0) return null
     return snapshot.timeline.find((cluster) => cluster.time === selectedClusterTime) ?? snapshot.timeline[snapshot.timeline.length - 1] ?? null
   }, [selectedClusterTime, snapshot.timeline])
+
+  const latestTimelineCluster = useMemo(
+    () => snapshot.timeline[snapshot.timeline.length - 1] ?? null,
+    [snapshot.timeline],
+  )
 
   const pulseSummary = useMemo(
     () =>
       CATEGORY_ORDER.map((category) => ({
         category,
-        count: activeTimelineCluster?.laneCounts[category] ?? 0,
+        count: latestTimelineCluster?.laneCounts[category] ?? 0,
       })),
-    [activeTimelineCluster],
+    [latestTimelineCluster],
   )
 
   const openCandleReport = useCallback(
@@ -176,20 +188,72 @@ export function ObservatoryLayout() {
   const healthTone = toneFromHealthStatus(healthStatus)
   const healthLabel = snapshot.health.total > 0 ? `${snapshot.health.valid}/${snapshot.health.total} indicators` : '--'
   const isTimelineView = primaryView === 'timeline'
+  const selectedClusterCategory = selectedTimelineCluster ? strongestCategory(selectedTimelineCluster) : null
 
   return (
     <div className="obs-app" data-testid="obs-shell">
       <div className="obs-backdrop-grid" />
       <div className="obs-shell-frame">
         <header className="obs-command-bar" data-testid="obs-command-bar">
-          <div className="obs-command-bar__masthead">
+          <div className="obs-global-header">
             <div className="obs-brand-lockup">
               <div className="obs-brand">LevTrade</div>
               <div className="obs-brand-sub">Observatory / Hyperliquid market forensics</div>
             </div>
 
+            <nav className="obs-global-nav" aria-label="Primary" data-testid="obs-global-nav">
+              <button
+                type="button"
+                className={`obs-chip obs-chip--nav ${!isAnalyticsPage ? 'obs-chip--active' : ''}`}
+                onClick={navigateToObservatory}
+                data-testid="obs-nav-observatory"
+              >
+                Observatory
+              </button>
+              <button
+                type="button"
+                className={`obs-chip obs-chip--nav ${isAnalyticsPage ? 'obs-chip--active' : ''}`}
+                onClick={navigateToAnalytics}
+                data-testid="obs-nav-analytics"
+              >
+                Analytics
+              </button>
+            </nav>
+
+            <button
+              type="button"
+              className="obs-header-menu"
+              onClick={() => setMenuOpen((value) => !value)}
+              aria-expanded={menuOpen}
+              aria-controls="obs-mobile-nav"
+              data-testid="obs-header-menu-button"
+            >
+              Menu
+            </button>
+          </div>
+
+          {menuOpen && (
+            <nav id="obs-mobile-nav" className="obs-mobile-nav" aria-label="Mobile">
+              <button
+                type="button"
+                className={`obs-chip obs-chip--nav ${!isAnalyticsPage ? 'obs-chip--active' : ''}`}
+                onClick={navigateToObservatory}
+              >
+                Observatory
+              </button>
+              <button
+                type="button"
+                className={`obs-chip obs-chip--nav ${isAnalyticsPage ? 'obs-chip--active' : ''}`}
+                onClick={navigateToAnalytics}
+              >
+                Analytics
+              </button>
+            </nav>
+          )}
+
+          <div className="obs-command-bar__masthead">
             <div className="obs-command-bar__view-switch">
-              {!isReportPage && (
+              {!isReportPage && !isAnalyticsPage ? (
                 <>
                   <button
                     type="button"
@@ -208,24 +272,32 @@ export function ObservatoryLayout() {
                     Network
                   </button>
                 </>
+              ) : (
+                <div className="obs-command-bar__page-tag">
+                  {isAnalyticsPage ? 'Analytics / Frequency + streaks' : 'Candle report / Event detail'}
+                </div>
               )}
 
-              <button
-                type="button"
-                className={`obs-chip obs-chip--nav ${viewMode === 'basic' ? 'obs-chip--active' : ''}`}
-                onClick={() => setViewMode('basic')}
-                data-testid="obs-mode-basic"
-              >
-                Basic
-              </button>
-              <button
-                type="button"
-                className={`obs-chip obs-chip--nav ${viewMode === 'advanced' ? 'obs-chip--active' : ''}`}
-                onClick={() => setViewMode('advanced')}
-                data-testid="obs-mode-advanced"
-              >
-                Advanced
-              </button>
+              {!isReportPage && !isAnalyticsPage && (
+                <>
+                  <button
+                    type="button"
+                    className={`obs-chip obs-chip--nav ${viewMode === 'basic' ? 'obs-chip--active' : ''}`}
+                    onClick={() => setViewMode('basic')}
+                    data-testid="obs-mode-basic"
+                  >
+                    Basic
+                  </button>
+                  <button
+                    type="button"
+                    className={`obs-chip obs-chip--nav ${viewMode === 'advanced' ? 'obs-chip--active' : ''}`}
+                    onClick={() => setViewMode('advanced')}
+                    data-testid="obs-mode-advanced"
+                  >
+                    Advanced
+                  </button>
+                </>
+              )}
             </div>
 
             <div className="obs-command-bar__hero" data-testid="obs-price-strip">
@@ -257,7 +329,7 @@ export function ObservatoryLayout() {
                 </button>
               ))}
 
-              {!isReportPage && primaryView === 'timeline' && (
+              {!isReportPage && !isAnalyticsPage && primaryView === 'timeline' && (
                 <>
                   <button
                     type="button"
@@ -335,6 +407,8 @@ export function ObservatoryLayout() {
               onNext={onNext}
             />
           </section>
+        ) : isAnalyticsPage ? (
+          <AnalyticsPage coin={selectedCoin} timeframe={timeframe} snapshot={snapshot} />
         ) : (
           <div className={`obs-workspace ${isTimelineView ? 'obs-workspace--timeline' : ''}`}>
             <main className={`obs-main ${isTimelineView ? 'obs-main--timeline' : ''}`}>
@@ -385,7 +459,7 @@ export function ObservatoryLayout() {
                   <section className="obs-panel obs-panel--rail">
                     <div className="obs-panel__eyebrow">Latest pulse</div>
                     <div className="obs-rail-card__headline">
-                      {activeTimelineCluster ? new Date(activeTimelineCluster.time).toLocaleString() : 'No live cluster'}
+                      {latestTimelineCluster ? new Date(latestTimelineCluster.time).toLocaleString() : 'No live cluster'}
                     </div>
                     <div className="obs-pulse-list">
                       {pulseSummary.map((item) => (
@@ -405,8 +479,50 @@ export function ObservatoryLayout() {
                       mode={clusterMode}
                       selectedTime={selectedClusterTime}
                       onSelectTime={setSelectedClusterTime}
-                      onOpenReport={openCandleReport}
                     />
+                  </section>
+
+                  <section className="obs-panel obs-panel--rail obs-panel--selected-cluster" data-testid="obs-selected-cluster-card">
+                    <div className="obs-panel__eyebrow">Selected day</div>
+                    <div className="obs-rail-card__headline">
+                      {selectedTimelineCluster ? new Date(selectedTimelineCluster.time).toLocaleString() : 'No selected cluster'}
+                    </div>
+                    {selectedTimelineCluster ? (
+                      <>
+                        <div className="obs-selected-cluster__metrics">
+                          <div className="obs-detail-kv"><span>Total hits</span><span>{selectedTimelineCluster.totalHits}</span></div>
+                          <div className="obs-detail-kv"><span>Strongest lane</span><span>{selectedClusterCategory ?? '--'}</span></div>
+                          <div className="obs-detail-kv"><span>Move</span><span>{formatSignedPct(selectedTimelineCluster.price.changePct)}</span></div>
+                          <div className="obs-detail-kv"><span>Close</span><span>{formatPrice(selectedTimelineCluster.price.close)}</span></div>
+                        </div>
+                        <div className="obs-selected-cluster__lanes">
+                          {CATEGORY_ORDER.map((category) => (
+                            <div key={category} className="obs-pulse-row">
+                              <span>{category}</span>
+                              <span>{selectedTimelineCluster.laneCounts[category] ?? 0}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="obs-selected-cluster__events">
+                          {selectedTimelineCluster.topHits.slice(0, 3).map((hit) => (
+                            <div key={hit.id} className="obs-selected-cluster__event">
+                              <strong>{hit.indicatorLabel}</strong>
+                              <span>{hit.message}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          className="obs-panel__action"
+                          onClick={() => openCandleReport(selectedTimelineCluster.time)}
+                          data-testid="obs-selected-cluster-open-report"
+                        >
+                          Open full report
+                        </button>
+                      </>
+                    ) : (
+                      <div className="obs-empty">Select a heatmap cell to inspect the candle details here.</div>
+                    )}
                   </section>
                 </>
               ) : (
@@ -601,4 +717,17 @@ function formatValue(value: number | null, unit: string): string {
 function formatPct(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '--'
   return `${(value * 100).toFixed(0)}%`
+}
+
+function strongestCategory(cluster: { laneCounts: Partial<Record<IndicatorCategory, number>> }) {
+  let best: IndicatorCategory | null = null
+  let bestCount = -1
+  for (const category of CATEGORY_ORDER) {
+    const count = cluster.laneCounts[category] ?? 0
+    if (count > bestCount) {
+      best = category
+      bestCount = count
+    }
+  }
+  return bestCount > 0 ? best : null
 }
