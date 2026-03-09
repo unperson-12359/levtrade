@@ -3807,3 +3807,27 @@ Stabilize the current observatory runtime on top of the existing in-progress wor
 - Dead compatibility surfaces like `MenuDrawer`, `AnalyticsPage`, and `TrustPanel` still exist in the repo but are not mounted by the current app shell; a dedicated cleanup/removal pass is still available if desired.
 ### Addendum
 - Generated verification artifacts also changed in this pass: `api/_signals.mjs`, `api/_collector.mjs`.
+
+## 2026-03-08 - Codex - Production observatory API bundling repair
+
+### Goal
+Repair the live `/api/observatory-snapshot` production failure discovered during release signoff so the observatory can use the deployed canonical snapshot route instead of falling back to local-only computation.
+
+### Files changed
+- `api/observatory-snapshot.ts`
+- `api/_signals.d.mts`
+- `tests/run-logic-tests.mjs`
+
+### What changed
+- Rewired the observatory API route to import `buildObservatorySnapshot`, `TRACKED_COINS`, and `parseCandle` from the pre-bundled `api/_signals.mjs` module that Vercel actually deploys.
+- Extended `api/_signals.d.mts` so API typecheck understands the bundled observatory exports and market types used by `api/observatory-snapshot.ts`.
+- Added a logic regression check that blocks future reintroduction of direct `../src/observatory/engine` runtime imports inside the serverless observatory route.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS (required elevated execution because local sandbox blocks Playwright browser spawn)
+
+### Remaining risks / follow-up
+- Public production verification still needs to be rerun after redeploy to confirm `/api/observatory-snapshot` returns `200` and the observatory freshness chip leaves `local` fallback.
+- Release signoff and final deployment bookkeeping are intentionally handled in the next pass so they can reference the repaired live deployment rather than the broken one.

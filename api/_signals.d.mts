@@ -2,10 +2,15 @@
 // Only declares symbols actually used by API functions — not the full barrel.
 
 import type { AssetSignals, RiskStatus } from '../src/types/signals'
-import type { TrackedCoin } from '../src/types/market'
+import type { Candle, FundingHistoryEntry, RawCandle, TrackedCoin } from '../src/types/market'
+import type { ObservatorySnapshot } from '../src/observatory/types'
 import type { SuggestedPositionComposition } from '../src/types/position'
 import type { SetupOutcome, SetupWindow, SetupCoverageStatus, SuggestedSetup } from '../src/types/setup'
 import type { TrackedSignalRecord, TrackedSignalOutcome, TrackerStats } from '../src/types/tracker'
+
+export type { FundingHistoryEntry, RawCandle, TrackedCoin } from '../src/types/market'
+export const TRACKED_COINS: readonly TrackedCoin[]
+export function parseCandle(raw: RawCandle): Candle
 
 export function buildSetupId(
   setup: Pick<SuggestedSetup, 'coin' | 'direction' | 'generatedAt' | 'entryPrice' | 'stopPrice' | 'targetPrice'>,
@@ -40,3 +45,11 @@ export function computeSignalsAtTime(
 ): AssetSignals | null
 
 export function generateBackfillTimestamps(lastComputedAt: number, now: number, stepMs?: number): number[]
+
+export function buildObservatorySnapshot(input: {
+  coin: TrackedCoin
+  interval: '4h' | '1d'
+  candles: Candle[]
+  fundingHistory: Array<{ time: number; rate: number }>
+  oiHistory: Array<{ time: number; oi: number }>
+}): ObservatorySnapshot

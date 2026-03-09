@@ -1,6 +1,5 @@
 import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts.js'
-import { buildObservatorySnapshot } from '../src/observatory/engine'
-import { TRACKED_COINS, parseCandle, type FundingHistoryEntry, type RawCandle, type TrackedCoin } from '../src/types/market'
+import { buildObservatorySnapshot, TRACKED_COINS, parseCandle, type FundingHistoryEntry, type RawCandle, type TrackedCoin } from './_signals.mjs'
 
 interface VercelRequest {
   method?: string

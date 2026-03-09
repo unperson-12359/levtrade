@@ -25,6 +25,7 @@ runProvisionalSetupGateTest()
 runPositionPolicyTest()
 runSuggestedPositionCompositionTest()
 runIncrementalRefreshSourceCheck()
+runObservatoryApiBundlingSourceCheck()
 runWorkflowTerminologyCheck()
 runWorkflowStateSourceCheck()
 runObservatoryShellSourceCheck()
@@ -299,6 +300,13 @@ function runIncrementalRefreshSourceCheck() {
   assert.match(managerSource, /updatedSince: this\.lastServerSetupFetchAt/)
   assert.match(serverApiSource, /resolveUpdatedSince/)
   assert.match(repairScriptSource, /MAX_FETCH_ROWS = 10_000/)
+}
+
+function runObservatoryApiBundlingSourceCheck() {
+  const observatoryApiSource = readFileSync(join(__dirname, '../api/observatory-snapshot.ts'), 'utf8')
+
+  assert.match(observatoryApiSource, /from '\.\/_signals\.mjs'/)
+  assert.doesNotMatch(observatoryApiSource, /from '\.\.\/src\/observatory\/engine'/)
 }
 
 function runWorkflowTerminologyCheck() {
