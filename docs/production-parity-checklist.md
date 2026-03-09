@@ -72,6 +72,7 @@ After deploy:
 - confirm health/runtime/freshness states remain visible and fallback copy appears only when canonical endpoints are unavailable or empty
 
 ## Vercel verification
+- `/api/observatory-snapshot?coin=BTC&interval=4h` returns `200` with `ok: true` and freshness metadata
 - `/api/server-setups` returns canonical setup rows
 - `/api/signal-accuracy` returns canonical stats or a clear unavailable state
 - `/api/collector-heartbeat` reports a live or stale heartbeat instead of failing

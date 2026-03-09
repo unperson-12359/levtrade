@@ -1,7 +1,7 @@
 # Release Signoff
 
-- Date: `2026-03-05`
-- Candidate: `930bdb1`
+- Date: `2026-03-08`
+- Candidate: `d9e84ed`
 - Owner: `Codex`
 - Status: `PASS`
 
@@ -16,7 +16,9 @@
 - [x] Manual: Trust source verification (canonical server vs fallback copy)
 
 ## Notes
-- Responsive matrix check (`https://levtrade.vercel.app`) showed app shell + chart visible with no crash guard at all required widths.
-- Trust source verification passed via production Analytics -> Data & Storage panel text confirming canonical-server model + fallback behavior copy.
-- Production soak duration: 625s (11 minutes), with alternating offline/online cycles every minute; app shell stayed visible and no crash guard was triggered.
-- Post-deploy API checks: `/api/server-setups`, `/api/signal-accuracy`, `/api/collector-heartbeat` returned HTTP 200.
+- Production deployment: `https://levtrade-9htsh43e4-unperson12359s-projects.vercel.app`
+- Production alias: `https://levtrade.vercel.app`
+- Responsive matrix on the production alias showed the observatory shell, price chart, and indicator heatmap visible at `360`, `390`, `412`, `960`, and `1280`.
+- Trust source verification passed after the bundling repair: the production observatory freshness chip showed `fresh`, and `/api/observatory-snapshot?coin=BTC&interval=4h` returned HTTP `200` with `ok: true`, `meta.freshness: fresh`, and `meta.source: derived`.
+- Production soak duration: `669s` (11 minutes 9 seconds), with alternating offline/online cycles every minute; the shell stayed visible throughout and runtime remained `OK`.
+- Post-deploy API checks: `/api/observatory-snapshot?coin=BTC&interval=4h`, `/api/server-setups`, `/api/signal-accuracy`, and `/api/collector-heartbeat` returned HTTP `200`.

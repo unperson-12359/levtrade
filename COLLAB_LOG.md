@@ -3831,3 +3831,31 @@ Repair the live `/api/observatory-snapshot` production failure discovered during
 ### Remaining risks / follow-up
 - Public production verification still needs to be rerun after redeploy to confirm `/api/observatory-snapshot` returns `200` and the observatory freshness chip leaves `local` fallback.
 - Release signoff and final deployment bookkeeping are intentionally handled in the next pass so they can reference the repaired live deployment rather than the broken one.
+## 2026-03-08 - Codex - Cleanup release signoff and production verification
+
+### Goal
+Complete the release record for the legacy cleanup plus observatory API repair by refreshing manual signoff, verifying the repaired production deployment, and aligning the parity docs with the live observatory endpoint.
+
+### Files changed
+- `docs/release-signoff.md`
+- `docs/production-parity-checklist.md`
+- `COLLAB_LOG.md`
+
+### Deployment
+- Production deployment URL: `https://levtrade-9htsh43e4-unperson12359s-projects.vercel.app`
+- Production alias: `https://levtrade.vercel.app`
+- Deployment ID: `dpl_CreyfHpLe9aRHeebMznNm79DniQT`
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS (required elevated execution because local sandbox blocks Playwright browser spawn)
+- Production alias `https://levtrade.vercel.app`: HTTP `200`
+- Production observatory snapshot `https://levtrade.vercel.app/api/observatory-snapshot?coin=BTC&interval=4h`: HTTP `200`
+- Responsive matrix on production alias (`360`, `390`, `412`, `960`, `1280`): PASS
+- Production soak duration: `669s` with alternating offline/online cycles every minute: PASS
+- Production trust/source verification: freshness chip `fresh`, runtime `OK`, observatory snapshot payload `ok: true`, `meta.freshness: fresh`, `meta.source: derived`
+
+### Remaining risks / follow-up
+- `docs/release-signoff.md` records candidate `d9e84ed`, which is the runtime repair commit. The follow-up docs/log commit that records the signoff is bookkeeping-only and does not change the deployed runtime behavior.
+- Backend parity documentation still covers non-observatory canonical endpoints because those APIs remain supported; if the product surface continues narrowing around the observatory, a separate docs reduction pass is still available.
