@@ -16,19 +16,26 @@ interface AnalyticsPageProps {
 interface IndicatorAnalyticsRow {
   id: string
   label: string
+  description: string
   category: IndicatorCategory
   state: string
+  unit: string
+  currentValue: number | null
+  quantileBucket: string | null
   totalHits: number
   activeBars: number
   activeRate: number
   currentStreak: number
   maxStreak: number
   lastHitTime: number | null
+  recentHitTimes: number[]
+  transitionRate: number
 }
 
 export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps) {
   const [sortKey, setSortKey] = useState<AnalyticsSortKey>('hits')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All')
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null)
 
   const analytics = useMemo(() => buildAnalytics(snapshot), [snapshot])
 
@@ -39,6 +46,11 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
 
     return filtered.slice().sort((a, b) => compareRows(a, b, sortKey))
   }, [analytics.rows, categoryFilter, sortKey])
+
+  const selectedIndicator = useMemo(
+    () => visibleRows.find((row) => row.id === selectedIndicatorId) ?? analytics.rows.find((row) => row.id === selectedIndicatorId) ?? visibleRows[0] ?? analytics.rows[0] ?? null,
+    [analytics.rows, selectedIndicatorId, visibleRows],
+  )
 
   const summaryCards = useMemo(() => {
     const hottest = analytics.rows[0] ?? null
@@ -135,7 +147,13 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
               <span>Last hit</span>
             </div>
             {visibleRows.map((row) => (
-              <div key={row.id} className="obs-analytics__row" data-testid="obs-analytics-indicator-row">
+              <button
+                key={row.id}
+                type="button"
+                className={`obs-analytics__row ${selectedIndicator?.id === row.id ? 'obs-analytics__row--active' : ''}`}
+                data-testid="obs-analytics-indicator-row"
+                onClick={() => setSelectedIndicatorId(row.id)}
+              >
                 <div className="obs-analytics__indicator">
                   <span className="obs-analytics__indicator-name">{row.label}</span>
                   <span className="obs-analytics__indicator-meta">{row.category} / {row.state}</span>
@@ -145,12 +163,41 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
                 <span>{row.currentStreak} bars</span>
                 <span>{row.maxStreak} bars</span>
                 <span>{row.lastHitTime ? formatCompactTime(row.lastHitTime) : '--'}</span>
-              </div>
+              </button>
             ))}
           </div>
         </section>
 
         <aside className="obs-analytics__rail">
+          <section className="obs-panel" data-testid="obs-analytics-inspector">
+            <div className="obs-panel__eyebrow">Inspector</div>
+            <h2 className="obs-panel__title">{selectedIndicator?.label ?? 'No indicator selected'}</h2>
+            {selectedIndicator ? (
+              <>
+                <div className="obs-selected-cluster__metrics">
+                  <div className="obs-detail-kv"><span>Current</span><span>{formatValue(selectedIndicator.currentValue, selectedIndicator.unit)}</span></div>
+                  <div className="obs-detail-kv"><span>State</span><span>{selectedIndicator.state}</span></div>
+                  <div className="obs-detail-kv"><span>Quantile</span><span>{selectedIndicator.quantileBucket ?? '--'}</span></div>
+                  <div className="obs-detail-kv"><span>Transitions</span><span>{formatPct(selectedIndicator.transitionRate)}</span></div>
+                </div>
+                <p className="obs-detail-copy">{selectedIndicator.description}</p>
+                <div className="obs-detail-subtitle">Recent hits</div>
+                <div className="obs-pulse-list">
+                  {selectedIndicator.recentHitTimes.length > 0 ? (
+                    selectedIndicator.recentHitTimes.slice(0, 4).map((time) => (
+                      <div key={time} className="obs-pulse-row">
+                        <span>{formatCompactTime(time)}</span>
+                        <span>{timeframe}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="obs-empty">No hits in the visible window.</div>
+                  )}
+                </div>
+              </>
+            ) : null}
+          </section>
+
           <section className="obs-panel">
             <div className="obs-panel__eyebrow">Category totals</div>
             <h2 className="obs-panel__title">Where signals cluster</h2>
@@ -190,14 +237,20 @@ function buildAnalytics(snapshot: ObservatorySnapshot) {
   const rows = snapshot.indicators.map<IndicatorAnalyticsRow>((indicator) => ({
     id: indicator.id,
     label: indicator.label,
+    description: indicator.description,
     category: indicator.category,
     state: indicator.currentState,
+    unit: indicator.unit,
+    currentValue: indicator.currentValue,
+    quantileBucket: indicator.quantileBucket,
     totalHits: 0,
     activeBars: 0,
     activeRate: 0,
     currentStreak: 0,
     maxStreak: 0,
     lastHitTime: null,
+    recentHitTimes: [],
+    transitionRate: indicator.frequency.stateTransitionRate,
   }))
 
   const categoryActiveBars = new Map<IndicatorCategory, number>(CATEGORY_ORDER.map((category) => [category, 0]))
@@ -225,6 +278,7 @@ function buildAnalytics(snapshot: ObservatorySnapshot) {
         row.currentStreak += 1
         row.maxStreak = Math.max(row.maxStreak, row.currentStreak)
         row.lastHitTime = cluster.time
+        row.recentHitTimes.push(cluster.time)
       } else {
         row.currentStreak = 0
       }
@@ -295,4 +349,11 @@ function formatCompactTime(value: number) {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+function formatValue(value: number | null, unit: string) {
+  if (value === null || !Number.isFinite(value)) return '--'
+  if (unit === '%') return `${value.toFixed(1)}%`
+  if (unit === 'bp') return `${value.toFixed(1)}bp`
+  return value.toFixed(2)
 }

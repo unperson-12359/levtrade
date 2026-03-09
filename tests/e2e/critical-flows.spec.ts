@@ -23,6 +23,9 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
     await expect(page.getByTestId('obs-candle-report-chart')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-candle-price')).toBeVisible()
+    await expect(page.getByTestId('obs-report-metrics')).toBeVisible()
+    await expect(page.getByTestId('obs-report-active-context')).toBeVisible()
+    await expect(page.getByTestId('obs-report-category-share')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-report')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-report-row').first()).toBeVisible()
     await expect(page).toHaveURL(/#\/observatory\/report/)
@@ -48,6 +51,7 @@ test.describe('Observatory critical flows', () => {
     await page.getByTestId('obs-nav-analytics').click()
     await expect(page.getByTestId('obs-analytics-page')).toBeVisible()
     await expect(page.getByTestId('obs-analytics-table')).toBeVisible()
+    await expect(page.getByTestId('obs-analytics-inspector')).toBeVisible()
     await page.getByTestId('obs-nav-observatory').click()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 

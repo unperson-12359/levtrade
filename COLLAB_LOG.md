@@ -4042,3 +4042,31 @@ Turn the observatory shell into a multi-page product with professional navigatio
 ### Remaining risks / follow-up
 - Mobile header behavior is functionally covered, but if the global nav grows beyond two destinations the next step should be a fuller drawer/overlay pattern rather than more chips in the header.
 - Analytics is intentionally frequency/streak-first; if deeper co-occurrence analysis is needed later, it should probably extend the existing network surface instead of bloating the analytics page.
+## 2026-03-09 - Codex - Upgrade candle report into dense analytics surface
+
+### Goal
+Make the candle report page much sharper and more detailed so the selected-candle view becomes the primary place for frequency, recurrence, and category-pressure analytics, while adding a complementary inline inspector to the Analytics page.
+
+### Files changed
+- `src/components/observatory/AnalyticsPage.tsx`
+- `src/components/observatory/CandleReportPage.tsx`
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/index.css`
+- `tests/e2e/critical-flows.spec.ts`
+- `tests/run-logic-tests.mjs`
+
+### What changed
+- Rebuilt the candle report into a denser analytics screen with report KPI cards, active-pressure context, category-share bars, and a sharper per-category indicator matrix.
+- Added recurrence and trailing-context calculations from the loaded timeline window so the report now shows percentile, dominance, trailing average, and repeated-signal context.
+- Tightened report row anatomy so active and inactive indicators differ structurally, not just by color.
+- Added an inline inspector to the Analytics page so row clicks reveal current value, state, quantile, transition rate, and recent hit times.
+- Updated observatory wiring and tests to account for the richer report modules and analytics inspector.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS
+
+### Remaining risks / follow-up
+- The report page now uses much more of the available width; if you want another pass after live review, the next likely improvement is column-density tuning for mobile rather than adding more modules.
+- Analytics still complements the report instead of replacing it; if you later want cross-coin analytics, that should be a separate data-model pass.

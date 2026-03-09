@@ -400,6 +400,7 @@ export function ObservatoryLayout() {
               coin={selectedCoin}
               timeframe={timeframe}
               cluster={reportCluster}
+              timeline={snapshot.timeline}
               allIndicators={snapshot.indicators}
               loading={loading}
               onBack={navigateToHeatmap}
