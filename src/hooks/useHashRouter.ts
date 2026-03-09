@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { TRACKED_COINS, type TrackedCoin } from '../types/market'
 
 type AllowedInterval = '4h' | '1d'
-type ObservatoryRoutePage = 'observatory' | 'report' | 'analytics'
+type ObservatoryRoutePage = 'observatory' | 'report' | 'analytics' | 'methodology'
 
 export interface ObservatoryRoute {
   page: ObservatoryRoutePage
@@ -17,11 +17,15 @@ function parseHash(hash: string): ObservatoryRoute {
   if (!raw) return fallback
 
   const withoutHash = raw.startsWith('#') ? raw.slice(1) : raw
-  if (!withoutHash.startsWith('/observatory') && !withoutHash.startsWith('/analytics')) return fallback
+  if (!withoutHash.startsWith('/observatory') && !withoutHash.startsWith('/analytics') && !withoutHash.startsWith('/methodology')) {
+    return fallback
+  }
 
   const [pathPart = '', queryPart = ''] = withoutHash.split('?')
   const page: ObservatoryRoutePage = pathPart.startsWith('/analytics')
     ? 'analytics'
+    : pathPart.startsWith('/methodology')
+      ? 'methodology'
     : pathPart.includes('/report')
       ? 'report'
       : 'observatory'
@@ -47,6 +51,10 @@ function buildReportHash(coin: string, interval: string, time: number): string {
 
 function buildAnalyticsHash(): string {
   return '#/analytics'
+}
+
+function buildMethodologyHash(): string {
+  return '#/methodology'
 }
 
 export function useHashRouter() {
@@ -96,5 +104,17 @@ export function useHashRouter() {
     navigate(buildAnalyticsHash())
   }, [navigate])
 
-  return { route, navigate, navigateToHeatmap, navigateToObservatory, navigateToAnalytics, navigateToReport } as const
+  const navigateToMethodology = useCallback(() => {
+    navigate(buildMethodologyHash())
+  }, [navigate])
+
+  return {
+    route,
+    navigate,
+    navigateToHeatmap,
+    navigateToObservatory,
+    navigateToAnalytics,
+    navigateToMethodology,
+    navigateToReport,
+  } as const
 }

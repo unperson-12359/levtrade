@@ -83,8 +83,8 @@ export function IndicatorClusterLanes({
     <section className="obs-cluster" data-testid="obs-cluster-lanes">
       <div className="obs-cluster__header">
         <div>
-          <div className="obs-cluster__title">Indicator Heatmap</div>
-          <div className="obs-cluster__hint">Select a cell to inspect the day below or open the full report.</div>
+          <div className="obs-cluster__title">Step 2 · Read signal pressure</div>
+          <div className="obs-cluster__hint">Dense cells show where indicator events cluster. Select one candle, explain it below, then open the report if needed.</div>
         </div>
       </div>
 

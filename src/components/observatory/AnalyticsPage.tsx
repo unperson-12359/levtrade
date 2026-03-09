@@ -88,7 +88,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
             <div className="obs-panel__eyebrow">Indicator analytics</div>
             <h2 className="obs-panel__title">Frequency and streak engine</h2>
           </div>
-          <p className="obs-panel__hint">Ranking indicators by appearance rate, persistence, and recent activity.</p>
+          <p className="obs-panel__hint">Use this after the live read. It explains persistence and recurrence; it is not the first page to interpret the market.</p>
         </div>
 
         <div className="obs-analytics__summary">

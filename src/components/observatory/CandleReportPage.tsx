@@ -217,6 +217,9 @@ export function CandleReportPage({
       </header>
 
       <div className="obs-report__chart-drawer" data-testid="obs-candle-report-chart">
+        <p className="obs-report__intro">
+          This page is the explanation layer for a selected candle. Read it when the live observatory tells you a candle is worth understanding in detail.
+        </p>
         <button
           type="button"
           className={`obs-report__chart-toggle ${chartOpen ? 'obs-report__chart-toggle--open' : ''}`}

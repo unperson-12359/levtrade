@@ -4108,3 +4108,40 @@ Execute the approved multi-track audit program across the current LevTrade obser
 - Collector hardening was intentionally audited but not changed in this pass. Remaining work includes surfacing silent persistence failures and resolution backlog ceilings from `src/server/collector/runCollector.ts`.
 - Non-report route URLs still do not preserve coin/interval query state when switching between `#/observatory` and `#/analytics`; this was documented as follow-up rather than changed here.
 - The execution-event feed remains a snapshot-style SSE plus polling/reconciliation hybrid. If a true long-lived stream is required, that should be a dedicated runtime pass.
+## 2026-03-09 - Codex GPT-5
+- Goal: Rework the observatory flow so the layout teaches a new serious user how to read the market, and add a dedicated methodology page with product context.
+- Files changed:
+  - `src/hooks/useHashRouter.ts`
+  - `src/components/observatory/ObservatoryLayout.tsx`
+  - `src/components/observatory/AnalyticsPage.tsx`
+  - `src/components/observatory/CandleReportPage.tsx`
+  - `src/components/observatory/IndicatorClusterLanes.tsx`
+  - `src/components/observatory/MethodologyPage.tsx`
+  - `src/components/observatory/ObservatoryGuideStrip.tsx`
+  - `src/components/observatory/methodologyContent.ts`
+  - `src/index.css`
+  - `tests/run-logic-tests.mjs`
+  - `tests/e2e/critical-flows.spec.ts`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - This pass changes comprehension and navigation, not the underlying signal methodology or market math.
+  - The methodology content is static explanatory copy; if product semantics change, `methodologyContent.ts` will need to stay aligned.
+  - The observatory now explains reading order more clearly, but a separate visual-design pass would still be needed if the goal is a stronger aesthetic overhaul.
+- Remaining incomplete work:
+  - No additional methodology-specific analytics/report instrumentation was added beyond route, copy, and critical-flow coverage.
+## 2026-03-09 - Codex GPT-5 (follow-up)
+- Goal: Fix the methodology page subnavigation so it does not conflict with the hash router.
+- Files changed:
+  - `src/components/observatory/MethodologyPage.tsx`
+  - `src/index.css`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - Section jumps now use in-page scroll buttons instead of raw hash anchors, which keeps `#/methodology` stable.
+- Remaining incomplete work:
+  - None for this fix.

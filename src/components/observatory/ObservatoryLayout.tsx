@@ -9,6 +9,8 @@ import { PriceChart } from '../chart/PriceChart'
 import { AnalyticsPage } from './AnalyticsPage'
 import { IndicatorClusterLanes, type ClusterPresentationMode } from './IndicatorClusterLanes'
 import { CandleReportPage } from './CandleReportPage'
+import { MethodologyPage } from './MethodologyPage'
+import { ObservatoryGuideStrip } from './ObservatoryGuideStrip'
 import { PoolMap } from './PoolMap'
 
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Flow', 'Structure']
@@ -29,7 +31,14 @@ export function ObservatoryLayout() {
   const clearRuntimeDiagnostics = useStore((state) => state.clearRuntimeDiagnostics)
   const prices = useStore((state) => state.prices)
 
-  const { route, navigateToHeatmap, navigateToObservatory, navigateToAnalytics, navigateToReport } = useHashRouter()
+  const {
+    route,
+    navigateToHeatmap,
+    navigateToObservatory,
+    navigateToAnalytics,
+    navigateToMethodology,
+    navigateToReport,
+  } = useHashRouter()
 
   const { snapshot, priceContext, source, freshness, loading } = useIndicatorObservatory(selectedCoin)
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null)
@@ -140,6 +149,7 @@ export function ObservatoryLayout() {
   const timeframe = (selectedInterval === '1d' ? '1d' : '4h') as AllowedInterval
   const isReportPage = route.page === 'report'
   const isAnalyticsPage = route.page === 'analytics'
+  const isMethodologyPage = route.page === 'methodology'
   const reportCluster = useMemo(() => {
     if (!isReportPage || route.time === null) return null
     return snapshot.timeline.find((cluster) => cluster.time === route.time) ?? null
@@ -218,6 +228,14 @@ export function ObservatoryLayout() {
               >
                 Analytics
               </button>
+              <button
+                type="button"
+                className={`obs-chip obs-chip--nav ${isMethodologyPage ? 'obs-chip--active' : ''}`}
+                onClick={navigateToMethodology}
+                data-testid="obs-nav-methodology"
+              >
+                Methodology
+              </button>
             </nav>
 
             <button
@@ -248,12 +266,19 @@ export function ObservatoryLayout() {
               >
                 Analytics
               </button>
+              <button
+                type="button"
+                className={`obs-chip obs-chip--nav ${isMethodologyPage ? 'obs-chip--active' : ''}`}
+                onClick={navigateToMethodology}
+              >
+                Methodology
+              </button>
             </nav>
           )}
 
           <div className="obs-command-bar__masthead">
             <div className="obs-command-bar__view-switch">
-              {!isReportPage && !isAnalyticsPage ? (
+              {!isReportPage && !isAnalyticsPage && !isMethodologyPage ? (
                 <>
                   <button
                     type="button"
@@ -274,11 +299,15 @@ export function ObservatoryLayout() {
                 </>
               ) : (
                 <div className="obs-command-bar__page-tag">
-                  {isAnalyticsPage ? 'Analytics / Frequency + streaks' : 'Candle report / Event detail'}
+                  {isAnalyticsPage
+                    ? 'Deep dive / Analytics and persistence'
+                    : isMethodologyPage
+                      ? 'Methodology / How to read LevTrade'
+                      : 'Deep dive / Candle report'}
                 </div>
               )}
 
-              {!isReportPage && !isAnalyticsPage && (
+              {!isReportPage && !isAnalyticsPage && !isMethodologyPage && (
                 <>
                   <button
                     type="button"
@@ -329,7 +358,7 @@ export function ObservatoryLayout() {
                 </button>
               ))}
 
-              {!isReportPage && !isAnalyticsPage && primaryView === 'timeline' && (
+              {!isReportPage && !isAnalyticsPage && !isMethodologyPage && primaryView === 'timeline' && (
                 <>
                   <button
                     type="button"
@@ -398,7 +427,14 @@ export function ObservatoryLayout() {
           </div>
         </section>
 
-        {isReportPage ? (
+        {isMethodologyPage ? (
+          <MethodologyPage
+            coin={selectedCoin}
+            timeframe={timeframe}
+            onOpenObservatory={navigateToObservatory}
+            onOpenAnalytics={navigateToAnalytics}
+          />
+        ) : isReportPage ? (
           <section className="obs-report-shell">
             <CandleReportPage
               coin={selectedCoin}
@@ -415,15 +451,26 @@ export function ObservatoryLayout() {
         ) : isAnalyticsPage ? (
           <AnalyticsPage coin={selectedCoin} timeframe={timeframe} snapshot={snapshot} />
         ) : (
-          <div className={`obs-workspace ${isTimelineView ? 'obs-workspace--timeline' : ''}`}>
+          <>
+            <ObservatoryGuideStrip
+              coin={selectedCoin}
+              timeframe={timeframe}
+              primaryView={primaryView}
+              freshness={freshness}
+              selectedClusterLabel={selectedTimelineCluster ? new Date(selectedTimelineCluster.time).toLocaleString() : 'No selection yet'}
+              selectedClusterHits={selectedTimelineCluster?.totalHits ?? null}
+              onOpenMethodology={navigateToMethodology}
+            />
+
+            <div className={`obs-workspace ${isTimelineView ? 'obs-workspace--timeline' : ''}`}>
             <main className={`obs-main ${isTimelineView ? 'obs-main--timeline' : ''}`}>
               {isTimelineView ? (
                 <section className="obs-canvas obs-canvas--timeline">
                   <div className="obs-panel obs-panel--canvas">
                     <div className="obs-panel__title-row">
                       <div>
-                        <div className="obs-panel__eyebrow">Live chart</div>
-                        <h2 className="obs-panel__title">Price geometry</h2>
+                        <div className="obs-panel__eyebrow">Step 1 · Start with market state</div>
+                        <h2 className="obs-panel__title">Price path and recent context</h2>
                       </div>
                       <button
                         type="button"
@@ -436,6 +483,10 @@ export function ObservatoryLayout() {
                       </button>
                     </div>
 
+                    <p className="obs-panel__lead">
+                      Read the live price, 24h change, and freshness first. The heatmap matters more when the market context above feels coherent and trustworthy.
+                    </p>
+
                     {!chartCollapsed && (
                       <div id="obs-live-chart-panel" className="obs-chart-compact">
                         <PriceChart coin={selectedCoin} embedded showHeader={false} />
@@ -447,10 +498,10 @@ export function ObservatoryLayout() {
                 <section className="obs-panel obs-panel--network-surface">
                   <div className="obs-panel__title-row">
                     <div>
-                      <div className="obs-panel__eyebrow">Correlation surface</div>
-                      <h2 className="obs-panel__title">Indicator network</h2>
+                      <div className="obs-panel__eyebrow">Step 4 · Validate the read</div>
+                      <h2 className="obs-panel__title">Indicator relationship map</h2>
                     </div>
-                    <p className="obs-panel__hint">Color = sign, thickness = strength, dashed = lag</p>
+                    <p className="obs-panel__hint">Use this after the live read. Color = sign, thickness = strength, dashed = lag.</p>
                   </div>
                   <MapLegend />
                   <PoolMap
@@ -468,10 +519,13 @@ export function ObservatoryLayout() {
               {isTimelineView ? (
                 <>
                   <section className="obs-panel obs-panel--rail">
-                    <div className="obs-panel__eyebrow">Latest pulse</div>
+                    <div className="obs-panel__eyebrow">Step 2 · What is active now</div>
                     <div className="obs-rail-card__headline">
                       {latestTimelineCluster ? new Date(latestTimelineCluster.time).toLocaleString() : 'No live cluster'}
                     </div>
+                    <p className="obs-panel__copy">
+                      This is the quick read of live pressure. Broad counts across categories matter more than a single isolated hit.
+                    </p>
                     <div className="obs-pulse-list">
                       {pulseSummary.map((item) => (
                         <div key={item.category} className="obs-pulse-row">
@@ -494,10 +548,13 @@ export function ObservatoryLayout() {
                   </section>
 
                   <section className="obs-panel obs-panel--rail obs-panel--selected-cluster" data-testid="obs-selected-cluster-card">
-                    <div className="obs-panel__eyebrow">Selected day</div>
+                    <div className="obs-panel__eyebrow">Step 3 · Explain the selected candle</div>
                     <div className="obs-rail-card__headline">
                       {selectedTimelineCluster ? new Date(selectedTimelineCluster.time).toLocaleString() : 'No selected cluster'}
                     </div>
+                    <p className="obs-panel__copy">
+                      Use this card to turn heatmap pressure into meaning before opening the full report.
+                    </p>
                     {selectedTimelineCluster ? (
                       <>
                         <div className="obs-selected-cluster__metrics">
@@ -528,11 +585,11 @@ export function ObservatoryLayout() {
                           onClick={() => openCandleReport(selectedTimelineCluster.time)}
                           data-testid="obs-selected-cluster-open-report"
                         >
-                          Open full report
+                          Open detailed report
                         </button>
                       </>
                     ) : (
-                      <div className="obs-empty">Select a heatmap cell to inspect the candle details here.</div>
+                      <div className="obs-empty">Select a heatmap cell to explain why that candle mattered, then open the report only if you need deeper context.</div>
                     )}
                   </section>
                 </>
@@ -670,7 +727,8 @@ export function ObservatoryLayout() {
                 </section>
               )}
             </aside>
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>
