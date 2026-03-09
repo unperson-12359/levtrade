@@ -54,6 +54,18 @@ export function IndicatorClusterLanes({
     return clusters[clusters.length - 1]?.time ?? null
   }, [clusters, selectedTime])
 
+  const activeLabel = useMemo(() => {
+    if (activeTime === null) return 'No active candle'
+    return new Date(activeTime).toLocaleString()
+  }, [activeTime])
+
+  const rangeLabel = useMemo(() => {
+    if (clusters.length === 0) return '--'
+    const first = new Date(clusters[0]!.time).toLocaleDateString()
+    const last = new Date(clusters[clusters.length - 1]!.time).toLocaleDateString()
+    return `${first} - ${last}`
+  }, [clusters])
+
   if (clusters.length === 0) {
     return <div className="obs-cluster-empty">No indicator hit events yet for this timeframe.</div>
   }
@@ -61,8 +73,17 @@ export function IndicatorClusterLanes({
   return (
     <section className="obs-cluster" data-testid="obs-cluster-lanes">
       <div className="obs-cluster__header">
-        <div className="obs-cluster__title">Indicator Heatmap ({timeframe}, {mode})</div>
-        <div className="obs-cluster__hint">Click a cell to open full candle report page.</div>
+        <div>
+          <div className="obs-cluster__title">Indicator Heatmap</div>
+          <div className="obs-cluster__hint">Click a cell to open full candle report page.</div>
+        </div>
+        <div className="obs-cluster__meta" aria-label="Heatmap window details">
+          <span className="obs-cluster__meta-item">{timeframe}</span>
+          <span className="obs-cluster__meta-item">{mode}</span>
+          <span className="obs-cluster__meta-item">{clusters.length} bars</span>
+          <span className="obs-cluster__meta-item">{rangeLabel}</span>
+          <span className="obs-cluster__meta-item">{activeLabel}</span>
+        </div>
       </div>
 
       <div className="obs-cluster__summary-strip">

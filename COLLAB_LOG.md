@@ -3889,3 +3889,28 @@ Rework the live observatory interface using the provided screenshot references a
 ### Remaining risks / follow-up
 - The preview screenshots naturally showed `freshness: local` because local preview does not hit the production canonical endpoint the same way as deployed Vercel.
 - If desired, the next refinement should target report-page visual density and the right-rail information hierarchy now that the shell language is established.
+## 2026-03-09 - Codex - Observatory polish pass for geometry and smoothness
+
+### Goal
+Refine the shipped editorial observatory with a second-pass polish grounded in current UI/UX guidance: tighter geometry, more coherent hierarchy, subtler motion, and cleaner report/heatmap framing without changing product logic or routes.
+
+### Files changed
+- `src/components/observatory/ObservatoryLayout.tsx`
+- `src/components/observatory/IndicatorClusterLanes.tsx`
+- `src/components/observatory/CandleReportPage.tsx`
+- `src/index.css`
+
+### What changed
+- Added small shell-structure wrappers so the masthead, market strip, and panel titles read as deliberate modules rather than raw stacks.
+- Introduced a polish override layer for the observatory theme: refined paper/background geometry, more consistent borders, better focus states, controlled hover motion, and reduced-motion-safe transitions.
+- Tightened the heatmap header with explicit window metadata and refined cell motion/selection styling.
+- Restyled the candle report header and cards so the report feels integrated with the main shell instead of like a separate utility page.
+- Removed leftover pulsing/loading-style motion from the observatory chrome in favor of shorter, more compositor-friendly transitions.
+
+### Verification
+- `npm.cmd run build`: PASS
+- `npm.cmd run test:logic`: PASS
+- `npm.cmd run test:e2e:critical`: PASS
+
+### Remaining risks / follow-up
+- This pass intentionally avoided another layout rewrite; if the site still feels too tall after production review, the next step should be a targeted density pass on report and right-rail content rather than more visual ornament.

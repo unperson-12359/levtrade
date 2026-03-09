@@ -190,6 +190,11 @@ export function ObservatoryLayout() {
             <div className="obs-brand-lockup">
               <div className="obs-brand">LevTrade</div>
               <div className="obs-brand-sub">Observatory / Hyperliquid market forensics</div>
+              <div className="obs-brand-lockup__meta" aria-hidden="true">
+                <span className="obs-brand-token">Observatory</span>
+                <span className="obs-brand-token">Hyperliquid</span>
+                <span className="obs-brand-token">Market</span>
+              </div>
             </div>
 
             <div className="obs-command-bar__view-switch">
@@ -239,6 +244,10 @@ export function ObservatoryLayout() {
                 <span className={`obs-price-hero__change obs-price-hero__change--${toneFromNumber(priceContext.change24hPct)}`}>
                   {formatSignedPct(priceContext.change24hPct)}
                 </span>
+              </div>
+              <div className="obs-command-bar__hero-meta">
+                <span>{source === 'canonical' ? freshness : 'local'}</span>
+                <span>{healthLabel}</span>
               </div>
             </div>
           </div>
@@ -303,30 +312,36 @@ export function ObservatoryLayout() {
         </header>
 
         <section className="obs-market-strip">
-          <div className="obs-market-strip__track">
-            {TRACKED_COINS.map((coin) => (
-              <button
-                key={coin}
-                type="button"
-                className={`obs-market-tile ${coin === selectedCoin ? 'obs-market-tile--active obs-chip--active' : ''}`}
-                onClick={() => selectCoin(coin)}
-                data-testid={`obs-coin-${coin}`}
-              >
-                <span className="obs-market-tile__symbol">{coin}</span>
-                <span className="obs-market-tile__price">{formatTickerPrice(prices[coin], coin === selectedCoin ? priceContext.lastPrice : null)}</span>
-              </button>
-            ))}
+          <div className="obs-market-strip__track-wrap">
+            <div className="obs-strip-label">Tracked markets</div>
+            <div className="obs-market-strip__track">
+              {TRACKED_COINS.map((coin) => (
+                <button
+                  key={coin}
+                  type="button"
+                  className={`obs-market-tile ${coin === selectedCoin ? 'obs-market-tile--active obs-chip--active' : ''}`}
+                  onClick={() => selectCoin(coin)}
+                  data-testid={`obs-coin-${coin}`}
+                >
+                  <span className="obs-market-tile__symbol">{coin}</span>
+                  <span className="obs-market-tile__price">{formatTickerPrice(prices[coin], coin === selectedCoin ? priceContext.lastPrice : null)}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="obs-market-strip__stats">
-            <ShellStat label="Indicators" value={String(snapshot.indicators.length)} />
-            <ShellStat label="Signals" value={String(snapshot.timeline.length)} />
-            <ShellStat label="Density" value={density.toFixed(2)} />
-            <ShellStat
-              label={`${timeframe} move`}
-              value={formatSignedPct(priceContext.intervalReturnPct)}
-              tone={toneFromNumber(priceContext.intervalReturnPct)}
-            />
+          <div className="obs-market-strip__stats-wrap">
+            <div className="obs-strip-label">Session metrics</div>
+            <div className="obs-market-strip__stats">
+              <ShellStat label="Indicators" value={String(snapshot.indicators.length)} />
+              <ShellStat label="Signals" value={String(snapshot.timeline.length)} />
+              <ShellStat label="Density" value={density.toFixed(2)} />
+              <ShellStat
+                label={`${timeframe} move`}
+                value={formatSignedPct(priceContext.intervalReturnPct)}
+                tone={toneFromNumber(priceContext.intervalReturnPct)}
+              />
+            </div>
           </div>
         </section>
 
@@ -354,9 +369,12 @@ export function ObservatoryLayout() {
                         <div className="obs-panel__eyebrow">Live chart</div>
                         <h2 className="obs-panel__title">Price geometry</h2>
                       </div>
-                      <button type="button" className="obs-panel__toggle" onClick={() => setChartCollapsed((value) => !value)}>
-                        {chartCollapsed ? 'Open chart' : 'Collapse chart'}
-                      </button>
+                      <div className="obs-panel__title-actions">
+                        <span className="obs-panel__frame-code" aria-hidden="true">01</span>
+                        <button type="button" className="obs-panel__toggle" onClick={() => setChartCollapsed((value) => !value)}>
+                          {chartCollapsed ? 'Open chart' : 'Collapse chart'}
+                        </button>
+                      </div>
                     </div>
 
                     {!chartCollapsed && (
@@ -384,7 +402,10 @@ export function ObservatoryLayout() {
                       <div className="obs-panel__eyebrow">Correlation surface</div>
                       <h2 className="obs-panel__title">Indicator network</h2>
                     </div>
-                    <p className="obs-panel__hint">Color = sign, thickness = strength, dashed = lag</p>
+                    <div className="obs-panel__title-actions">
+                      <span className="obs-panel__frame-code" aria-hidden="true">02</span>
+                      <p className="obs-panel__hint">Color = sign, thickness = strength, dashed = lag</p>
+                    </div>
                   </div>
                   <MapLegend />
                   <PoolMap
