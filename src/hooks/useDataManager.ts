@@ -25,36 +25,34 @@ export function useDataManager() {
     }
   }, [enabled])
 
-  const previousInterval = useRef(interval)
+  const previousContext = useRef({ interval, selectedCoin })
   useEffect(() => {
-    if (!enabled || interval === previousInterval.current) return
-    previousInterval.current = interval
-
+    if (!enabled) return
     const manager = managerRef.current
     if (!manager) return
 
-    manager.fetchAllCandles([selectedCoin], 'full')
-      .then(() => {
-        const remainingCoins = TRACKED_COINS.filter((coin) => coin !== selectedCoin)
-        if (remainingCoins.length > 0) {
-          return manager.fetchAllCandles(remainingCoins, 'full')
-        }
-      })
-      .catch(() => {
-        // Errors are already captured by DataManager diagnostics.
-      })
-  }, [enabled, interval, selectedCoin])
+    const previous = previousContext.current
+    const intervalChanged = interval !== previous.interval
+    const coinChanged = selectedCoin !== previous.selectedCoin
+    if (!intervalChanged && !coinChanged) return
+    previousContext.current = { interval, selectedCoin }
 
-  const previousSelectedCoin = useRef(selectedCoin)
-  useEffect(() => {
-    if (!enabled || selectedCoin === previousSelectedCoin.current) return
-    previousSelectedCoin.current = selectedCoin
+    if (intervalChanged) {
+      manager.fetchAllCandles([selectedCoin], 'smart')
+        .then(() => {
+          const remainingCoins = TRACKED_COINS.filter((coin) => coin !== selectedCoin)
+          if (remainingCoins.length > 0) {
+            return manager.fetchAllCandles(remainingCoins, 'smart')
+          }
+        })
+        .catch(() => {
+          // Errors are already captured by DataManager diagnostics.
+        })
+      return
+    }
 
-    const manager = managerRef.current
-    if (!manager) return
-
-    void manager.fetchAllCandles([selectedCoin], 'full').catch(() => {
+    void manager.fetchAllCandles([selectedCoin], 'smart').catch(() => {
       // Errors are already captured by DataManager diagnostics.
     })
-  }, [enabled, selectedCoin])
+  }, [enabled, interval, selectedCoin])
 }

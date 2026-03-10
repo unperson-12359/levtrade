@@ -1,13 +1,13 @@
 import { TRACKED_COINS, type RawCandle, type TrackedCoin } from './_signals.mjs'
+import { postHyperliquidInfo } from '../src/shared/hyperliquid'
 
 export type ObservatoryInterval = '4h' | '1d'
 type ParseResult<T> = { ok: true; value: T } | { ok: false; reason: string }
 
-const HYPERLIQUID_API = 'https://api.hyperliquid.xyz/info'
 const REQUEST_TIMEOUT_MS = 12_000
 
 export async function fetchAllMids(): Promise<Record<string, string>> {
-  return postInfo<Record<string, string>>({ type: 'allMids' })
+  return postHyperliquidInfo<Record<string, string>>({ type: 'allMids' }, { timeoutMs: REQUEST_TIMEOUT_MS })
 }
 
 export async function fetchCandles(
@@ -16,10 +16,10 @@ export async function fetchCandles(
   startTime: number,
   endTime: number,
 ): Promise<RawCandle[]> {
-  return postInfo<RawCandle[]>({
+  return postHyperliquidInfo<RawCandle[]>({
     type: 'candleSnapshot',
     req: { coin, interval, startTime, endTime },
-  })
+  }, { timeoutMs: REQUEST_TIMEOUT_MS })
 }
 
 export function parseCoinParam(raw: string | string[] | undefined): ParseResult<TrackedCoin> {
@@ -55,25 +55,4 @@ export function parsePositiveInteger(
   const min = options.min ?? 1
   const max = options.max ?? Number.MAX_SAFE_INTEGER
   return Math.max(min, Math.min(max, candidate))
-}
-
-async function postInfo<T>(body: Record<string, unknown>): Promise<T> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-  try {
-    const response = await fetch(HYPERLIQUID_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
-
-    if (!response.ok) {
-      throw new Error(`Hyperliquid request failed: ${response.status}`)
-    }
-
-    return response.json() as Promise<T>
-  } finally {
-    clearTimeout(timer)
-  }
 }

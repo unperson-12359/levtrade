@@ -4471,3 +4471,26 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - The production Supabase schema still needs the `rule_version` SQL applied if the live table has not been migrated yet.
 - Remaining incomplete work:
   - Push and post-deploy verification remain to be completed after this log entry.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
+- Goal: Fix the interval-switch candle cache/runtime hazard, reduce unnecessary full candle reloads, and remove the largest dead observatory-adjacent CSS residue while keeping the critical flows green.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `src/store/marketDataSlice.ts`
+  - `src/services/dataManager.ts`
+  - `src/hooks/useDataManager.ts`
+  - `src/hooks/useChartModel.ts`
+  - `src/hooks/useIndicatorObservatory.ts`
+  - `src/index.css`
+  - `tests/run-logic-tests.mjs`
+  - `tests/e2e/critical-flows.spec.ts`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `node tests/run-logic-tests.mjs` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - The candle cache is now interval-aware, but the browser and server Hyperliquid request helpers are still duplicated across `src/services/api.ts` and `api/_hyperliquid.ts`.
+  - Large dead CSS families still remain in `src/index.css` around old tracker/setup-drawer/workflow selectors beyond the risk/perf blocks removed in this pass.
+  - The methodology round-trip in mocked E2E can still reset seeded store state, so the test now re-seeds defensively; if that behavior ever appears outside mock mode it should be investigated as a real app bug.
+- Remaining incomplete work:
+  - Changes are local only; they have not been committed or pushed in this pass.

@@ -8,7 +8,7 @@ import { HyperliquidWS } from './websocket'
 
 const NETWORK_FETCH_CONCURRENCY = 2
 const NETWORK_REQUEST_GAP_MS = 80
-type CandleFetchMode = 'full' | 'recent'
+type CandleFetchMode = 'full' | 'recent' | 'smart'
 
 export class DataManager {
   private ws: HyperliquidWS
@@ -22,10 +22,6 @@ export class DataManager {
   constructor(store: StoreApi<AppStore>) {
     this.store = store
     this.ws = new HyperliquidWS()
-  }
-
-  private get itvl() {
-    return INTERVAL_CONFIG[this.store.getState().selectedInterval]
   }
 
   private get interval() {
@@ -86,21 +82,24 @@ export class DataManager {
     coins: readonly TrackedCoin[] = TRACKED_COINS,
     mode: CandleFetchMode = 'full',
   ): Promise<void> {
-    const { ms, candleCount, recentRefreshBars } = this.itvl
+    const interval = this.interval
+    const { ms, candleCount, recentRefreshBars } = INTERVAL_CONFIG[interval]
     const now = Date.now()
-    const overlapBars = mode === 'recent' ? recentRefreshBars : candleCount
-    const startTime = now - overlapBars * ms
 
     await runWithConcurrency(coins, NETWORK_FETCH_CONCURRENCY, async (coin) => {
       try {
-        const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
+        const existingCandles = this.store.getState().candles[coin][interval]
+        const resolvedMode = resolveCandleFetchMode(mode, existingCandles.length)
+        const overlapBars = resolvedMode === 'recent' ? recentRefreshBars : candleCount
+        const startTime = now - overlapBars * ms
+        const rawCandles = await fetchCandles(coin, interval, startTime, now)
         const candles = rawCandles.map(parseCandle).sort((left, right) => left.time - right.time)
-        const nextCandles = mode === 'full'
+        const nextCandles = resolvedMode === 'full'
           ? candles
-          : mergeCandles(this.store.getState().candles[coin], candles, candleCount)
-        this.store.getState().setCandles(coin, nextCandles)
+          : mergeCandles(existingCandles, candles, candleCount)
+        this.store.getState().setCandles(coin, nextCandles, interval)
       } catch (error) {
-        this.reportRuntimeIssue(`fetch-candles:${coin}`, error, `Failed to fetch candles for ${coin}`)
+        this.reportRuntimeIssue(`fetch-candles:${coin}:${interval}`, error, `Failed to fetch candles for ${coin}`)
       }
       await sleep(NETWORK_REQUEST_GAP_MS)
     })
@@ -201,6 +200,13 @@ async function runWithConcurrency<T>(
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function resolveCandleFetchMode(mode: CandleFetchMode, existingCount: number): Exclude<CandleFetchMode, 'smart'> {
+  if (mode === 'smart') {
+    return existingCount > 0 ? 'recent' : 'full'
+  }
+  return mode
 }
 
 function mergeCandles(existing: Candle[], incoming: Candle[], maxBars: number): Candle[] {

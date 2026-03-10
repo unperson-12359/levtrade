@@ -39,10 +39,10 @@ const BOLLINGER_PERIOD = 20
 const DEFAULT_VIEWPORT_BARS = 120
 
 export function useChartModel(coin: TrackedCoin, options?: ChartModelOptions): ChartModel {
-  const candles = useStore((state) => state.candles[coin])
+  const selectedInterval = useStore((state) => state.selectedInterval)
+  const candles = useStore((state) => state.candles[coin][selectedInterval])
   const lastUpdate = useStore((state) => state.lastUpdate)
   const connectionStatus = useStore((state) => state.connectionStatus)
-  const selectedInterval = useStore((state) => state.selectedInterval)
   const sourceCandles = options?.candlesOverride ?? candles
 
   return useMemo(() => {

@@ -56,12 +56,18 @@ function runObservatoryRuntimeSourceCheck() {
   assert.match(storeSource, /createMarketDataSlice/)
   assert.match(storeSource, /createUISlice/)
   assert.doesNotMatch(storeSource, /createSignalsSlice|createContextSlice|riskInputs|lastSignalComputedAt/)
+  assert.match(marketSliceSource, /Record<TrackedCoin, Record<ObservatoryCandleInterval, Candle\[]>>/)
+  assert.match(marketSliceSource, /interval = get\(\)\.selectedInterval/)
   assert.doesNotMatch(marketSliceSource, /fundingHistory|oiHistory|assetContexts|extendedCandles|resolutionCandles|verificationCandles|appendCandle|errors|addError|clearErrors/)
   assert.doesNotMatch(uiSliceSource, /riskInputs|updateRiskInput|resetRiskInputs|expandedSections|toggleSection/)
   assert.match(uiSliceSource, /observatoryGuideExpanded/)
   assert.match(uiSliceSource, /toggleObservatoryGuideExpanded/)
   assert.match(managerSource, /recentRefreshBars/)
   assert.match(managerSource, /mergeCandles/)
+  assert.match(managerSource, /resolveCandleFetchMode/)
+  assert.match(managerSource, /const interval = this\.interval/)
+  assert.match(dataHookSource, /manager\.fetchAllCandles\(\[selectedCoin\], 'smart'\)/)
+  assert.doesNotMatch(dataHookSource, /manager\.fetchAllCandles\(\[selectedCoin\], 'full'\)/)
 
   assert.match(engineeringMapSource, /current mounted product: the live observatory shell/i)
   assert.match(parityChecklistSource, /api\/observatory-snapshot\.ts/)
@@ -79,6 +85,7 @@ function runChartSimplificationSourceCheck() {
   assert.match(chartSource, /Building the initial band context from recent candles/)
   assert.match(chartSource, /Live chart context is delayed/)
   assert.match(chartModelSource, /BOLLINGER_PERIOD = 20/)
+  assert.match(chartModelSource, /state\.candles\[coin\]\[selectedInterval\]/)
   assert.match(reportSource, /<PriceChart coin=\{coin\} embedded showHeader=\{false\} \/>/)
 }
 
@@ -382,6 +389,7 @@ function runContractInterfaceSourceCheck() {
   assert.match(analyticsApiSource, /contractVersion: CONTRACT_VERSION_V1/)
   assert.doesNotMatch(priceContextSource, /updatedAt/)
   assert.match(packageSource, /"build:signals"/)
+  assert.match(readFileSync(join(__dirname, '../src/hooks/useIndicatorObservatory.ts'), 'utf8'), /state\.candles\[coin\]\[interval\]/)
 }
 
 function runObservatoryRemoteResetSourceCheck() {

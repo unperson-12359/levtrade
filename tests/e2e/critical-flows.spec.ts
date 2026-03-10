@@ -33,6 +33,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-methodology-live')).toBeVisible()
     await page.getByTestId('obs-methodology-open-observatory').click()
     await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
+    await ensureObservatoryState(page)
     await expect(page.getByTestId('obs-guide-strip')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
     await expect(page.getByTestId('obs-live-status')).toContainText('Live')
@@ -41,9 +42,10 @@ test.describe('Observatory critical flows', () => {
     await expect(firstClusterCell).toBeVisible()
     await firstClusterCell.click()
     await expect(page.getByTestId('obs-selected-cluster-card')).toBeVisible()
-    await expect(page.getByTestId('obs-selected-cluster-open-report')).toBeVisible()
+    const openReportButton = page.getByTestId('obs-selected-cluster-open-report')
+    await expect(openReportButton).toBeVisible()
     await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
-    await page.getByTestId('obs-selected-cluster-open-report').click()
+    await openReportButton.evaluate((button: HTMLButtonElement) => button.click())
     await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
     await expect(page.getByTestId('obs-candle-report-chart')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-candle-price')).toBeVisible()
@@ -169,12 +171,15 @@ async function seedObservatoryState(page: Page) {
     HYPE: 25,
   }
 
-  const candlesByCoin: Record<string, ReturnType<typeof buildCandles>> = {}
+  const candlesByCoin: Record<string, { '4h': ReturnType<typeof buildCandles>; '1d': ReturnType<typeof buildCandles> }> = {}
   const prices: Record<string, string> = {}
 
   for (const coin of coins) {
     const base = basePrices[coin]
-    candlesByCoin[coin] = buildCandles(base, now)
+    candlesByCoin[coin] = {
+      '4h': buildCandles(base, now, 4 * 60 * 60 * 1000, 800),
+      '1d': buildCandles(base, now, 24 * 60 * 60 * 1000, 365),
+    }
     prices[coin] = String(base)
   }
 
@@ -189,18 +194,36 @@ async function seedObservatoryState(page: Page) {
     actions.clearRuntimeDiagnostics()
 
     for (const coin of Object.keys(candlesByCoin)) {
-      const candles = candlesByCoin[coin]
-      actions.setCandles(coin, candles as any)
+      actions.setCandles(coin, candlesByCoin[coin]['4h'] as any, '4h')
+      actions.setCandles(coin, candlesByCoin[coin]['1d'] as any, '1d')
     }
   }, { prices, candlesByCoin })
 
   await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 }
 
-function buildCandles(basePrice: number, now: number) {
+async function ensureObservatoryState(page: Page) {
+  const needsSeed = await page.evaluate(() => {
+    const store = window.__LEVTRADE_STORE__
+    if (!store) return true
+    const state = store.getState()
+    return (
+      state.connectionStatus !== 'connected' ||
+      !state.prices.BTC ||
+      state.candles.BTC['4h'].length === 0 ||
+      state.candles.BTC['1d'].length === 0
+    )
+  })
+
+  if (needsSeed) {
+    await seedObservatoryState(page)
+  }
+}
+
+function buildCandles(basePrice: number, now: number, stepMs: number, count: number) {
   const candles = []
-  for (let index = 0; index < 800; index += 1) {
-    const time = now - (800 - index) * 60 * 60 * 1000
+  for (let index = 0; index < count; index += 1) {
+    const time = now - (count - index) * stepMs
     const drift = Math.sin(index / 9) * basePrice * 0.012 + Math.cos(index / 23) * basePrice * 0.008 + index * basePrice * 0.00002
     const close = basePrice + drift
     candles.push({

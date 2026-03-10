@@ -102,7 +102,7 @@ function normalizeSnapshot(snapshot: ObservatorySnapshot): ObservatorySnapshot {
 
 export function useIndicatorObservatory(coin: TrackedCoin) {
   const interval = useStore((state) => state.selectedInterval)
-  const candles = useStore((state) => state.candles[coin])
+  const candles = useStore((state) => state.candles[coin][interval])
   const livePrice = useStore((state) => state.prices[coin])
   const lastUpdate = useStore((state) => state.lastUpdate)
 
