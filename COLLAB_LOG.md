@@ -4396,3 +4396,78 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - The guide expansion preference now persists in local storage through the Zustand store.
 - Remaining incomplete work:
   - Changes are local only; they have not been committed or pushed in this pass.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
+- Goal: Run a fresh full-codebase observatory audit against `HEAD 235331f`, validate the current tree, and produce a new ranked findings set before the next cleanup pass.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `audits/audit-frontend-surface-2026-03-10-refresh.md`
+  - `audits/audit-frontend-wiring-state-2026-03-10-refresh.md`
+  - `audits/audit-backend-api-2026-03-10-refresh.md`
+  - `audits/audit-truthfulness-indicator-logic-2026-03-10-refresh.md`
+  - `audits/audit-full-stack-flow-2026-03-10-refresh.md`
+  - `audits/audit-architecture-repo-hygiene-2026-03-10-refresh.md`
+  - `audits/audit-dependencies-artifacts-workspace-2026-03-10-refresh.md`
+  - `audits/audit-test-release-ops-2026-03-10-refresh.md`
+  - `audits/audit-master-synthesis-2026-03-10-refresh.md`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` FAIL
+  - `node scripts/release-gate.mjs --verify-only` FAIL
+- Follow-up risks / next steps:
+  - The next cleanup pass should start with the red critical flow in `tests/e2e/critical-flows.spec.ts` and the stale release signoff in `docs/release-signoff.md`.
+  - After the release/test path is green again, the next highest-value cleanup is adding `rule_version` to the persisted ledger and deleting the remaining dead `src/utils/*` and large legacy CSS blocks.
+- Remaining incomplete work:
+  - This pass is audit-only. No runtime or product code was changed yet.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
+- Goal: Fix the refreshed audit findings batch, restore green critical flows, add ledger rule provenance, remove dead observatory residue, and rerun release verification.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `api/_observatoryPersistence.ts`
+  - `api/_signals.mjs`
+  - `docs/engineering-map.md`
+  - `docs/production-parity-checklist.md`
+  - `docs/release-signoff.md`
+  - `scripts/release-gate.mjs`
+  - `src/components/observatory/MethodologyPage.tsx`
+  - `src/index.css`
+  - `src/observatory/priceContext.ts`
+  - `src/utils/candleTime.ts`
+  - `src/utils/contextFreshness.ts`
+  - `src/utils/format.ts`
+  - `supabase/observatory_indicator_states.sql`
+  - `tests/e2e/critical-flows.spec.ts`
+  - `tests/run-logic-tests.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+  - `npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180` PASS
+  - `node scripts/release-gate.mjs --verify-only` PASS
+  - `npm.cmd run gate:release` PASS (outside sandbox; sandboxed nested esbuild spawn still hits local EPERM)
+- Follow-up risks / next steps:
+  - The next cleanup batch should focus on the remaining large dead CSS selector families in `src/index.css` and the duplicated browser/server Hyperliquid request paths.
+  - If `rule_version` is rolled out to production Supabase, the live table will need the updated SQL applied before the new provenance field is present there.
+- Remaining incomplete work:
+  - This pass is local only; nothing has been committed or pushed yet.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
+- Goal: Finalize signoff metadata for candidate `bb2453b` and prepare the fixed observatory batch for push/live verification.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `docs/release-signoff.md`
+- Verification:
+  - Candidate commit `bb2453b` created locally
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+  - `npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180` PASS
+  - `node scripts/release-gate.mjs --verify-only` PASS
+  - `npm.cmd run gate:release` PASS (outside sandbox)
+- Follow-up risks / next steps:
+  - Push `master` and verify the new production deployment before treating the candidate as fully released.
+  - The production Supabase schema still needs the `rule_version` SQL applied if the live table has not been migrated yet.
+- Remaining incomplete work:
+  - Push and post-deploy verification remain to be completed after this log entry.
