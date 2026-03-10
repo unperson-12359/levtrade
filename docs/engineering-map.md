@@ -20,6 +20,7 @@ This map reflects the current mounted product: the live observatory shell.
 - Minimal live runtime coordinator.
 - Owns websocket mids, candle polling, connection status, and runtime diagnostics for the observatory.
 - This should stay free of setup-history sync, collector heartbeat refresh, or canonical fallback orchestration.
+- Browser polling now does bounded recent-window candle refreshes after the initial full hydration instead of reloading the full lookback on every minute tick.
 
 ### `src/hooks/useIndicatorObservatory.ts`
 - Browser-facing observatory model builder.
@@ -28,6 +29,7 @@ This map reflects the current mounted product: the live observatory shell.
 ### `api/observatory-snapshot.ts`
 - Server hydration endpoint for the observatory.
 - Current contract is price/candle-derived observatory state, not canonical setup analytics.
+- Shares `buildPriceContext(...)` with the browser so the shell uses the same price-summary semantics in both runtimes.
 
 ### `src/observatory/engine.ts`
 - Core indicator engine for the observatory.
@@ -40,6 +42,7 @@ This map reflects the current mounted product: the live observatory shell.
 ### `api/persist-observatory-states.ts`
 - Secret-gated cron writer for `observatory_indicator_states`.
 - Recomputes recent closed bars from the same observatory engine used by the UI, then upserts the boolean ledger.
+- `GET` is reserved for trusted Vercel cron requests because Vercel cron jobs dispatch `GET`; manual invocations should use authenticated `POST`.
 
 ### `api/backfill-observatory-states.ts`
 - Secret-gated manual backfill route for one `coin + interval` window at a time.
@@ -58,9 +61,12 @@ This map reflects the current mounted product: the live observatory shell.
 The old setup/tracker/collector product surfaces and APIs were removed from the mounted app and the repo:
 
 - setup/tracker store slices
+- setup/risk chart overlays and signal hooks
 - collector and canonical setup APIs
 - unmounted setup/risk/tracker/decision workflow components
 - collector scripts and Supabase schema for the retired setup-history architecture
+- Oracle collector deployment artifacts
+- retired shared UI helpers like tooltip/jargon/collapsible shells
 
 ## Cleanup guidance
 

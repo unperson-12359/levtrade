@@ -1,19 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { buildObservatorySnapshot } from '../observatory/engine'
+import { buildPriceContext, type PriceContext } from '../observatory/priceContext'
 import type { ObservatorySnapshot } from '../observatory/types'
 import { useStore } from '../store'
 import type { TrackedCoin } from '../types/market'
 
-interface PriceContext {
-  lastPrice: number | null
-  change24hPct: number | null
-  intervalReturnPct: number | null
-  updatedAt: string
-}
-
 export type ObservatoryLiveStatus = 'live' | 'updating' | 'delayed' | 'disconnected'
 
-interface CanonicalResponse {
+interface ObservatorySnapshotResponse {
   ok?: boolean
   snapshot?: ObservatorySnapshot
   priceContext?: PriceContext
@@ -110,45 +104,29 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
   const interval = useStore((state) => state.selectedInterval)
   const candles = useStore((state) => state.candles[coin])
   const livePrice = useStore((state) => state.prices[coin])
+  const lastUpdate = useStore((state) => state.lastUpdate)
 
-  const canonicalInterval = interval === '1d' ? '1d' : '4h'
-  const requestKey = `${coin}:${canonicalInterval}`
+  const observatoryInterval = interval === '1d' ? '1d' : '4h'
+  const requestKey = `${coin}:${observatoryInterval}`
 
   const localSnapshot = useMemo(
     () =>
       buildObservatorySnapshot({
         coin,
-        interval: canonicalInterval,
+        interval: observatoryInterval,
         candles,
-        fundingHistory: [],
-        oiHistory: [],
       }),
-    [candles, coin, canonicalInterval],
+    [candles, coin, observatoryInterval],
   )
 
   const localPriceContext = useMemo(() => {
-    if (!candles || candles.length === 0) {
-      return { lastPrice: livePrice ?? null, change24hPct: null, intervalReturnPct: null, updatedAt: new Date().toISOString() }
-    }
-    const latestClose = candles[candles.length - 1]?.close ?? null
-    const lastPrice = livePrice ?? latestClose ?? null
-    const barsFor24h = canonicalInterval === '4h' ? 6 : 1
-    const close24hAgo = candles[Math.max(0, candles.length - 1 - barsFor24h)]?.close ?? null
-    const closePrevious = candles[Math.max(0, candles.length - 2)]?.close ?? null
-
-    return {
-      lastPrice,
-      change24hPct:
-        lastPrice && close24hAgo && close24hAgo !== 0
-          ? ((lastPrice - close24hAgo) / Math.abs(close24hAgo)) * 100
-          : null,
-      intervalReturnPct:
-        lastPrice && closePrevious && closePrevious !== 0
-          ? ((lastPrice - closePrevious) / Math.abs(closePrevious)) * 100
-          : null,
-      updatedAt: new Date().toISOString(),
-    }
-  }, [candles, canonicalInterval, livePrice])
+    return buildPriceContext({
+      candles,
+      interval: observatoryInterval,
+      livePrice,
+      livePriceObservedAtMs: lastUpdate,
+    })
+  }, [candles, lastUpdate, observatoryInterval, livePrice])
 
   const [remoteSnapshot, setRemoteSnapshot] = useState<ObservatorySnapshot | null>(null)
   const [remotePriceContext, setRemotePriceContext] = useState<PriceContext | null>(null)
@@ -178,11 +156,11 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
     const pull = async () => {
       setLoading(true)
       try {
-        const response = await fetch(`/api/observatory-snapshot?coin=${coin}&interval=${canonicalInterval}`, {
+        const response = await fetch(`/api/observatory-snapshot?coin=${coin}&interval=${observatoryInterval}`, {
           signal: controller.signal,
         })
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const payload = (await response.json()) as CanonicalResponse
+        const payload = (await response.json()) as ObservatorySnapshotResponse
         if (!active || payload.ok !== true || !payload.snapshot) return
 
         setRemoteSnapshot(normalizeSnapshot(payload.snapshot))
@@ -206,7 +184,7 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
       controller.abort()
       if (timer) clearTimeout(timer)
     }
-  }, [coin, canonicalInterval, requestKey])
+  }, [coin, observatoryInterval, requestKey])
 
   const hasMatchingRemote = remoteKey === requestKey
   const snapshot = hasMatchingRemote ? (remoteSnapshot ?? localSnapshot) : localSnapshot

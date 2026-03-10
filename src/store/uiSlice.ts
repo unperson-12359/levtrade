@@ -1,8 +1,6 @@
 import type { StateCreator } from 'zustand'
 import type { TrackedCoin } from '../types/market'
-import type { RiskInputs } from '../types/risk'
-import { DEFAULT_RISK_INPUTS } from '../types/risk'
-import type { CandleInterval } from '../config/intervals'
+import type { ObservatoryCandleInterval } from '../config/intervals'
 import type { AppStore } from '.'
 
 export interface RuntimeDiagnostic {
@@ -14,17 +12,12 @@ export interface RuntimeDiagnostic {
 }
 
 export interface UISlice {
-  expandedSections: Record<string, boolean>
   selectedCoin: TrackedCoin
-  selectedInterval: CandleInterval
-  riskInputs: RiskInputs
+  selectedInterval: ObservatoryCandleInterval
   runtimeDiagnostics: RuntimeDiagnostic[]
 
-  toggleSection: (sectionId: string) => void
   selectCoin: (coin: TrackedCoin) => void
-  setInterval: (interval: CandleInterval) => void
-  updateRiskInput: <K extends keyof RiskInputs>(field: K, value: RiskInputs[K]) => void
-  resetRiskInputs: () => void
+  setInterval: (interval: ObservatoryCandleInterval) => void
   pushRuntimeDiagnostic: (diagnostic: {
     source: string
     message: string
@@ -34,33 +27,11 @@ export interface UISlice {
 }
 
 export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => ({
-  expandedSections: {},
   selectedCoin: 'BTC',
   selectedInterval: '4h',
-  riskInputs: { ...DEFAULT_RISK_INPUTS },
   runtimeDiagnostics: [],
 
-  toggleSection: (sectionId) =>
-    set((state) => ({
-      expandedSections: {
-        ...state.expandedSections,
-        [sectionId]: !state.expandedSections[sectionId],
-      },
-    })),
-
-  selectCoin: (coin) =>
-    set((state) => ({
-      selectedCoin: coin,
-      riskInputs: {
-        ...state.riskInputs,
-        coin,
-      },
-    })),
-
-  updateRiskInput: (field, value) =>
-    set((state) => ({
-      riskInputs: { ...state.riskInputs, [field]: value },
-    })),
+  selectCoin: (coin) => set({ selectedCoin: coin }),
 
   setInterval: (interval) => set({ selectedInterval: interval }),
 
@@ -95,14 +66,4 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => (
     }),
 
   clearRuntimeDiagnostics: () => set({ runtimeDiagnostics: [] }),
-
-  resetRiskInputs: () =>
-    set((state) => ({
-      riskInputs: {
-        ...DEFAULT_RISK_INPUTS,
-        coin: state.selectedCoin,
-        entryPrice: state.prices[state.selectedCoin] ?? 0,
-        accountSize: state.riskInputs.accountSize,
-      },
-    })),
 })

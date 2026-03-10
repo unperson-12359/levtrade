@@ -11,6 +11,7 @@
     "test:logic": "npm run build:signals && node tests/run-logic-tests.mjs",
     "test:e2e": "playwright test",
     "test:e2e:critical": "playwright test --grep @critical",
+    "smoke:release": "node scripts/release-smoke.mjs",
     "gate:release": "node scripts/release-gate.mjs",
     "lint": "eslint .",
     "preview": "vite preview"

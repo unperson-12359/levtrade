@@ -7,6 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..')
 const signoffPath = process.env.RELEASE_SIGNOFF_PATH ?? join(repoRoot, 'docs', 'release-signoff.md')
 const verifyOnly = process.argv.includes('--verify-only')
+const MAX_SIGNOFF_AGE_DAYS = 3
 
 if (!verifyOnly) {
   runCommand('npm run build')
@@ -35,14 +36,37 @@ function verifySignoff(path) {
   }
 
   const signoff = readFileSync(path, 'utf8')
+  const dateMatch = signoff.match(/- Date:\s*`?(\d{4}-\d{2}-\d{2})`?/i)
+  const candidateMatch = signoff.match(/- Candidate:\s*`?([0-9a-f]{7,40})`?/i)
+
+  if (!dateMatch) {
+    fail(`Release signoff is missing a valid Date entry in ${path}.`)
+  }
+  if (!candidateMatch) {
+    fail(`Release signoff is missing a valid Candidate hash in ${path}.`)
+  }
+
+  const ageDays = Math.floor((Date.now() - Date.parse(dateMatch[1])) / (24 * 60 * 60 * 1000))
+  if (!Number.isFinite(ageDays) || ageDays < 0 || ageDays > MAX_SIGNOFF_AGE_DAYS) {
+    fail(`Release signoff date is stale (${dateMatch[1]}). Update ${path} and re-run gate.`)
+  }
+
+  const acceptableCandidates = getAcceptableCandidates()
+  if (!acceptableCandidates.includes(candidateMatch[1])) {
+    fail(
+      `Release signoff candidate ${candidateMatch[1]} does not match the current release candidate (${acceptableCandidates.join(' or ')}).`,
+    )
+  }
+
   const requiredChecks = [
     /Status:\s*`?PASS`?/i,
     /- \[x\] Automated:\s*`?npm run build`?/i,
     /- \[x\] Automated:\s*`?npm run test:logic`?/i,
     /- \[x\] Automated:\s*`?npm run test:e2e:critical`?/i,
+    /- \[x\] Automated:\s*`?npm run smoke:release\b/i,
     /- \[x\] Manual:\s*Responsive matrix/i,
-    /- \[x\] Manual:\s*10\+ minute production soak/i,
     /- \[x\] Manual:\s*Live shell continuity verification/i,
+    /- \[x\] Manual:\s*Ledger freshness verification/i,
   ]
 
   for (const check of requiredChecks) {
@@ -50,6 +74,26 @@ function verifySignoff(path) {
       fail(`Release signoff is incomplete (${check}). Update ${path} and re-run gate.`)
     }
   }
+}
+
+function getAcceptableCandidates() {
+  const current = captureGit('rev-parse --short HEAD')
+  const parent = captureGit('rev-parse --short HEAD^')
+  return [current, parent].filter(Boolean)
+}
+
+function captureGit(args) {
+  const result = spawnSync(`git ${args}`, {
+    cwd: repoRoot,
+    shell: true,
+    encoding: 'utf8',
+  })
+
+  if (result.status !== 0) {
+    return ''
+  }
+
+  return result.stdout.trim()
 }
 
 function fail(message) {

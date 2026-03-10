@@ -2,12 +2,13 @@ import type { StoreApi } from 'zustand'
 import { POLL_INTERVAL_MS } from '../config/constants'
 import { INTERVAL_CONFIG } from '../config/intervals'
 import type { AppStore } from '../store'
-import { TRACKED_COINS, parseCandle, type TrackedCoin } from '../types/market'
+import { TRACKED_COINS, parseCandle, type Candle, type TrackedCoin } from '../types/market'
 import { fetchAllMids, fetchCandles } from './api'
 import { HyperliquidWS } from './websocket'
 
 const NETWORK_FETCH_CONCURRENCY = 2
 const NETWORK_REQUEST_GAP_MS = 80
+type CandleFetchMode = 'full' | 'recent'
 
 export class DataManager {
   private ws: HyperliquidWS
@@ -67,34 +68,39 @@ export class DataManager {
       const remainingCoins = TRACKED_COINS.filter((coin) => coin !== selectedCoin)
       await Promise.all([
         this.refreshPrices(),
-        this.fetchAllCandles([selectedCoin]),
+        this.fetchAllCandles([selectedCoin], 'full'),
       ])
       if (remainingCoins.length > 0) {
-        void this.fetchAllCandles(remainingCoins).catch((error) => {
+        void this.fetchAllCandles(remainingCoins, 'full').catch((error) => {
           this.reportRuntimeIssue('hydrate-remaining-coins', error, 'Background candle hydration failed')
         })
       }
     } catch (error) {
-      const message = this.reportRuntimeIssue('initialize', error, 'Failed to hydrate live observatory data')
-      this.store.getState().addError(message)
+      this.reportRuntimeIssue('initialize', error, 'Failed to hydrate live observatory data')
     }
 
     this.startPolling()
   }
 
-  async fetchAllCandles(coins: readonly TrackedCoin[] = TRACKED_COINS): Promise<void> {
-    const { ms, candleCount } = this.itvl
+  async fetchAllCandles(
+    coins: readonly TrackedCoin[] = TRACKED_COINS,
+    mode: CandleFetchMode = 'full',
+  ): Promise<void> {
+    const { ms, candleCount, recentRefreshBars } = this.itvl
     const now = Date.now()
-    const startTime = now - candleCount * ms
+    const overlapBars = mode === 'recent' ? recentRefreshBars : candleCount
+    const startTime = now - overlapBars * ms
 
     await runWithConcurrency(coins, NETWORK_FETCH_CONCURRENCY, async (coin) => {
       try {
         const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
         const candles = rawCandles.map(parseCandle).sort((left, right) => left.time - right.time)
-        this.store.getState().setCandles(coin, candles)
+        const nextCandles = mode === 'full'
+          ? candles
+          : mergeCandles(this.store.getState().candles[coin], candles, candleCount)
+        this.store.getState().setCandles(coin, nextCandles)
       } catch (error) {
-        const message = this.reportRuntimeIssue(`fetch-candles:${coin}`, error, `Failed to fetch candles for ${coin}`)
-        this.store.getState().addError(message)
+        this.reportRuntimeIssue(`fetch-candles:${coin}`, error, `Failed to fetch candles for ${coin}`)
       }
       await sleep(NETWORK_REQUEST_GAP_MS)
     })
@@ -105,8 +111,7 @@ export class DataManager {
       const mids = await fetchAllMids()
       this.store.getState().setPrices(mids)
     } catch (error) {
-      const message = this.reportRuntimeIssue('fetch-all-mids', error, 'Failed to refresh live prices')
-      this.store.getState().addError(message)
+      this.reportRuntimeIssue('fetch-all-mids', error, 'Failed to refresh live prices')
     }
   }
 
@@ -149,11 +154,11 @@ export class DataManager {
 
     await Promise.all([
       this.refreshPrices(),
-      this.fetchAllCandles([selectedCoin]),
+      this.fetchAllCandles([selectedCoin], 'recent'),
     ])
 
     if (remainingCoins.length > 0) {
-      await this.fetchAllCandles(remainingCoins)
+      await this.fetchAllCandles(remainingCoins, 'recent')
     }
   }
 
@@ -196,4 +201,22 @@ async function runWithConcurrency<T>(
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function mergeCandles(existing: Candle[], incoming: Candle[], maxBars: number): Candle[] {
+  if (existing.length === 0) {
+    return incoming.slice(-maxBars)
+  }
+
+  const byTime = new Map<number, Candle>()
+  for (const candle of existing) {
+    byTime.set(candle.time, candle)
+  }
+  for (const candle of incoming) {
+    byTime.set(candle.time, candle)
+  }
+
+  return [...byTime.values()]
+    .sort((left, right) => left.time - right.time)
+    .slice(-maxBars)
 }

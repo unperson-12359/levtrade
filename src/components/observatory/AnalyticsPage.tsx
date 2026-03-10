@@ -72,10 +72,14 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
       setAnalyticsError(null)
 
       try {
-        const response = await fetch(
-          `/api/observatory-analytics?coin=${coin}&interval=${timeframe}&days=${LEDGER_LOOKBACK_DAYS}`,
-          { signal: controller.signal },
-        )
+        const params = new URLSearchParams({
+          coin,
+          interval: timeframe,
+          days: String(LEDGER_LOOKBACK_DAYS),
+        })
+        const response = await fetch(`/api/observatory-analytics?${params.toString()}`, {
+          signal: controller.signal,
+        })
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`)
@@ -335,7 +339,7 @@ function mergeAnalyticsRows(snapshot: ObservatorySnapshot, analytics: PersistedO
       maxStreak: persisted?.maxStreak ?? 0,
       lastHitTime: persisted?.lastHitTime ?? null,
       recentHitTimes: persisted?.recentHitTimes ?? [],
-      transitionRate: indicator.frequency.stateTransitionRate,
+      transitionRate: persisted?.transitionRate ?? indicator.frequency.stateTransitionRate,
     }
   }).sort((left, right) => right.totalHits - left.totalHits || right.activeRate - left.activeRate || right.maxStreak - left.maxStreak)
 }

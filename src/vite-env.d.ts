@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_SETUP_UPLOAD_SECRET?: string
+  readonly VITE_E2E_MOCK?: string
 }
 
 interface ImportMeta {

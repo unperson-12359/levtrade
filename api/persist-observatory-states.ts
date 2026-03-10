@@ -17,14 +17,16 @@ interface VercelResponse {
 const PERSISTENCE_INTERVALS: readonly ObservatoryInterval[] = ['4h', '1d']
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'GET') {
+  const method = req.method ?? 'GET'
+  const isCronRequest = method === 'GET' && isTrustedCronRequest(req.headers)
+
+  if (method !== 'POST' && !isCronRequest) {
     return res.status(405).json({ ok: false, error: 'Method not allowed', contractVersion: CONTRACT_VERSION_V1 })
   }
 
   const authorization = authorizePersistenceRequest({
     authorizationHeader: req.headers.authorization,
     headerSecret: req.headers['x-observatory-persist-secret'],
-    querySecret: req.query.secret,
   })
 
   if (!authorization.ok) {
@@ -44,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       ok: true,
       contractVersion: CONTRACT_VERSION_V1,
-      mode: 'cron',
+      mode: isCronRequest ? 'cron' : 'manual',
       markets: results,
       totalRows: results.reduce((sum, entry) => sum + entry.upsertedRows, 0),
       generatedAt: Date.now(),
@@ -56,4 +58,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: error instanceof Error ? error.message : 'Unexpected persistence error',
     })
   }
+}
+
+function isTrustedCronRequest(headers: Record<string, string | string[] | undefined>) {
+  const userAgent = firstHeaderValue(headers['user-agent']) ?? ''
+  const vercelCronHeader = firstHeaderValue(headers['x-vercel-cron']) ?? ''
+  return userAgent.startsWith('vercel-cron/') || vercelCronHeader.length > 0
+}
+
+function firstHeaderValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
 }

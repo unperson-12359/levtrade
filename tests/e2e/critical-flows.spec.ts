@@ -28,7 +28,7 @@ test.describe('Observatory critical flows', () => {
     await page.getByTestId('obs-cluster-cell').first().click()
     await expect(page.getByTestId('obs-selected-cluster-card')).toBeVisible()
     await expect(page.getByTestId('obs-selected-cluster-open-report')).toBeVisible()
-    await expect(page).toHaveURL(/#\/observatory$/)
+    await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
     await page.getByTestId('obs-selected-cluster-open-report').click()
     await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
     await expect(page.getByTestId('obs-candle-report-chart')).toBeVisible()
@@ -40,7 +40,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-cluster-report-row').first()).toBeVisible()
     await expect(page).toHaveURL(/#\/observatory\/report/)
     await page.getByTestId('obs-candle-report-back').click()
-    await expect(page).toHaveURL(/#\/observatory$/)
+    await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 
     await page.getByTestId('obs-cluster-mode-pro').click()
@@ -63,8 +63,10 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-analytics-source')).toBeVisible()
     await expect(page.getByTestId('obs-analytics-table')).toBeVisible()
     await expect(page.getByTestId('obs-analytics-inspector')).toBeVisible()
+    await expect(page).toHaveURL(/#\/analytics\?coin=ETH&interval=1d$/)
     await page.getByTestId('obs-nav-observatory').click()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
+    await expect(page).toHaveURL(/#\/observatory\?coin=ETH&interval=1d$/)
 
     await page.getByTestId('obs-view-network').click()
     await expect(page.getByTestId('obs-map-legend')).toBeVisible()
@@ -120,7 +122,7 @@ test.describe('Observatory critical flows', () => {
     // Browser back should return to heatmap (prev/next used replaceState)
     await page.goBack()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
-    await expect(page).toHaveURL(/#\/observatory$/)
+    await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
   })
 
   test('@critical runtime diagnostics keep app visible under failure signals', async ({ page }) => {
@@ -154,19 +156,15 @@ async function seedObservatoryState(page: Page) {
   }
 
   const candlesByCoin: Record<string, ReturnType<typeof buildCandles>> = {}
-  const fundingByCoin: Record<string, ReturnType<typeof buildFunding>> = {}
-  const oiByCoin: Record<string, ReturnType<typeof buildOi>> = {}
   const prices: Record<string, string> = {}
 
   for (const coin of coins) {
     const base = basePrices[coin]
     candlesByCoin[coin] = buildCandles(base, now)
-    fundingByCoin[coin] = buildFunding(now)
-    oiByCoin[coin] = buildOi(base, now)
     prices[coin] = String(base)
   }
 
-  await page.evaluate(({ prices, candlesByCoin, fundingByCoin, oiByCoin }) => {
+  await page.evaluate(({ prices, candlesByCoin }) => {
     const store = window.__LEVTRADE_STORE__
     if (!store) throw new Error('E2E store hook not installed')
     const actions = store.getState()
@@ -174,24 +172,13 @@ async function seedObservatoryState(page: Page) {
     actions.setInterval('4h')
     actions.setConnectionStatus('connected')
     actions.setPrices(prices)
-    actions.clearErrors()
     actions.clearRuntimeDiagnostics()
 
     for (const coin of Object.keys(candlesByCoin)) {
       const candles = candlesByCoin[coin]
-      const funding = fundingByCoin[coin]
-      const oi = oiByCoin[coin]
       actions.setCandles(coin, candles as any)
-      actions.setResolutionCandles(coin, candles as any)
-      actions.setExtendedCandles(coin, [])
-      for (const entry of funding) {
-        actions.appendFundingRate(coin, entry.time, entry.rate)
-      }
-      for (const entry of oi) {
-        actions.appendOI(coin, entry.time, entry.oi)
-      }
     }
-  }, { prices, candlesByCoin, fundingByCoin, oiByCoin })
+  }, { prices, candlesByCoin })
 
   await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 }
@@ -213,30 +200,6 @@ function buildCandles(basePrice: number, now: number) {
     })
   }
   return candles
-}
-
-function buildFunding(now: number) {
-  const points = []
-  for (let index = 0; index < 800; index += 1) {
-    const time = now - (800 - index) * 60 * 60 * 1000
-    points.push({
-      time,
-      rate: Math.sin(index / 14) * 0.00018 + Math.cos(index / 31) * 0.00008,
-    })
-  }
-  return points
-}
-
-function buildOi(basePrice: number, now: number) {
-  const points = []
-  for (let index = 0; index < 800; index += 1) {
-    const time = now - (800 - index) * 60 * 60 * 1000
-    points.push({
-      time,
-      oi: Math.max(1, 220_000 + Math.sin(index / 18) * 18_000 + Math.cos(index / 27) * 7_000 + basePrice * 0.4),
-    })
-  }
-  return points
 }
 
 declare global {

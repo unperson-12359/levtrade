@@ -6,7 +6,7 @@ interface ObservatoryGuideStripProps {
   timeframe: '4h' | '1d'
   primaryView: 'timeline' | 'network'
   liveStatus: ObservatoryLiveStatus
-  updatedAt: string
+  observedAt: string | null
   selectedClusterLabel: string
   selectedClusterHits: number | null
   onOpenMethodology: () => void
@@ -17,7 +17,7 @@ export function ObservatoryGuideStrip({
   timeframe,
   primaryView,
   liveStatus,
-  updatedAt,
+  observedAt,
   selectedClusterLabel,
   selectedClusterHits,
   onOpenMethodology,
@@ -46,7 +46,7 @@ export function ObservatoryGuideStrip({
       <div className="obs-guide__meta">
         <span>{coin} / {timeframe}</span>
         <span>Status: {formatGuideStatus(liveStatus)}</span>
-        <span>Updated: {formatGuideUpdatedAt(updatedAt)}</span>
+        <span>Observed: {formatGuideObservedAt(observedAt)}</span>
         <span>Selected candle: {selectedClusterLabel}</span>
       </div>
 
@@ -77,8 +77,8 @@ function formatGuideStatus(status: ObservatoryLiveStatus): string {
   return 'Disconnected'
 }
 
-function formatGuideUpdatedAt(updatedAt: string): string {
-  const time = Date.parse(updatedAt)
+function formatGuideObservedAt(observedAt: string | null): string {
+  const time = Date.parse(observedAt ?? '')
   if (!Number.isFinite(time)) return '--'
   return new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }

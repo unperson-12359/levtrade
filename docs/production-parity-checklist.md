@@ -45,6 +45,7 @@ This checklist is the release contract for the live observatory product.
 npm.cmd run build
 npm.cmd run test:logic
 npm.cmd run test:e2e:critical
+npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180
 ```
 
 ## Browser verification
@@ -61,9 +62,19 @@ npm.cmd run test:e2e:critical
 - the payload returns `ok: true`
 - the snapshot includes the observatory model needed by the shell
 - the analytics payload returns ledger-backed rows and category totals
+- analytics, methodology, and observatory hashes preserve `coin` and `interval`
 - the generated bundle `api/_signals.mjs` matches the current observatory source tree
 - the persistence writer remains secret-gated and does not run through the public observatory route
 - `vercel.json` includes the daily cron for `/api/persist-observatory-states`
+- `GET /api/persist-observatory-states` is only accepted for trusted Vercel cron traffic; manual writes use authenticated `POST`
+
+## Ledger freshness verification
+- `observatory_indicator_states` has rows for:
+  - `BTC 4h`, `BTC 1d`
+  - `ETH 4h`, `ETH 1d`
+  - `SOL 4h`, `SOL 1d`
+  - `HYPE 4h`, `HYPE 1d`
+- the latest persisted bar time is within the expected window for the interval under test
 
 ## Known deferred work
 - the live shell still reads the snapshot window; only the Analytics page is ledger-backed

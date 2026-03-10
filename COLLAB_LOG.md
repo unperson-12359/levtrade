@@ -1,4 +1,4 @@
-# Collaboration Log
+ï»¿# Collaboration Log
 
 This file is the shared handoff log for Codex and Claude.
 
@@ -3368,7 +3368,7 @@ Fix immediate post-deploy production API 500s caused by Vercel serverless ESM ru
   - `/api/portfolios/global/snapshot` -> 200
   - `/api/strategies/mean-reversion-core/backtests` -> 200
 
-## 2026-03-05 - Codex — Indicator Observatory Full UI/Data Revamp
+## 2026-03-05 - Codex ï¿½ Indicator Observatory Full UI/Data Revamp
 
 ### Goal
 Replace the legacy setup/decision/risk-facing app surface with a strict no-recommendation indicator observatory that tracks indicator frequency and correlation using a 2D top-view pool map UX.
@@ -3394,7 +3394,7 @@ Replace the legacy setup/decision/risk-facing app surface with a strict no-recom
 - Implemented rolling correlation graph generation with:
   - Pearson correlation
   - Spearman rank correlation
-  - lead/lag best-correlation scan over ±12 bars
+  - lead/lag best-correlation scan over ï¿½12 bars
 - Added a new primary 2D pool-map UI:
   - spatially grouped indicator nodes by category
   - correlation edge overlay
@@ -3404,16 +3404,16 @@ Replace the legacy setup/decision/risk-facing app surface with a strict no-recom
 - Replaced critical E2E suite to validate new observatory behavior and selectors.
 
 ### Verification
-- `npm.cmd run build` — PASS
-- `npm.cmd run test:logic` — PASS
-- `npm.cmd run test:e2e:critical` — PASS (required elevated run due local sandbox `spawn EPERM` when launching Playwright browser)
+- `npm.cmd run build` ï¿½ PASS
+- `npm.cmd run test:logic` ï¿½ PASS
+- `npm.cmd run test:e2e:critical` ï¿½ PASS (required elevated run due local sandbox `spawn EPERM` when launching Playwright browser)
 
 ### Follow-up risks / next steps
 - Current observatory correlations are computed client-side; if API-level canonical observatory endpoints are required, that remains to be implemented.
 - Legacy setup/tracker/decision code paths still exist in the repository for compatibility, but they are no longer surfaced in the runtime UI.
 - Full production deployment + external live URL validation still pending after this local implementation pass.
 
-## 2026-03-05 - Codex — Observatory Production Deployment
+## 2026-03-05 - Codex ï¿½ Observatory Production Deployment
 
 ### Goal
 Promote the observatory revamp commit (`89158e1`) to production and verify public availability.
@@ -3432,7 +3432,7 @@ Promote the observatory revamp commit (`89158e1`) to production and verify publi
 ### Follow-up risks / next steps
 - Manual UX validation on real mobile devices (`360/390/412`) is still recommended post-deploy.
 
-## 2026-03-05 - Codex — Clarity + Robustness Refinement (Price, Legend, Basic/Advanced, Canonical Snapshot)
+## 2026-03-05 - Codex ï¿½ Clarity + Robustness Refinement (Price, Legend, Basic/Advanced, Canonical Snapshot)
 
 ### Goal
 Address user confusion by making token price explicit, making line semantics obvious, adding a beginner-friendly mode, and improving scalability by introducing a canonical observatory snapshot API.
@@ -3463,14 +3463,14 @@ Address user confusion by making token price explicit, making line semantics obv
   - Advanced restores full network density
 - Added inline learning scaffolding:
   - first-run quick guide banner
-  - drilldown “What this means” teaching block
+  - drilldown ï¿½What this meansï¿½ teaching block
 - Updated critical E2E tests to validate price strip, legend visibility, and mode toggling.
 
 ### Verification
-- `npm.cmd run build` — PASS
-- `npm.cmd run test:logic` — PASS
-- `npm.cmd run test:e2e:critical` — PASS (elevated run required due sandbox `spawn EPERM`)
-- `npm.cmd run gate:release` — PASS
+- `npm.cmd run build` ï¿½ PASS
+- `npm.cmd run test:logic` ï¿½ PASS
+- `npm.cmd run test:e2e:critical` ï¿½ PASS (elevated run required due sandbox `spawn EPERM`)
+- `npm.cmd run gate:release` ï¿½ PASS
 
 ### Follow-up risks / next steps
 - Canonical route currently uses funding + candle history from Hyperliquid and does not yet hydrate full OI historical depth from a canonical database source.
@@ -3502,7 +3502,7 @@ Complete the chart-first observatory implementation requested in prior planning:
 - Added timeline data to observatory contracts:
   - `IndicatorHitEvent`, `CandleHitCluster`, and `timeline` on `ObservatorySnapshot`.
 - Hardened hit-event generation logic:
-  - Replaced quantile-transition proxy with true indicator state transitions derived from each metric’s own classifier (`high/neutral/low`).
+  - Replaced quantile-transition proxy with true indicator state transitions derived from each metricï¿½s own classifier (`high/neutral/low`).
   - Added normalized transition magnitude scoring to prioritize meaningful events and keep top-N per candle deterministic.
 - Enforced canonical timeframe operation (`4h`/`1d`) in UI, API route, and observatory hook fetches.
 - Refined policy copy to reinforce strict non-recommendation behavior.
@@ -4161,7 +4161,7 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - `npm.cmd run test:logic` PASS
   - `npm.cmd run test:e2e:critical` PASS
 - Follow-up risks / next steps:
-  - This pass changes the observatory’s live-first UX contract and preserves the underlying fallback/setup/collector systems internally.
+  - This pass changes the observatoryï¿½s live-first UX contract and preserves the underlying fallback/setup/collector systems internally.
   - Canonical/setup/collector architecture is still present in the repo and should be isolated further in later passes so those systems no longer shape product behavior outside diagnostics.
   - Methodology now explains live reading and shell status, but analytics and older setup-oriented surfaces elsewhere in the repo still need a separate demotion pass if they are to stop leaking the old product model.
 - Remaining incomplete work:
@@ -4267,28 +4267,84 @@ Execute the approved multi-track audit program across the current LevTrade obser
 - Remaining incomplete work:
   - No production bar-close persistence worker has been implemented yet for `observatory_indicator_states`.
 ## 2026-03-10 - Codex
-- Goal: Fix the production deployment after the observatory cleanup by aligning Vercel config with the remaining live API surface.
+- Goal: Execute a full read-only end-to-end audit of the current observatory-first repo across frontend surface, frontend wiring/state, backend/API, truthfulness/logic, full-stack flow, architecture/repo hygiene, dependencies/artifacts/workspace, and tests/release/ops.
 - Files changed:
-  - `vercel.json`
+  - `audits/audit-frontend-surface-2026-03-10.md`
+  - `audits/audit-frontend-wiring-state-2026-03-10.md`
+  - `audits/audit-backend-api-2026-03-10.md`
+  - `audits/audit-truthfulness-indicator-logic-2026-03-10.md`
+  - `audits/audit-full-stack-flow-2026-03-10.md`
+  - `audits/audit-architecture-repo-hygiene-2026-03-10.md`
+  - `audits/audit-dependencies-artifacts-workspace-2026-03-10.md`
+  - `audits/audit-test-release-ops-2026-03-10.md`
+  - `audits/audit-master-synthesis-2026-03-10.md`
+  - `COLLAB_LOG.md`
 - Verification:
   - `npm.cmd run build` PASS
+  - `node tests/run-logic-tests.mjs` PASS
+  - `npm.cmd run test:e2e:critical` PASS
 - Follow-up risks / next steps:
-  - Production still needs a successful redeploy confirmation after the config fix is pushed.
+  - Active high-priority findings are the `GET` write routes with query-string secret support and the stale release-gate/signoff contract.
+  - Medium-priority cleanup remains in dead store/config/shared UI/CSS paths and stale deployment/workspace artifacts (`deploy/oracle/*`, `supabase/app_state.sql`, `supabase/oi_snapshots.sql`, local `dist-server/`, local `.claude/worktrees/`).
+  - Truthfulness follow-up remains around distinguishing fetch/build time from actual market observation time and adding ledger rule-version semantics before further indicator changes.
 - Remaining incomplete work:
-  - The `observatory_indicator_states` writer/backfill path is still not implemented.
-## 2026-03-10 - Codex
-- Goal: Implement the missing `observatory_indicator_states` persistence layer with a closed-bar writer, a daily Vercel cron entrypoint, and a manual backfill route while keeping the live observatory UI read-only.
+  - No runtime code was changed in this audit pass.
+  - The audit produced findings and ordering only; none of the recommended removals or fixes were executed.- Date: 2026-03-10
+- Agent: Codex (GPT-5)
+- Goal: Remediate the 2026-03-10 observatory audit findings across API security, release gating, route/state wiring, truthfulness semantics, runtime cleanup, and stale tracked artifacts.
 - Files changed:
+  - `.gitignore`
   - `api/_hyperliquid.ts`
   - `api/_observatoryPersistence.ts`
+  - `api/_signals.d.mts`
+  - `api/_signals.mjs`
   - `api/backfill-observatory-states.ts`
+  - `api/observatory-analytics.ts`
   - `api/observatory-snapshot.ts`
   - `api/persist-observatory-states.ts`
-  - `api/_signals.d.mts`
+  - `audits/audit-frontend-surface-2026-03-10.md`
+  - `audits/audit-frontend-wiring-state-2026-03-10.md`
+  - `audits/audit-backend-api-2026-03-10.md`
+  - `audits/audit-truthfulness-indicator-logic-2026-03-10.md`
+  - `audits/audit-full-stack-flow-2026-03-10.md`
+  - `audits/audit-architecture-repo-hygiene-2026-03-10.md`
+  - `audits/audit-dependencies-artifacts-workspace-2026-03-10.md`
+  - `audits/audit-test-release-ops-2026-03-10.md`
+  - `audits/audit-master-synthesis-2026-03-10.md`
+  - `deploy/oracle/README.md`
+  - `deploy/oracle/levtrade-collector.service`
   - `docs/engineering-map.md`
   - `docs/production-parity-checklist.md`
-  - `src/observatory/persistence.ts`
+  - `docs/release-gate.md`
+  - `package.json`
+  - `scripts/release-gate.mjs`
+  - `scripts/release-smoke.mjs`
+  - `src/components/observatory/AnalyticsPage.tsx`
+  - `src/components/observatory/ObservatoryGuideStrip.tsx`
+  - `src/components/observatory/ObservatoryLayout.tsx`
+  - `src/components/shared/CollapsibleSection.tsx`
+  - `src/components/shared/JargonTerm.tsx`
+  - `src/components/shared/Tooltip.tsx`
+  - `src/config/constants.ts`
+  - `src/config/intervals.ts`
+  - `src/contracts/v1.ts`
+  - `src/hooks/useDataManager.ts`
+  - `src/hooks/useHashRouter.ts`
+  - `src/hooks/useIndicatorObservatory.ts`
+  - `src/index.css`
+  - `src/observatory/analytics.ts`
+  - `src/observatory/priceContext.ts`
+  - `src/observatory/version.ts`
+  - `src/services/dataManager.ts`
   - `src/signals/api-entry.ts`
+  - `src/store/index.ts`
+  - `src/store/marketDataSlice.ts`
+  - `src/store/uiSlice.ts`
+  - `src/utils/jargon.ts`
+  - `src/vite-env.d.ts`
+  - `supabase/app_state.sql`
+  - `supabase/oi_snapshots.sql`
+  - `tests/e2e/critical-flows.spec.ts`
   - `tests/run-logic-tests.mjs`
   - `vercel.json`
 - Verification:
@@ -4296,70 +4352,8 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - `npm.cmd run test:logic` PASS
   - `npm.cmd run test:e2e:critical` PASS
 - Follow-up risks / next steps:
-  - Production persistence will not actually write until `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OBSERVATORY_PERSIST_SECRET` or `CRON_SECRET` are set in Vercel.
-  - The live observatory and analytics pages still read from the in-memory snapshot window; they do not query the persisted ledger yet.
+  - `api/persist-observatory-states.ts` keeps authenticated `GET` only for trusted Vercel cron traffic because Vercel cron dispatches `GET`; manual invocations should use authenticated `POST`.
+  - Large dead CSS blocks for older setup/risk/workflow surfaces still exist outside the mounted observatory selectors; they do not affect runtime correctness but should be pruned in a later CSS-only pass.
+  - Production release signoff still needs to be rewritten against the final pushed candidate hash after live smoke verification.
 - Remaining incomplete work:
-  - No operator-facing runbook has been added yet for invoking `api/backfill-observatory-states` across all markets/intervals.
-## 2026-03-10 - Codex
-- Goal: Switch the Analytics page to the persisted observatory ledger with a new read-only analytics API while keeping the live shell snapshot-driven.
-- Files changed:
-  - `api/_observatoryAnalytics.ts`
-  - `api/observatory-analytics.ts`
-  - `docs/engineering-map.md`
-  - `docs/production-parity-checklist.md`
-  - `src/components/observatory/AnalyticsPage.tsx`
-  - `src/index.css`
-  - `src/observatory/analytics.ts`
-  - `tests/e2e/critical-flows.spec.ts`
-  - `tests/run-logic-tests.mjs`
-- Verification:
-  - `npm.cmd run build` PASS
-  - `node tests/run-logic-tests.mjs` PASS
-  - `npm.cmd run test:e2e:critical` PASS
-- Follow-up risks / next steps:
-  - Production should be backfilled to the full `180d` horizon for all tracked `coin + interval` pairs so the analytics page has meaningful history immediately.
-  - The live shell still intentionally reads the snapshot window; only the Analytics page is ledger-backed in this pass.
-- Remaining incomplete work:
-  - No operator-facing freshness/runbook surface has been added yet for ledger health beyond the current API and database checks.
-## 2026-03-10 - Codex
-- Goal: Fix the production analytics API after Vercel failed to bundle the new shared analytics builder into the serverless function.
-- Files changed:
-  - `api/_observatoryAnalytics.ts`
-  - `api/_signals.d.mts`
-  - `src/signals/api-entry.ts`
-  - `tests/run-logic-tests.mjs`
-- Verification:
-  - `npm.cmd run build` PASS
-  - `node tests/run-logic-tests.mjs` PASS
-  - `npm.cmd run test:e2e:critical` PASS
-- Follow-up risks / next steps:
-  - Production still needs the corrected deployment verified live after push.
-  - The remaining product-level follow-up is operator monitoring and any deeper historical analytics surfaces beyond the current page.
-- Remaining incomplete work:
-  - No dedicated operator freshness dashboard exists yet for the ledger; verification is still API/database-based.
-## 2026-03-10 - Codex
-- Goal: Fix the persisted analytics reader so production loads the full Supabase ledger instead of only the first default page of rows.
-- Files changed:
-  - `api/_observatoryAnalytics.ts`
-  - `tests/run-logic-tests.mjs`
-- Verification:
-  - `npm.cmd run build` PASS
-  - `node tests/run-logic-tests.mjs` PASS
-  - `npm.cmd run test:e2e:critical` PASS
-- Follow-up risks / next steps:
-  - Production still needs the pagination fix verified against the live `api/observatory-analytics` route after deployment.
-  - Direct service-role counting from this machine remains constrained by Supabase secret-key protections, so live verification is best done through the analytics route and backfill responses.
-- Remaining incomplete work:
-  - No operator dashboard exists yet for ledger freshness, row growth, or failed cron visibility.
-## 2026-03-10 - Codex
-- Goal: Fix the production analytics reader again after confirming Supabase was capping each page at `1000` rows, which kept the route from loading the full `180d` ledger.
-- Files changed:
-  - `api/_observatoryAnalytics.ts`
-- Verification:
-  - `npm.cmd run build` PASS
-  - `node tests/run-logic-tests.mjs` PASS
-  - `npm.cmd run test:e2e:critical` PASS
-- Follow-up risks / next steps:
-  - Production still needs one final live verification that `api/observatory-analytics` now reports the full historical window after deployment.
-- Remaining incomplete work:
-  - Direct row-count introspection from this machine is still constrained by Supabase secret-key protections; live verification continues to rely on route outputs and backfill responses.
+  - Commit, push, live smoke verification, and release-signoff finalization remain to be completed after this log entry.

@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
-import type { CandlestickData, LineData, LineStyle, SeriesMarker, UTCTimestamp } from 'lightweight-charts'
+import { LineStyle, type CandlestickData, type LineData, type SeriesMarker, type UTCTimestamp } from 'lightweight-charts'
+import { INTERVAL_CONFIG } from '../config/intervals'
 import { useStore } from '../store'
-import { usePositionRisk } from './usePositionRisk'
 import type { Candle, TrackedCoin } from '../types/market'
-import type { SuggestedSetup } from '../types/setup'
 
 interface ChartPriceLine {
   title: string
@@ -28,27 +27,39 @@ export interface ChartModel {
   focusRange: { from: UTCTimestamp; to: UTCTimestamp } | null
   latestClose: number | null
   legend: ChartLegendValue[]
+  isWarmingUp: boolean
+  isStale: boolean
 }
 
 interface ChartModelOptions {
   candlesOverride?: Candle[] | null
-  reviewMode?: 'live' | 'historical'
 }
 
-export function useChartModel(
-  coin: TrackedCoin,
-  verificationSetup?: SuggestedSetup | null,
-  options?: ChartModelOptions,
-): ChartModel {
-  const candles = useStore((s) => s.candles[coin])
-  const signals = useStore((s) => s.signals[coin])
-  const { inputs, outputs } = usePositionRisk()
+const BOLLINGER_PERIOD = 20
+const DEFAULT_VIEWPORT_BARS = 120
+
+export function useChartModel(coin: TrackedCoin, options?: ChartModelOptions): ChartModel {
+  const candles = useStore((state) => state.candles[coin])
+  const lastUpdate = useStore((state) => state.lastUpdate)
+  const connectionStatus = useStore((state) => state.connectionStatus)
+  const selectedInterval = useStore((state) => state.selectedInterval)
   const sourceCandles = options?.candlesOverride ?? candles
-  const isHistoricalReview = options?.reviewMode === 'historical'
 
   return useMemo(() => {
     if (!sourceCandles || sourceCandles.length === 0) {
-      return { candles: [], meanLine: [], upperBandLine: [], lowerBandLine: [], markers: [], priceLines: [], focusRange: null, latestClose: null, legend: [] }
+      return {
+        candles: [],
+        meanLine: [],
+        upperBandLine: [],
+        lowerBandLine: [],
+        markers: [],
+        priceLines: [],
+        focusRange: null,
+        latestClose: null,
+        legend: [],
+        isWarmingUp: true,
+        isStale: true,
+      }
     }
 
     const candleData: CandlestickData[] = sourceCandles.map((candle) => ({
@@ -62,11 +73,9 @@ export function useChartModel(
     const meanLine: LineData[] = []
     const upperBandLine: LineData[] = []
     const lowerBandLine: LineData[] = []
-    const BOLLINGER_PERIOD = 20
-    const windowSize = BOLLINGER_PERIOD
 
-    for (let index = windowSize - 1; index < sourceCandles.length; index++) {
-      const window = sourceCandles.slice(index - windowSize + 1, index + 1)
+    for (let index = BOLLINGER_PERIOD - 1; index < sourceCandles.length; index += 1) {
+      const window = sourceCandles.slice(index - BOLLINGER_PERIOD + 1, index + 1)
       const mean = window.reduce((sum, candle) => sum + candle.close, 0) / window.length
       const variance = window.reduce((sum, candle) => sum + (candle.close - mean) ** 2, 0) / window.length
       const stddev = Math.sqrt(variance)
@@ -77,237 +86,123 @@ export function useChartModel(
       lowerBandLine.push({ time, value: mean - stddev * 2 })
     }
 
-    const latestClose = sourceCandles.length > 0 ? sourceCandles[sourceCandles.length - 1]!.close : null
-    const markers: SeriesMarker<UTCTimestamp>[] = []
-    const priceLines: ChartPriceLine[] = []
-    let focusRange: { from: UTCTimestamp; to: UTCTimestamp } | null = null
+    const latestClose = sourceCandles[sourceCandles.length - 1]?.close ?? null
+    const previousClose = sourceCandles[sourceCandles.length - 2]?.close ?? null
+    const barsFor24h = selectedInterval === '1d' ? 1 : 6
+    const close24hAgo = sourceCandles[Math.max(0, sourceCandles.length - 1 - barsFor24h)]?.close ?? null
+    const latestMean = meanLine[meanLine.length - 1]?.value ?? null
+    const latestUpper = upperBandLine[upperBandLine.length - 1]?.value ?? null
+    const latestLower = lowerBandLine[lowerBandLine.length - 1]?.value ?? null
 
+    const priceLines: ChartPriceLine[] = []
     if (latestClose !== null) {
       priceLines.push({
-        title: isHistoricalReview ? 'Now' : 'Last',
+        title: 'Last',
         price: latestClose,
         color: 'var(--color-chart-price)',
       })
     }
-
-    if (verificationSetup) {
-      const triggerMarkerTime = getTriggerMarkerTime(sourceCandles, verificationSetup.generatedAt)
-      if (triggerMarkerTime !== null) {
-        markers.push({
-          time: triggerMarkerTime,
-          position: 'aboveBar',
-          shape: 'circle',
-          color: '#60a5fa',
-          text: isHistoricalReview ? 'Suggested' : 'Setup',
-        })
-      }
-
-      priceLines.push(
-        {
-          title: 'Entry',
-          price: verificationSetup.entryPrice,
-          color: 'var(--color-chart-price)',
-        },
-        {
-          title: 'Setup Stop',
-          price: verificationSetup.stopPrice,
-          color: 'var(--color-signal-red)',
-        },
-        {
-          title: 'Setup Target',
-          price: verificationSetup.targetPrice,
-          color: 'var(--color-signal-green)',
-        },
-        {
-          title: 'Mean',
-          price: verificationSetup.meanReversionTarget,
-          color: 'var(--color-signal-blue)',
-          lineStyle: 2,
-        },
-      )
-    } else if (inputs.coin === coin && outputs && !outputs.hasInputError) {
-      priceLines.push(
-        {
-          title: outputs.usedCustomStop ? 'Custom Stop' : 'Auto Stop',
-          price: outputs.effectiveStopPrice,
-          color: 'var(--color-signal-red)',
-        },
-        {
-          title: outputs.usedCustomTarget ? 'Custom Target' : 'Auto Target',
-          price: outputs.effectiveTargetPrice,
-          color: 'var(--color-signal-green)',
-        },
-      )
-
-      if (outputs.hasLiquidation) {
-        priceLines.push({
-          title: 'Liq',
-          price: outputs.liquidationPrice,
-          color: 'var(--color-signal-yellow)',
-          lineStyle: 2,
-        })
-      } else if (outputs.liquidationPriceAtMinLeverage !== null) {
-        priceLines.push({
-          title: `Liq @ ${outputs.minLeverageForLiquidation?.toFixed(1)}x`,
-          price: outputs.liquidationPriceAtMinLeverage,
-          color: 'var(--color-signal-yellow)',
-          lineStyle: 2,
-        })
-      }
+    if (latestMean !== null) {
+      priceLines.push({
+        title: 'Mean',
+        price: latestMean,
+        color: 'rgba(212, 168, 83, 0.85)',
+        lineStyle: LineStyle.Dashed,
+      })
     }
 
-    if (verificationSetup && candleData.length > 1) {
-      const availableFrom = candleData[0]!.time as UTCTimestamp
-      const availableTo = candleData[candleData.length - 1]!.time as UTCTimestamp
-
-      if (isHistoricalReview) {
-        const focusTime = Math.floor(verificationSetup.generatedAt / 1000) as UTCTimestamp
-        const historicalFrom = Math.max(availableFrom, focusTime - 24 * 60 * 60) as UTCTimestamp
-
-        if (historicalFrom < availableTo) {
-          focusRange = {
-            from: historicalFrom,
-            to: availableTo,
-          }
+    const focusStartIndex = Math.max(0, candleData.length - DEFAULT_VIEWPORT_BARS)
+    const focusRange = candleData.length > 1
+      ? {
+          from: candleData[focusStartIndex]!.time as UTCTimestamp,
+          to: candleData[candleData.length - 1]!.time as UTCTimestamp,
         }
-      } else {
-        const focusTime = Math.floor(verificationSetup.generatedAt / 1000) as UTCTimestamp
-        const defaultFrom = Math.max(availableFrom, focusTime - 36 * 60 * 60) as UTCTimestamp
-        const defaultTo = Math.min(availableTo, focusTime + 24 * 60 * 60) as UTCTimestamp
+      : null
 
-        if (defaultFrom < defaultTo) {
-          focusRange = {
-            from: defaultFrom,
-            to: defaultTo,
-          }
-        }
-      }
-    }
+    const intervalChangePct =
+      latestClose !== null && previousClose !== null && previousClose !== 0
+        ? ((latestClose - previousClose) / Math.abs(previousClose)) * 100
+        : null
+    const change24hPct =
+      latestClose !== null && close24hAgo !== null && close24hAgo !== 0
+        ? ((latestClose - close24hAgo) / Math.abs(close24hAgo)) * 100
+        : null
+    const meanGapPct =
+      latestClose !== null && latestMean !== null && latestMean !== 0
+        ? ((latestClose - latestMean) / Math.abs(latestMean)) * 100
+        : null
+    const bandWidthPct =
+      latestUpper !== null && latestLower !== null && latestMean !== null && latestMean !== 0
+        ? ((latestUpper - latestLower) / Math.abs(latestMean)) * 100
+        : null
 
     const legend: ChartLegendValue[] = []
     if (latestClose !== null) {
-      legend.push({ label: isHistoricalReview ? 'Now' : 'Last', value: latestClose.toFixed(2) })
+      legend.push({ label: 'Last', value: latestClose.toFixed(2) })
     }
-    if (isHistoricalReview && verificationSetup) {
-      legend.push(
-        {
-          label: 'Stretch',
-          value: `${verificationSetup.stretchSigma.toFixed(2)} sig`,
-          tone: verificationSetup.tradeGrade,
-        },
-        {
-          label: 'ATR Drift',
-          value: `${verificationSetup.atr.toFixed(2)} ATR`,
-          tone: 'yellow',
-        },
-        {
-          label: 'Composite',
-          value: `${verificationSetup.compositeValue.toFixed(2)} ${verificationSetup.direction.toUpperCase()}`,
-          tone: verificationSetup.tradeGrade,
-        },
-        {
-          label: 'Suggested',
-          value: formatLegendTimestamp(verificationSetup.generatedAt),
-          tone: 'muted',
-        },
-      )
-    } else if (signals) {
-      legend.push(
-        {
-          label: 'Stretch',
-          value: `${signals.entryGeometry.stretchZEquivalent.toFixed(2)} sig`,
-          tone: signals.entryGeometry.color,
-        },
-        {
-          label: 'ATR Drift',
-          value: `${signals.entryGeometry.atrDislocation.toFixed(2)} ATR`,
-          tone: signals.entryGeometry.color,
-        },
-        {
-          label: 'Composite',
-          value: signals.composite.label,
-          tone: signals.composite.color,
-        },
-      )
+    if (intervalChangePct !== null) {
+      legend.push({
+        label: selectedInterval === '1d' ? '1d move' : 'Bar move',
+        value: formatPercent(intervalChangePct),
+        tone: toneFromSignedPercent(intervalChangePct),
+      })
+    }
+    if (change24hPct !== null) {
+      legend.push({
+        label: '24h move',
+        value: formatPercent(change24hPct),
+        tone: toneFromSignedPercent(change24hPct),
+      })
+    }
+    if (meanGapPct !== null) {
+      legend.push({
+        label: 'Mean gap',
+        value: formatPercent(meanGapPct),
+        tone: toneFromSignedPercent(meanGapPct),
+      })
+    }
+    if (bandWidthPct !== null) {
+      legend.push({
+        label: 'Band width',
+        value: `${bandWidthPct.toFixed(1)}%`,
+        tone: bandWidthPct >= 8 ? 'yellow' : 'muted',
+      })
     }
 
-    if (verificationSetup) {
-      legend.push(
-        {
-          label: 'Entry',
-          value: verificationSetup.entryPrice.toFixed(2),
-          tone: 'default',
-        },
-        {
-          label: 'Stop',
-          value: verificationSetup.stopPrice.toFixed(2),
-          tone: 'red',
-        },
-        {
-          label: 'Target',
-          value: verificationSetup.targetPrice.toFixed(2),
-          tone: 'green',
-        },
-      )
-    } else if (inputs.coin === coin && outputs && !outputs.hasInputError) {
-      legend.push(
-        {
-          label: 'Stop',
-          value: outputs.effectiveStopPrice.toFixed(2),
-          tone: 'red',
-        },
-        {
-          label: 'Target',
-          value: outputs.effectiveTargetPrice.toFixed(2),
-          tone: 'green',
-        },
-      )
-
-      if (outputs.effectiveImmune && outputs.minLeverageForLiquidation !== null) {
-        legend.push({
-          label: 'Liq Starts',
-          value: `${outputs.minLeverageForLiquidation.toFixed(1)}x`,
-          tone: 'yellow',
-        })
-      }
-    }
+    const latestCandleTime = sourceCandles[sourceCandles.length - 1]?.time ?? null
+    const intervalConfig = INTERVAL_CONFIG[selectedInterval]
+    const ageMs = latestCandleTime === null ? Number.POSITIVE_INFINITY : Date.now() - latestCandleTime
+    const isWarmingUp = sourceCandles.length < BOLLINGER_PERIOD
+    const isStale = options?.candlesOverride
+      ? false
+      : connectionStatus === 'error' ||
+        connectionStatus === 'disconnected' ||
+        lastUpdate === null ||
+        Date.now() - lastUpdate > intervalConfig.staleAfterMs ||
+        ageMs > intervalConfig.staleAfterMs
 
     return {
       candles: candleData,
       meanLine,
       upperBandLine,
       lowerBandLine,
-      markers,
+      markers: [],
       priceLines,
       focusRange,
       latestClose,
       legend,
+      isWarmingUp,
+      isStale,
     }
-  }, [coin, inputs.coin, isHistoricalReview, outputs, signals, sourceCandles, verificationSetup])
+  }, [connectionStatus, lastUpdate, options?.candlesOverride, selectedInterval, sourceCandles])
 }
 
-function getTriggerMarkerTime(candles: Candle[], generatedAt: number): UTCTimestamp | null {
-  if (candles.length === 0) {
-    return null
-  }
-
-  const candidate =
-    candles.find((candle) => candle.time >= generatedAt) ??
-    [...candles].reverse().find((candle) => candle.time <= generatedAt) ??
-    candles[0]
-
-  if (!candidate) {
-    return null
-  }
-
-  return Math.floor(candidate.time / 1000) as UTCTimestamp
+function toneFromSignedPercent(value: number): ChartLegendValue['tone'] {
+  if (value > 0) return 'green'
+  if (value < 0) return 'red'
+  return 'muted'
 }
 
-function formatLegendTimestamp(timestamp: number): string {
-  return new Date(timestamp).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+function formatPercent(value: number): string {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
 }

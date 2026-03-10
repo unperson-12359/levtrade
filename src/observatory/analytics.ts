@@ -15,6 +15,7 @@ export interface PersistedAnalyticsRow {
   category: IndicatorCategory
   activeBars: number
   activeRate: number
+  transitionRate: number
   currentStreak: number
   maxStreak: number
   lastHitTime: number | null
@@ -70,6 +71,7 @@ export function buildPersistedObservatoryAnalytics(input: {
     category: categoryByIndicator.get(indicatorId) ?? 'Trend',
     activeBars: 0,
     activeRate: 0,
+    transitionRate: 0,
     currentStreak: 0,
     maxStreak: 0,
     lastHitTime: null,
@@ -117,6 +119,14 @@ export function buildPersistedObservatoryAnalytics(input: {
   const windowBars = Math.max(times.length, 1)
   for (const row of rows) {
     row.activeRate = row.activeBars / windowBars
+    const states = times.map((time) => barsByTime.get(time)?.get(row.indicatorId)?.isOn ?? false)
+    let transitions = 0
+    for (let index = 1; index < states.length; index += 1) {
+      if (states[index] !== states[index - 1]) {
+        transitions += 1
+      }
+    }
+    row.transitionRate = transitions / Math.max(states.length - 1, 1)
     row.currentStreak = liveStreaks.get(row.indicatorId) ?? 0
     row.recentHitTimes = row.recentHitTimes.slice(-4).reverse()
   }

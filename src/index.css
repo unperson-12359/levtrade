@@ -3304,12 +3304,6 @@ button {
   color: var(--color-signal-blue);
 }
 
-/* Jargon term dotted underline */
-.jargon-term {
-  border-bottom: 1px dotted var(--color-text-muted);
-  cursor: help;
-}
-
 /* Methodology Banner */
 .methodology-banner {
   max-width: 1600px;

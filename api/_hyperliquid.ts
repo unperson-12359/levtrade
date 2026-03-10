@@ -1,6 +1,7 @@
 import { TRACKED_COINS, type RawCandle, type TrackedCoin } from './_signals.mjs'
 
 export type ObservatoryInterval = '4h' | '1d'
+type ParseResult<T> = { ok: true; value: T } | { ok: false; reason: string }
 
 const HYPERLIQUID_API = 'https://api.hyperliquid.xyz/info'
 const REQUEST_TIMEOUT_MS = 12_000
@@ -21,18 +22,26 @@ export async function fetchCandles(
   })
 }
 
-export function resolveCoin(raw: string | string[] | undefined): TrackedCoin {
+export function parseCoinParam(raw: string | string[] | undefined): ParseResult<TrackedCoin> {
   const value = Array.isArray(raw) ? raw[0] : raw
-  if (value && TRACKED_COINS.includes(value as TrackedCoin)) {
-    return value as TrackedCoin
+  if (!value) {
+    return { ok: false, reason: 'Missing coin query parameter.' }
   }
-  return 'BTC'
+  if (TRACKED_COINS.includes(value as TrackedCoin)) {
+    return { ok: true, value: value as TrackedCoin }
+  }
+  return { ok: false, reason: `Unsupported coin '${value}'.` }
 }
 
-export function resolveObservatoryInterval(raw: string | string[] | undefined): ObservatoryInterval {
+export function parseObservatoryIntervalParam(raw: string | string[] | undefined): ParseResult<ObservatoryInterval> {
   const value = Array.isArray(raw) ? raw[0] : raw
-  if (value === '4h' || value === '1d') return value
-  return '4h'
+  if (!value) {
+    return { ok: false, reason: 'Missing interval query parameter.' }
+  }
+  if (value === '4h' || value === '1d') {
+    return { ok: true, value }
+  }
+  return { ok: false, reason: `Unsupported interval '${value}'.` }
 }
 
 export function parsePositiveInteger(

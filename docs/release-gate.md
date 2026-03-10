@@ -11,6 +11,9 @@ npm.cmd run gate:release
 
 # Verify signoff document only
 node scripts/release-gate.mjs --verify-only
+
+# Real production smoke
+npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180
 ```
 
 ## Required signoff file
@@ -21,13 +24,16 @@ node scripts/release-gate.mjs --verify-only
 The gate script requires the signoff file to include:
 
 - `Status: PASS`
+- a recent `Date`
+- a `Candidate` hash matching the current release candidate or the immediately preceding candidate commit
 - checked lines for:
   - `Automated: npm run build`
   - `Automated: npm run test:logic`
   - `Automated: npm run test:e2e:critical`
+  - `Automated: npm run smoke:release`
   - `Manual: Responsive matrix`
-  - `Manual: 10+ minute production soak`
   - `Manual: Live shell continuity verification`
+  - `Manual: Ledger freshness verification`
 
 ## Critical E2E scope
 
@@ -39,6 +45,7 @@ The gate script requires the signoff file to include:
 4. Health detail and runtime diagnostics visibility from the command bar
 5. Runtime diagnostics visibility without losing the observatory shell
 
-## Manual verification intent
+## Verification intent
 
 - `Live shell continuity verification` means confirming the observatory shell stays readable through refresh, route changes, and transient network interruptions without surfacing retired setup/tracker architecture.
+- `Ledger freshness verification` means confirming the production `observatory_indicator_states` table has recent rows for every tracked `coin + interval` pair before you claim the analytics ledger is healthy.

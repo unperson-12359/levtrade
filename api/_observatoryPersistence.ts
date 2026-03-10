@@ -1,4 +1,5 @@
 import {
+  OBSERVATORY_RULESET_VERSION,
   buildClosedIndicatorStateRecords,
   buildObservatorySnapshot,
   parseCandle,
@@ -34,6 +35,7 @@ interface PersistedStateRow {
 }
 
 export interface PersistenceRunResult {
+  rulesetVersion: string
   coin: TrackedCoin
   interval: ObservatoryInterval
   startTime: number
@@ -56,8 +58,6 @@ export async function persistObservatoryStates(options: PersistOptions): Promise
     coin: options.coin,
     interval: options.interval,
     candles,
-    fundingHistory: [],
-    oiHistory: [],
   })
 
   const closedRecords = buildClosedIndicatorStateRecords(snapshot, { now: endTime })
@@ -71,6 +71,7 @@ export async function persistObservatoryStates(options: PersistOptions): Promise
   }
 
   return {
+    rulesetVersion: OBSERVATORY_RULESET_VERSION,
     coin: options.coin,
     interval: options.interval,
     startTime: options.startTime,
@@ -99,7 +100,6 @@ export async function persistObservatoryLookback(options: {
 
 export function authorizePersistenceRequest(input: {
   authorizationHeader?: string | string[]
-  querySecret?: string | string[]
   headerSecret?: string | string[]
 }): { ok: true } | { ok: false; reason: string } {
   const expected = process.env.OBSERVATORY_PERSIST_SECRET ?? process.env.CRON_SECRET
@@ -109,12 +109,11 @@ export function authorizePersistenceRequest(input: {
 
   const authorizationHeader = firstValue(input.authorizationHeader)
   const headerSecret = firstValue(input.headerSecret)
-  const querySecret = firstValue(input.querySecret)
   const bearer = authorizationHeader?.startsWith('Bearer ')
     ? authorizationHeader.slice('Bearer '.length).trim()
     : null
 
-  if (bearer === expected || headerSecret === expected || querySecret === expected) {
+  if (bearer === expected || headerSecret === expected) {
     return { ok: true }
   }
 

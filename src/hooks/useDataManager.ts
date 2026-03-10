@@ -5,25 +5,18 @@ import { TRACKED_COINS } from '../types/market'
 
 export function useDataManager() {
   const managerRef = useRef<DataManager | null>(null)
-  const interval = useStore((s) => s.selectedInterval)
-  const selectedCoin = useStore((s) => s.selectedCoin)
-  const computeAllSignals = useStore((s) => s.computeAllSignals)
-  const signalInputsVersion = useStore((state) =>
-    TRACKED_COINS.map((coin) => `${coin}:${state.candles[coin].length}:${state.prices[coin] ?? 'na'}`).join('|'),
-  )
+  const interval = useStore((state) => state.selectedInterval)
+  const selectedCoin = useStore((state) => state.selectedCoin)
   const enabled = import.meta.env.VITE_E2E_MOCK !== '1'
 
   useEffect(() => {
-    if (!enabled) return
-
-    // Prevent double initialization in StrictMode
-    if (managerRef.current) return
+    if (!enabled || managerRef.current) return
 
     const manager = new DataManager(useStore)
     managerRef.current = manager
 
     manager.initialize().catch(() => {
-      // Errors already handled inside DataManager
+      // Errors are already captured by DataManager diagnostics.
     })
 
     return () => {
@@ -32,43 +25,36 @@ export function useDataManager() {
     }
   }, [enabled])
 
-  // Refetch candles when timeframe changes
-  const prevInterval = useRef(interval)
+  const previousInterval = useRef(interval)
   useEffect(() => {
-    if (!enabled) return
-    if (interval === prevInterval.current) return
-    prevInterval.current = interval
+    if (!enabled || interval === previousInterval.current) return
+    previousInterval.current = interval
+
     const manager = managerRef.current
     if (!manager) return
 
-    manager.fetchAllCandles([selectedCoin]).then(() => {
-      const remainingCoins = TRACKED_COINS.filter((coin) => coin !== selectedCoin)
-      if (remainingCoins.length > 0) {
-        void manager.fetchAllCandles(remainingCoins).catch(() => {
-          // Errors handled inside DataManager
-        })
-      }
-    }).catch(() => {
-      // Errors handled inside DataManager
-    })
+    manager.fetchAllCandles([selectedCoin], 'full')
+      .then(() => {
+        const remainingCoins = TRACKED_COINS.filter((coin) => coin !== selectedCoin)
+        if (remainingCoins.length > 0) {
+          return manager.fetchAllCandles(remainingCoins, 'full')
+        }
+      })
+      .catch(() => {
+        // Errors are already captured by DataManager diagnostics.
+      })
   }, [enabled, interval, selectedCoin])
 
-  const prevSelectedCoin = useRef(selectedCoin)
+  const previousSelectedCoin = useRef(selectedCoin)
   useEffect(() => {
-    if (!enabled) return
-    if (selectedCoin === prevSelectedCoin.current) return
-    prevSelectedCoin.current = selectedCoin
+    if (!enabled || selectedCoin === previousSelectedCoin.current) return
+    previousSelectedCoin.current = selectedCoin
 
     const manager = managerRef.current
     if (!manager) return
 
-    void manager.fetchAllCandles([selectedCoin]).catch(() => {
-      // Errors handled inside DataManager
+    void manager.fetchAllCandles([selectedCoin], 'full').catch(() => {
+      // Errors are already captured by DataManager diagnostics.
     })
   }, [enabled, selectedCoin])
-
-  useEffect(() => {
-    if (!enabled) return
-    computeAllSignals()
-  }, [computeAllSignals, enabled, interval, signalInputsVersion])
 }

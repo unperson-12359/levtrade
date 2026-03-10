@@ -1,16 +1,10 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { createMarketDataSlice, type MarketDataSlice } from './marketDataSlice'
-import { createSignalsSlice, type SignalsSlice } from './signalsSlice'
 import { createUISlice, type UISlice } from './uiSlice'
-import { createContextSlice, type ContextSlice } from './contextSlice'
 
-export type AppStore = MarketDataSlice & SignalsSlice & UISlice & ContextSlice
+export type AppStore = MarketDataSlice & UISlice
 
-// Throttle-with-trailing localStorage writes.
-// Trailing debounce (2s) coalesces rapid set() bursts.
-// Max-wait ceiling (10s) prevents WebSocket tick starvation.
-// beforeunload flush guarantees persist on tab close.
 const DEBOUNCE_MS = 2_000
 const MAX_WAIT_MS = 10_000
 
@@ -20,11 +14,9 @@ const throttledStorage = {
     throttledStorage._pendingName = name
     throttledStorage._pendingValue = value
 
-    // Reset trailing debounce
     if (throttledStorage._timer !== null) clearTimeout(throttledStorage._timer)
     throttledStorage._timer = setTimeout(flushStorage, DEBOUNCE_MS)
 
-    // Set max-wait ceiling (only if not already running)
     if (throttledStorage._maxWaitTimer === null) {
       throttledStorage._maxWaitTimer = setTimeout(flushStorage, MAX_WAIT_MS)
     }
@@ -52,7 +44,6 @@ function flushStorage() {
   }
 }
 
-// Flush pending writes on tab close to prevent data loss
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', flushStorage)
 }
@@ -61,19 +52,14 @@ export const useStore = create<AppStore>()(
   persist(
     (...a) => ({
       ...createMarketDataSlice(...a),
-      ...createSignalsSlice(...a),
       ...createUISlice(...a),
-      ...createContextSlice(...a),
     }),
     {
       name: 'levtrade-storage',
       storage: createJSONStorage(() => throttledStorage),
       partialize: (state) => ({
-        expandedSections: state.expandedSections,
         selectedCoin: state.selectedCoin,
         selectedInterval: state.selectedInterval,
-        riskInputs: state.riskInputs,
-        lastSignalComputedAt: state.lastSignalComputedAt,
       }),
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<AppStore>
@@ -81,17 +67,6 @@ export const useStore = create<AppStore>()(
 
         if (merged.selectedInterval !== '4h' && merged.selectedInterval !== '1d') {
           merged.selectedInterval = '4h'
-        }
-        if (merged.riskInputs && merged.riskInputs.leverage > 40) {
-          merged.riskInputs = { ...merged.riskInputs, leverage: 40 }
-        }
-
-        // Close overlay panels on refresh so the observatory remains the landing surface.
-        if (merged.expandedSections) {
-          merged.expandedSections = { ...merged.expandedSections }
-          delete merged.expandedSections['analytics']
-          delete merged.expandedSections['how-it-works']
-          delete merged.expandedSections['menu']
         }
 
         merged.runtimeDiagnostics = []

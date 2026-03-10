@@ -169,6 +169,54 @@ export function ObservatoryLayout() {
     (time: number) => navigateToReport(selectedCoin, timeframe, time),
     [navigateToReport, selectedCoin, timeframe],
   )
+  const openObservatory = useCallback(
+    () => navigateToObservatory(selectedCoin, timeframe),
+    [navigateToObservatory, selectedCoin, timeframe],
+  )
+  const openAnalytics = useCallback(
+    () => navigateToAnalytics(selectedCoin, timeframe),
+    [navigateToAnalytics, selectedCoin, timeframe],
+  )
+  const openMethodology = useCallback(
+    () => navigateToMethodology(selectedCoin, timeframe),
+    [navigateToMethodology, selectedCoin, timeframe],
+  )
+  const openHeatmap = useCallback(
+    () => navigateToHeatmap(selectedCoin, timeframe),
+    [navigateToHeatmap, selectedCoin, timeframe],
+  )
+  const applyMarketContext = useCallback((nextCoin: typeof selectedCoin, nextInterval: AllowedInterval) => {
+    selectCoin(nextCoin)
+    setInterval(nextInterval)
+
+    if (isAnalyticsPage) {
+      navigateToAnalytics(nextCoin, nextInterval)
+      return
+    }
+
+    if (isMethodologyPage) {
+      navigateToMethodology(nextCoin, nextInterval)
+      return
+    }
+
+    navigateToObservatory(nextCoin, nextInterval)
+  }, [
+    isAnalyticsPage,
+    isMethodologyPage,
+    navigateToAnalytics,
+    navigateToMethodology,
+    navigateToObservatory,
+    selectCoin,
+    setInterval,
+  ])
+  const handleSelectCoin = useCallback(
+    (coin: typeof selectedCoin) => applyMarketContext(coin, timeframe),
+    [applyMarketContext, timeframe],
+  )
+  const handleSelectInterval = useCallback(
+    (interval: AllowedInterval) => applyMarketContext(selectedCoin, interval),
+    [applyMarketContext, selectedCoin],
+  )
 
   const { onPrev, onNext } = useMemo(() => {
     if (!isReportPage || route.time === null || snapshot.timeline.length === 0) {
@@ -216,7 +264,7 @@ export function ObservatoryLayout() {
               <button
                 type="button"
                 className={`obs-chip obs-chip--nav ${!isAnalyticsPage ? 'obs-chip--active' : ''}`}
-                onClick={navigateToObservatory}
+                onClick={openObservatory}
                 data-testid="obs-nav-observatory"
               >
                 Observatory
@@ -224,7 +272,7 @@ export function ObservatoryLayout() {
               <button
                 type="button"
                 className={`obs-chip obs-chip--nav ${isAnalyticsPage ? 'obs-chip--active' : ''}`}
-                onClick={navigateToAnalytics}
+                onClick={openAnalytics}
                 data-testid="obs-nav-analytics"
               >
                 Analytics
@@ -232,7 +280,7 @@ export function ObservatoryLayout() {
               <button
                 type="button"
                 className={`obs-chip obs-chip--nav ${isMethodologyPage ? 'obs-chip--active' : ''}`}
-                onClick={navigateToMethodology}
+                onClick={openMethodology}
                 data-testid="obs-nav-methodology"
               >
                 Methodology
@@ -256,21 +304,21 @@ export function ObservatoryLayout() {
               <button
                 type="button"
                 className={`obs-chip obs-chip--nav ${!isAnalyticsPage ? 'obs-chip--active' : ''}`}
-                onClick={navigateToObservatory}
+                onClick={openObservatory}
               >
                 Observatory
               </button>
               <button
                 type="button"
                 className={`obs-chip obs-chip--nav ${isAnalyticsPage ? 'obs-chip--active' : ''}`}
-                onClick={navigateToAnalytics}
+                onClick={openAnalytics}
               >
                 Analytics
               </button>
               <button
                 type="button"
                 className={`obs-chip obs-chip--nav ${isMethodologyPage ? 'obs-chip--active' : ''}`}
-                onClick={navigateToMethodology}
+                onClick={openMethodology}
               >
                 Methodology
               </button>
@@ -340,7 +388,7 @@ export function ObservatoryLayout() {
               </div>
               <div className="obs-command-bar__hero-meta">
                 <span>Status · {formatLiveStatus(liveDisplayStatus)}</span>
-                <span>{formatUpdatedAt(priceContext.updatedAt)}</span>
+                <span>{formatObservedAt(priceContext.observedAt)}</span>
               </div>
             </div>
           </div>
@@ -352,7 +400,7 @@ export function ObservatoryLayout() {
                   key={interval}
                   type="button"
                   className={`obs-chip obs-chip--nav ${interval === timeframe ? 'obs-chip--active' : ''}`}
-                  onClick={() => setInterval(interval)}
+                  onClick={() => handleSelectInterval(interval)}
                   data-testid={`obs-interval-${interval}`}
                 >
                   {interval}
@@ -411,7 +459,7 @@ export function ObservatoryLayout() {
                   key={coin}
                   type="button"
                   className={`obs-market-tile ${coin === selectedCoin ? 'obs-market-tile--active obs-chip--active' : ''}`}
-                  onClick={() => selectCoin(coin)}
+                  onClick={() => handleSelectCoin(coin)}
                   data-testid={`obs-coin-${coin}`}
                 >
                   <span className="obs-market-tile__symbol">{coin}</span>
@@ -423,12 +471,12 @@ export function ObservatoryLayout() {
         </section>
 
         {isMethodologyPage ? (
-          <MethodologyPage
-            coin={selectedCoin}
-            timeframe={timeframe}
-            onOpenObservatory={navigateToObservatory}
-            onOpenAnalytics={navigateToAnalytics}
-          />
+            <MethodologyPage
+              coin={selectedCoin}
+              timeframe={timeframe}
+              onOpenObservatory={openObservatory}
+              onOpenAnalytics={openAnalytics}
+            />
         ) : isReportPage ? (
           <section className="obs-report-shell">
             <CandleReportPage
@@ -438,7 +486,7 @@ export function ObservatoryLayout() {
               timeline={snapshot.timeline}
               allIndicators={snapshot.indicators}
               loading={loading}
-              onBack={navigateToHeatmap}
+              onBack={openHeatmap}
               onPrev={onPrev}
               onNext={onNext}
             />
@@ -452,10 +500,10 @@ export function ObservatoryLayout() {
               timeframe={timeframe}
               primaryView={primaryView}
               liveStatus={liveDisplayStatus}
-              updatedAt={priceContext.updatedAt}
+              observedAt={priceContext.observedAt}
               selectedClusterLabel={selectedTimelineCluster ? new Date(selectedTimelineCluster.time).toLocaleString() : 'No selection yet'}
               selectedClusterHits={selectedTimelineCluster?.totalHits ?? null}
-              onOpenMethodology={navigateToMethodology}
+              onOpenMethodology={openMethodology}
             />
 
             <div className={`obs-workspace ${isTimelineView ? 'obs-workspace--timeline' : ''}`}>
@@ -786,10 +834,10 @@ function formatConnectionStatus(status: 'connecting' | 'connected' | 'disconnect
   return 'Feed error'
 }
 
-function formatUpdatedAt(updatedAt: string): string {
-  const time = Date.parse(updatedAt)
-  if (!Number.isFinite(time)) return 'Updated --'
-  return `Updated ${new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+function formatObservedAt(observedAt: string | null): string {
+  const time = Date.parse(observedAt ?? '')
+  if (!Number.isFinite(time)) return 'Observed --'
+  return `Observed ${new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
 }
 
 function formatPrice(value: number | null): string {

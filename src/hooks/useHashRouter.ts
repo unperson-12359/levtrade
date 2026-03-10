@@ -11,6 +11,11 @@ export interface ObservatoryRoute {
   time: number | null
 }
 
+interface MarketRouteContext {
+  coin?: TrackedCoin | null
+  interval?: AllowedInterval | null
+}
+
 function parseHash(hash: string): ObservatoryRoute {
   const raw = hash.trim()
   const fallback: ObservatoryRoute = { page: 'observatory', coin: null, interval: null, time: null }
@@ -49,12 +54,31 @@ function buildReportHash(coin: string, interval: string, time: number): string {
   return `#/observatory/report?${params.toString()}`
 }
 
-function buildAnalyticsHash(): string {
-  return '#/analytics'
+function buildObservatoryHash(context?: MarketRouteContext): string {
+  const params = buildMarketParams(context)
+  return params ? `#/observatory?${params}` : '#/observatory'
 }
 
-function buildMethodologyHash(): string {
-  return '#/methodology'
+function buildAnalyticsHash(context?: MarketRouteContext): string {
+  const params = buildMarketParams(context)
+  return params ? `#/analytics?${params}` : '#/analytics'
+}
+
+function buildMethodologyHash(context?: MarketRouteContext): string {
+  const params = buildMarketParams(context)
+  return params ? `#/methodology?${params}` : '#/methodology'
+}
+
+function buildMarketParams(context?: MarketRouteContext) {
+  const params = new URLSearchParams()
+  if (context?.coin) {
+    params.set('coin', context.coin)
+  }
+  if (context?.interval) {
+    params.set('interval', context.interval)
+  }
+  const serialized = params.toString()
+  return serialized.length > 0 ? serialized : null
 }
 
 export function useHashRouter() {
@@ -66,8 +90,9 @@ export function useHashRouter() {
     window.addEventListener('popstate', sync)
 
     if (!window.location.hash) {
-      history.replaceState(null, '', '#/observatory')
-      setRoute(parseHash('#/observatory'))
+      const defaultHash = buildObservatoryHash({ coin: 'BTC', interval: '4h' })
+      history.replaceState(null, '', defaultHash)
+      setRoute(parseHash(defaultHash))
     }
 
     return () => {
@@ -85,12 +110,12 @@ export function useHashRouter() {
     setRoute(parseHash(hash))
   }, [])
 
-  const navigateToHeatmap = useCallback(() => {
-    navigate('#/observatory')
+  const navigateToHeatmap = useCallback((coin?: TrackedCoin, interval?: AllowedInterval, opts?: { replace?: boolean }) => {
+    navigate(buildObservatoryHash({ coin, interval }), opts)
   }, [navigate])
 
-  const navigateToObservatory = useCallback(() => {
-    navigate('#/observatory')
+  const navigateToObservatory = useCallback((coin?: TrackedCoin, interval?: AllowedInterval, opts?: { replace?: boolean }) => {
+    navigate(buildObservatoryHash({ coin, interval }), opts)
   }, [navigate])
 
   const navigateToReport = useCallback(
@@ -100,12 +125,12 @@ export function useHashRouter() {
     [navigate],
   )
 
-  const navigateToAnalytics = useCallback(() => {
-    navigate(buildAnalyticsHash())
+  const navigateToAnalytics = useCallback((coin?: TrackedCoin, interval?: AllowedInterval, opts?: { replace?: boolean }) => {
+    navigate(buildAnalyticsHash({ coin, interval }), opts)
   }, [navigate])
 
-  const navigateToMethodology = useCallback(() => {
-    navigate(buildMethodologyHash())
+  const navigateToMethodology = useCallback((coin?: TrackedCoin, interval?: AllowedInterval, opts?: { replace?: boolean }) => {
+    navigate(buildMethodologyHash({ coin, interval }), opts)
   }, [navigate])
 
   return {

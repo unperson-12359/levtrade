@@ -3,7 +3,7 @@ export const CONTRACT_VERSION_V1 = 'v1' as const
 export type ContractVersionV1 = typeof CONTRACT_VERSION_V1
 
 export type FreshnessStatusV1 = 'fresh' | 'delayed' | 'stale' | 'error'
-export type DataSourceV1 = 'canonical' | 'fallback' | 'collector' | 'local' | 'derived'
+export type DataSourceV1 = 'derived' | 'ledger'
 
 export interface ContractMetaV1 {
   contractVersion: ContractVersionV1
@@ -18,6 +18,10 @@ export function isFreshnessStatusV1(value: unknown): value is FreshnessStatusV1 
   return value === 'fresh' || value === 'delayed' || value === 'stale' || value === 'error'
 }
 
+export function isDataSourceV1(value: unknown): value is DataSourceV1 {
+  return value === 'derived' || value === 'ledger'
+}
+
 export function isContractMetaV1(value: unknown): value is ContractMetaV1 {
   if (!value || typeof value !== 'object') return false
   const candidate = value as Partial<ContractMetaV1>
@@ -25,7 +29,7 @@ export function isContractMetaV1(value: unknown): value is ContractMetaV1 {
     candidate.contractVersion === CONTRACT_VERSION_V1 &&
     typeof candidate.generatedAt === 'string' &&
     isFreshnessStatusV1(candidate.freshness) &&
-    typeof candidate.source === 'string' &&
+    isDataSourceV1(candidate.source) &&
     typeof candidate.staleAfterMs === 'number' &&
     (typeof candidate.lastSuccessfulAt === 'string' || candidate.lastSuccessfulAt === null)
   )

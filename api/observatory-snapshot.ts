@@ -1,6 +1,11 @@
 import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts.js'
-import { buildObservatorySnapshot, parseCandle } from './_signals.mjs'
-import { fetchAllMids, fetchCandles, resolveCoin, resolveObservatoryInterval, type ObservatoryInterval } from './_hyperliquid.js'
+import { OBSERVATORY_RULESET_VERSION, buildObservatorySnapshot, buildPriceContext, parseCandle } from './_signals.mjs'
+import {
+  fetchAllMids,
+  fetchCandles,
+  parseCoinParam,
+  parseObservatoryIntervalParam,
+} from './_hyperliquid.js'
 
 interface VercelRequest {
   method?: string
@@ -23,9 +28,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ ok: false, error: 'Method not allowed', contractVersion: CONTRACT_VERSION_V1 })
   }
 
-  const coin = resolveCoin(req.query.coin)
-  const interval = resolveInterval(req.query.interval)
-  const key = `${coin}:${interval}`
+  const coin = parseCoinParam(req.query.coin)
+  if (!coin.ok) {
+    return res.status(400).json({ ok: false, error: coin.reason, contractVersion: CONTRACT_VERSION_V1 })
+  }
+
+  const interval = parseObservatoryIntervalParam(req.query.interval)
+  if (!interval.ok) {
+    return res.status(400).json({ ok: false, error: interval.reason, contractVersion: CONTRACT_VERSION_V1 })
+  }
+
+  const key = `${coin.value}:${interval.value}`
   const now = Date.now()
 
   const cached = cache.get(key)
@@ -36,29 +49,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const [rawCandles, mids] = await Promise.all([
-      fetchCandles(coin, interval, now - LOOKBACK_MS, now),
+      fetchCandles(coin.value, interval.value, now - LOOKBACK_MS, now),
       fetchAllMids(),
     ])
 
     const candles = rawCandles.map(parseCandle).sort((a, b) => a.time - b.time)
 
     const snapshot = buildObservatorySnapshot({
-      coin,
-      interval,
+      coin: coin.value,
+      interval: interval.value,
       candles,
-      fundingHistory: [],
-      oiHistory: [],
     })
 
-    const priceContext = buildPriceContext(candles, interval, mids[coin])
     const generatedAt = Date.now()
+    const midPriceRaw = mids[coin.value]
+    const priceContext = buildPriceContext({
+      candles,
+      interval: interval.value,
+      livePrice: typeof midPriceRaw === 'string' ? parseFloat(midPriceRaw) : null,
+      livePriceObservedAtMs: typeof midPriceRaw === 'string' ? generatedAt : null,
+      generatedAtMs: generatedAt,
+    })
     const payload = {
       ok: true,
       contractVersion: CONTRACT_VERSION_V1,
-      coin,
-      interval,
+      coin: coin.value,
+      interval: interval.value,
       snapshot: stripRawValues(snapshot),
       priceContext,
+      rulesetVersion: OBSERVATORY_RULESET_VERSION,
       meta: buildContractMeta({
         source: 'derived',
         lastSuccessfulAtMs: generatedAt,
@@ -74,6 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ok: false,
       contractVersion: CONTRACT_VERSION_V1,
       error: error instanceof Error ? error.message : 'Unexpected error',
+      rulesetVersion: OBSERVATORY_RULESET_VERSION,
       meta: buildContractMeta({
         source: 'derived',
         lastSuccessfulAtMs: null,
@@ -92,35 +112,4 @@ function stripRawValues(snapshot: ReturnType<typeof buildObservatorySnapshot>) {
       rawValues: undefined,
     })),
   }
-}
-
-function buildPriceContext(
-  candles: Array<{ time: number; close: number }>,
-  interval: ObservatoryInterval,
-  midPriceRaw: string | undefined,
-) {
-  const latestClose = candles[candles.length - 1]?.close ?? null
-  const midPrice = typeof midPriceRaw === 'string' ? parseFloat(midPriceRaw) : Number.NaN
-  const lastPrice = Number.isFinite(midPrice) ? midPrice : latestClose
-
-  const barsFor24h = interval === '4h' ? 6 : 1
-  const barsForIntervalReturn = 1
-  const close24hAgo = candles[Math.max(0, candles.length - 1 - barsFor24h)]?.close ?? null
-  const closePrevious = candles[Math.max(0, candles.length - 1 - barsForIntervalReturn)]?.close ?? null
-
-  const change24hPct =
-    lastPrice && close24hAgo && close24hAgo !== 0 ? ((lastPrice - close24hAgo) / Math.abs(close24hAgo)) * 100 : null
-  const intervalReturnPct =
-    lastPrice && closePrevious && closePrevious !== 0 ? ((lastPrice - closePrevious) / Math.abs(closePrevious)) * 100 : null
-
-  return {
-    lastPrice,
-    change24hPct,
-    intervalReturnPct,
-    updatedAt: new Date().toISOString(),
-  }
-}
-
-function resolveInterval(raw: string | string[] | undefined): ObservatoryInterval {
-  return resolveObservatoryInterval(raw)
 }

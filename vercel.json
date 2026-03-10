@@ -6,6 +6,9 @@
     "api/observatory-snapshot.ts": {
       "maxDuration": 30
     },
+    "api/observatory-analytics.ts": {
+      "maxDuration": 30
+    },
     "api/persist-observatory-states.ts": {
       "maxDuration": 300
     },

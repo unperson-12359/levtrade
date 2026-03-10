@@ -9,3 +9,6 @@ dist-server
 .env*.local
 playwright-report
 test-results
+.claude/settings.local.json
+.claude/*.local.*
+.claude/worktrees/

@@ -1,6 +1,6 @@
 import { CONTRACT_VERSION_V1 } from './_contracts.js'
 import { authorizePersistenceRequest, persistObservatoryLookback } from './_observatoryPersistence.js'
-import { parsePositiveInteger, resolveCoin, resolveObservatoryInterval } from './_hyperliquid.js'
+import { parseCoinParam, parseObservatoryIntervalParam, parsePositiveInteger } from './_hyperliquid.js'
 
 interface VercelRequest {
   method?: string
@@ -16,14 +16,13 @@ interface VercelResponse {
 const DEFAULT_BACKFILL_DAYS = 180
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'GET') {
+  if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed', contractVersion: CONTRACT_VERSION_V1 })
   }
 
   const authorization = authorizePersistenceRequest({
     authorizationHeader: req.headers.authorization,
     headerSecret: req.headers['x-observatory-persist-secret'],
-    querySecret: req.query.secret,
   })
 
   if (!authorization.ok) {
@@ -31,14 +30,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(statusCode).json({ ok: false, error: authorization.reason, contractVersion: CONTRACT_VERSION_V1 })
   }
 
-  const coin = resolveCoin(req.query.coin)
-  const interval = resolveObservatoryInterval(req.query.interval)
+  const coin = parseCoinParam(req.query.coin)
+  if (!coin.ok) {
+    return res.status(400).json({ ok: false, error: coin.reason, contractVersion: CONTRACT_VERSION_V1 })
+  }
+
+  const interval = parseObservatoryIntervalParam(req.query.interval)
+  if (!interval.ok) {
+    return res.status(400).json({ ok: false, error: interval.reason, contractVersion: CONTRACT_VERSION_V1 })
+  }
   const days = parsePositiveInteger(req.query.days, DEFAULT_BACKFILL_DAYS, { min: 1, max: 365 })
 
   try {
     const result = await persistObservatoryLookback({
-      coin,
-      interval,
+      coin: coin.value,
+      interval: interval.value,
       days,
     })
 

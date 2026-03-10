@@ -1,0 +1,2 @@
+export const OBSERVATORY_RULESET_VERSION = '2026-03-10.1'
+

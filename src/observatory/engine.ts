@@ -1,4 +1,4 @@
-import type { Candle, FundingSnapshot, OISnapshot, TrackedCoin } from '../types/market'
+import type { Candle, TrackedCoin } from '../types/market'
 import type {
   CandleHitCluster,
   CorrelationEdge,
@@ -22,8 +22,6 @@ interface BuildInput {
   coin: TrackedCoin
   interval: Interval
   candles: Candle[]
-  fundingHistory: FundingSnapshot[]
-  oiHistory: OISnapshot[]
 }
 
 interface MetricSeed {

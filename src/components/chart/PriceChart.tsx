@@ -15,27 +15,21 @@ import {
   type Time,
 } from 'lightweight-charts'
 import { useChartModel } from '../../hooks/useChartModel'
-import { useSignals } from '../../hooks/useSignals'
 import { ChartLegend } from './ChartLegend'
 import type { Candle, TrackedCoin } from '../../types/market'
-import type { SuggestedSetup } from '../../types/setup'
 
 interface PriceChartProps {
   coin: TrackedCoin
   embedded?: boolean
   showHeader?: boolean
-  verificationSetup?: SuggestedSetup | null
   chartCandles?: Candle[] | null
-  reviewMode?: 'live' | 'historical'
 }
 
 export function PriceChart({
   coin,
   embedded = false,
   showHeader = true,
-  verificationSetup = null,
   chartCandles = null,
-  reviewMode = 'live',
 }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -50,10 +44,9 @@ export function PriceChart({
   const hasInitializedViewportRef = useRef(false)
   const userInteractedRef = useRef(false)
   const viewportKeyRef = useRef<string | null>(null)
-  const model = useChartModel(coin, verificationSetup, { candlesOverride: chartCandles, reviewMode })
-  const { signals } = useSignals(coin)
-  const showLiveOverlays = reviewMode === 'live' && !chartCandles
-  const viewportKey = getViewportKey(coin, reviewMode, verificationSetup)
+  const model = useChartModel(coin, { candlesOverride: chartCandles })
+  const showLiveOverlays = !chartCandles
+  const viewportKey = getViewportKey(coin, chartCandles)
 
   const resetView = useCallback(() => {
     const chart = chartRef.current
@@ -218,8 +211,8 @@ export function PriceChart({
       {showHeader && (
         <div className="panel-header">
           <div>
-            <div className="panel-kicker">Price Geometry</div>
-            <h2 className="panel-title">{coin} Entry Map</h2>
+            <div className="panel-kicker">Price Context</div>
+            <h2 className="panel-title">{coin} Market Structure</h2>
           </div>
           <button type="button" className="chart-reset-button" onClick={resetView}>
             Reset view
@@ -239,14 +232,14 @@ export function PriceChart({
 
       <div className="price-chart-wrap">
         <div ref={containerRef} className="price-chart" />
-        {showLiveOverlays && signals?.isWarmingUp && (
+        {showLiveOverlays && model.isWarmingUp && (
           <div className="chart-overlay">
-            <span>Warming up geometry with more candles.</span>
+            <span>Building the initial band context from recent candles.</span>
           </div>
         )}
-        {showLiveOverlays && signals?.isStale && (
+        {showLiveOverlays && model.isStale && (
           <div className="chart-overlay chart-overlay--danger">
-            <span>Live feed is stale. Re-check before entering.</span>
+            <span>Live chart context is delayed. Wait for the feed to recover before trusting the read.</span>
           </div>
         )}
       </div>
@@ -256,14 +249,9 @@ export function PriceChart({
 
 function getViewportKey(
   coin: TrackedCoin,
-  reviewMode: 'live' | 'historical',
-  verificationSetup?: SuggestedSetup | null,
+  chartCandles?: Candle[] | null,
 ): string {
-  if (reviewMode === 'historical') {
-    return `${coin}:historical:${verificationSetup?.generatedAt ?? 'none'}`
-  }
-
-  return `${coin}:live:${verificationSetup?.generatedAt ?? 'none'}`
+  return `${coin}:${chartCandles ? `override:${chartCandles.length}` : 'live'}`
 }
 
 function getPriceLinesSignature(
