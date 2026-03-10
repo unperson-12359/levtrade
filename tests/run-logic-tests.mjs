@@ -676,7 +676,8 @@ function runObservatoryAnalyticsSourceCheck() {
   assert.match(analyticsHelperSource, /from '\.\/_signals\.mjs'/)
   assert.doesNotMatch(analyticsHelperSource, /import \{ buildPersistedObservatoryAnalytics .* from '\.\.\/src\/observatory\/analytics'/)
   assert.match(analyticsHelperSource, /observatory_indicator_states/)
-  assert.match(analyticsHelperSource, /Range-Unit': 'items'/)
+  assert.match(analyticsHelperSource, /params\.set\('limit', String\(READ_BATCH_SIZE\)\)/)
+  assert.match(analyticsHelperSource, /params\.set\('offset', String\(from\)\)/)
   assert.match(parityChecklistSource, /api\/observatory-analytics\.ts/)
   assert.match(engineeringMapSource, /Read-only analytics route backed by `observatory_indicator_states`/)
 }

@@ -66,6 +66,8 @@ async function fetchAllLedgerRows(input: {
     params.set('interval', `eq.${input.interval}`)
     params.set('candle_time', `gte.${input.startIso}`)
     params.set('order', 'candle_time.asc,indicator_id.asc')
+    params.set('limit', String(READ_BATCH_SIZE))
+    params.set('offset', String(from))
 
     const response = await fetch(
       `${input.url.replace(/\/$/, '')}/rest/v1/observatory_indicator_states?${params.toString()}`,
@@ -73,8 +75,6 @@ async function fetchAllLedgerRows(input: {
         headers: {
           apikey: input.serviceRoleKey,
           Authorization: `Bearer ${input.serviceRoleKey}`,
-          Range: `${from}-${from + READ_BATCH_SIZE - 1}`,
-          'Range-Unit': 'items',
         },
       },
     )

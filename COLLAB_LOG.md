@@ -4337,3 +4337,17 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - The remaining product-level follow-up is operator monitoring and any deeper historical analytics surfaces beyond the current page.
 - Remaining incomplete work:
   - No dedicated operator freshness dashboard exists yet for the ledger; verification is still API/database-based.
+## 2026-03-10 - Codex
+- Goal: Fix the persisted analytics reader so production loads the full Supabase ledger instead of only the first default page of rows.
+- Files changed:
+  - `api/_observatoryAnalytics.ts`
+  - `tests/run-logic-tests.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `node tests/run-logic-tests.mjs` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - Production still needs the pagination fix verified against the live `api/observatory-analytics` route after deployment.
+  - Direct service-role counting from this machine remains constrained by Supabase secret-key protections, so live verification is best done through the analytics route and backfill responses.
+- Remaining incomplete work:
+  - No operator dashboard exists yet for ledger freshness, row growth, or failed cron visibility.
