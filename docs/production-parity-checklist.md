@@ -13,7 +13,10 @@ This checklist is the release contract for the live observatory product.
 - `src/hooks/useIndicatorObservatory.ts`
 - `src/services/dataManager.ts`
 - `api/observatory-snapshot.ts`
+- `api/persist-observatory-states.ts`
+- `api/backfill-observatory-states.ts`
 - `src/observatory/engine.ts`
+- `src/observatory/persistence.ts`
 - `api/_signals.mjs`
 
 ## Required runtime inputs
@@ -22,9 +25,16 @@ This checklist is the release contract for the live observatory product.
 - Browser candle store
 - Server observatory snapshot hydration
 
-## Optional or deferred infrastructure
+## Required persistence env vars
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `OBSERVATORY_PERSIST_SECRET` or `CRON_SECRET`
+
+## Active persistence infrastructure
 - `observatory_indicator_states`
-  - planned persistence layer for per-bar indicator booleans
+  - server-written boolean ledger for closed-bar indicator states
+  - powered by `api/persist-observatory-states.ts` for daily writes
+  - backfilled by `api/backfill-observatory-states.ts`
   - not required for the current live shell to render
 
 ## Release build steps
@@ -48,7 +58,9 @@ npm.cmd run test:e2e:critical
 - the payload returns `ok: true`
 - the snapshot includes the observatory model needed by the shell
 - the generated bundle `api/_signals.mjs` matches the current observatory source tree
+- the persistence writer remains secret-gated and does not run through the public observatory route
+- `vercel.json` includes the daily cron for `/api/persist-observatory-states`
 
 ## Known deferred work
-- bar-close writes into `observatory_indicator_states` are not implemented yet
-- replay/backfill tooling for `observatory_indicator_states` is still missing
+- analytics still read from the live snapshot window instead of the persisted ledger
+- operator runbooks for invoking `api/backfill-observatory-states` still need to be documented outside the release checklist

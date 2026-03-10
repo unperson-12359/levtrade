@@ -3059,9 +3059,29 @@ function rankValues(values) {
 function isFiniteNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
 }
+
+// src/observatory/persistence.ts
+var INTERVAL_MS = {
+  "1h": 36e5,
+  "4h": 144e5,
+  "1d": 864e5
+};
+function intervalToMs2(interval) {
+  return INTERVAL_MS[interval];
+}
+function getClosedBarTimes(snapshot, now = Date.now()) {
+  const intervalMs = intervalToMs2(snapshot.interval);
+  return snapshot.barStates.map((barState) => barState.time).filter((time) => time + intervalMs <= now);
+}
+function buildClosedIndicatorStateRecords(snapshot, options = {}) {
+  const now = options.now ?? Date.now();
+  const closedBarTimes = new Set(getClosedBarTimes(snapshot, now));
+  return buildIndicatorStateRecords(snapshot).filter((record) => closedBarTimes.has(record.candleTime));
+}
 export {
   SETUP_WINDOWS,
   TRACKED_COINS,
+  buildClosedIndicatorStateRecords,
   buildIndicatorStateRecords,
   buildObservatorySnapshot,
   buildSetupId,
@@ -3082,6 +3102,7 @@ export {
   deriveCompositionRiskStatus,
   emptyOutcome,
   generateBackfillTimestamps,
+  getClosedBarTimes,
   parseCandle,
   resolveSetupWindow,
   summarizeCoverage

@@ -102,3 +102,8 @@ export function buildObservatorySnapshot(input: {
 }): ObservatorySnapshot
 
 export function buildIndicatorStateRecords(snapshot: ObservatorySnapshot): IndicatorStateRecord[]
+export function getClosedBarTimes(snapshot: ObservatorySnapshot, now?: number): number[]
+export function buildClosedIndicatorStateRecords(
+  snapshot: ObservatorySnapshot,
+  options?: { now?: number },
+): IndicatorStateRecord[]

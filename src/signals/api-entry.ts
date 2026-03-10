@@ -21,6 +21,7 @@ export { summarizeCoverage } from '../utils/setupCoverage'
 export { buildSetupId } from '../utils/identity'
 export type { SetupOutcome, SetupWindow, SetupCoverageStatus } from '../types/setup'
 export { buildIndicatorStateRecords, buildObservatorySnapshot } from '../observatory/engine'
+export { buildClosedIndicatorStateRecords, getClosedBarTimes } from '../observatory/persistence'
 export type {
   IndicatorBarState,
   IndicatorHealth,

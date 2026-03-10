@@ -4276,3 +4276,27 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - Production still needs a successful redeploy confirmation after the config fix is pushed.
 - Remaining incomplete work:
   - The `observatory_indicator_states` writer/backfill path is still not implemented.
+## 2026-03-10 - Codex
+- Goal: Implement the missing `observatory_indicator_states` persistence layer with a closed-bar writer, a daily Vercel cron entrypoint, and a manual backfill route while keeping the live observatory UI read-only.
+- Files changed:
+  - `api/_hyperliquid.ts`
+  - `api/_observatoryPersistence.ts`
+  - `api/backfill-observatory-states.ts`
+  - `api/observatory-snapshot.ts`
+  - `api/persist-observatory-states.ts`
+  - `api/_signals.d.mts`
+  - `docs/engineering-map.md`
+  - `docs/production-parity-checklist.md`
+  - `src/observatory/persistence.ts`
+  - `src/signals/api-entry.ts`
+  - `tests/run-logic-tests.mjs`
+  - `vercel.json`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - Production persistence will not actually write until `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OBSERVATORY_PERSIST_SECRET` or `CRON_SECRET` are set in Vercel.
+  - The live observatory and analytics pages still read from the in-memory snapshot window; they do not query the persisted ledger yet.
+- Remaining incomplete work:
+  - No operator-facing runbook has been added yet for invoking `api/backfill-observatory-states` across all markets/intervals.

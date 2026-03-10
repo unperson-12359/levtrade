@@ -5,6 +5,18 @@
   "functions": {
     "api/observatory-snapshot.ts": {
       "maxDuration": 30
+    },
+    "api/persist-observatory-states.ts": {
+      "maxDuration": 300
+    },
+    "api/backfill-observatory-states.ts": {
+      "maxDuration": 300
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/persist-observatory-states",
+      "schedule": "15 2 * * *"
+    }
+  ]
 }

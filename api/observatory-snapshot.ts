@@ -1,5 +1,6 @@
 import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts.js'
-import { buildObservatorySnapshot, TRACKED_COINS, parseCandle, type RawCandle, type TrackedCoin } from './_signals.mjs'
+import { buildObservatorySnapshot, parseCandle } from './_signals.mjs'
+import { fetchAllMids, fetchCandles, resolveCoin, resolveObservatoryInterval, type ObservatoryInterval } from './_hyperliquid.js'
 
 interface VercelRequest {
   method?: string
@@ -12,12 +13,8 @@ interface VercelResponse {
   json: (body: unknown) => void
 }
 
-type Interval = '4h' | '1d'
-
-const HYPERLIQUID_API = 'https://api.hyperliquid.xyz/info'
 const CACHE_TTL_MS = 60_000
 const LOOKBACK_MS = 180 * 24 * 60 * 60 * 1000
-const REQUEST_TIMEOUT_MS = 12_000
 
 const cache = new Map<string, { expiresAt: number; payload: unknown }>()
 
@@ -99,7 +96,7 @@ function stripRawValues(snapshot: ReturnType<typeof buildObservatorySnapshot>) {
 
 function buildPriceContext(
   candles: Array<{ time: number; close: number }>,
-  interval: Interval,
+  interval: ObservatoryInterval,
   midPriceRaw: string | undefined,
 ) {
   const latestClose = candles[candles.length - 1]?.close ?? null
@@ -124,52 +121,6 @@ function buildPriceContext(
   }
 }
 
-async function fetchAllMids(): Promise<Record<string, string>> {
-  return postInfo<Record<string, string>>({ type: 'allMids' })
-}
-
-async function fetchCandles(
-  coin: TrackedCoin,
-  interval: Interval,
-  startTime: number,
-  endTime: number,
-): Promise<RawCandle[]> {
-  return postInfo<RawCandle[]>({
-    type: 'candleSnapshot',
-    req: { coin, interval, startTime, endTime },
-  })
-}
-
-async function postInfo<T>(body: Record<string, unknown>): Promise<T> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-  try {
-    const response = await fetch(HYPERLIQUID_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
-
-    if (!response.ok) {
-      throw new Error(`Hyperliquid request failed: ${response.status}`)
-    }
-    return response.json() as Promise<T>
-  } finally {
-    clearTimeout(timer)
-  }
-}
-
-function resolveCoin(raw: string | string[] | undefined): TrackedCoin {
-  const value = Array.isArray(raw) ? raw[0] : raw
-  if (value && TRACKED_COINS.includes(value as TrackedCoin)) {
-    return value as TrackedCoin
-  }
-  return 'BTC'
-}
-
-function resolveInterval(raw: string | string[] | undefined): Interval {
-  const value = Array.isArray(raw) ? raw[0] : raw
-  if (value === '4h' || value === '1d') return value
-  return '4h'
+function resolveInterval(raw: string | string[] | undefined): ObservatoryInterval {
+  return resolveObservatoryInterval(raw)
 }

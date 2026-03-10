@@ -13,8 +13,10 @@ const {
   computeSuggestedPositionComposition,
   deriveCompositionRiskStatus,
   computeSetupMetrics,
+  buildClosedIndicatorStateRecords,
   buildIndicatorStateRecords,
   buildObservatorySnapshot,
+  getClosedBarTimes,
 } = signals
 
 runResolveOutcomeTest()
@@ -31,11 +33,13 @@ runObservatoryCleanupSourceCheck()
 runRuntimeStabilitySourceCheck()
 runObservatoryIndicatorHealthTest()
 runObservatoryBooleanStateTest()
+runClosedBarPersistenceFilterTest()
 runDeterministicReplayCheck()
 runContractInterfaceSourceCheck()
 runObservatoryRemoteResetSourceCheck()
 runClusterResizeSourceCheck()
 runObservatoryAccessibilitySourceCheck()
+runObservatoryPersistenceSourceCheck()
 runBundleDriftCheck()
 
 console.log('Logic regression checks passed')
@@ -534,6 +538,33 @@ function runObservatoryBooleanStateTest() {
   assert.equal(sampleRecord.isOn, sampleBar.activeIndicatorIds.includes(sampleIndicator.id))
 }
 
+function runClosedBarPersistenceFilterTest() {
+  const candles = buildObservatoryCandles(180, 140)
+  const snapshot = buildObservatorySnapshot({
+    coin: 'BTC',
+    interval: '4h',
+    candles,
+    fundingHistory: [],
+    oiHistory: [],
+  })
+
+  const latestBarTime = candles[candles.length - 1]?.time
+  assert.ok(typeof latestBarTime === 'number')
+
+  const stillOpenNow = latestBarTime + 2 * 3_600_000
+  const closedTimes = getClosedBarTimes(snapshot, stillOpenNow)
+  assert.ok(closedTimes.length > 0)
+  assert.ok(!closedTimes.includes(latestBarTime))
+
+  const closedRecords = buildClosedIndicatorStateRecords(snapshot, { now: stillOpenNow })
+  assert.ok(closedRecords.length > 0)
+  assert.ok(closedRecords.every((record) => record.candleTime !== latestBarTime))
+
+  const afterCloseNow = latestBarTime + 5 * 3_600_000
+  const afterCloseRecords = buildClosedIndicatorStateRecords(snapshot, { now: afterCloseNow })
+  assert.ok(afterCloseRecords.some((record) => record.candleTime === latestBarTime))
+}
+
 function runDeterministicReplayCheck() {
   const candles = buildReplayCandles(140, 100)
   const funding = candles.map((candle, index) => ({
@@ -591,6 +622,36 @@ function runObservatoryAccessibilitySourceCheck() {
   assert.match(reportSource, /aria-label="Previous candle"/)
   assert.match(reportSource, /aria-label="Next candle"/)
   assert.match(reportSource, /aria-controls="obs-report-chart-panel"/)
+}
+
+function runObservatoryPersistenceSourceCheck() {
+  const persistenceSource = readFileSync(join(__dirname, '../src/observatory/persistence.ts'), 'utf8')
+  const persistRouteSource = readFileSync(join(__dirname, '../api/persist-observatory-states.ts'), 'utf8')
+  const backfillRouteSource = readFileSync(join(__dirname, '../api/backfill-observatory-states.ts'), 'utf8')
+  const persistenceHelperSource = readFileSync(join(__dirname, '../api/_observatoryPersistence.ts'), 'utf8')
+  const observatoryApiSource = readFileSync(join(__dirname, '../api/observatory-snapshot.ts'), 'utf8')
+  const vercelSource = readFileSync(join(__dirname, '../vercel.json'), 'utf8')
+  const parityChecklistSource = readFileSync(join(__dirname, '../docs/production-parity-checklist.md'), 'utf8')
+  const engineeringMapSource = readFileSync(join(__dirname, '../docs/engineering-map.md'), 'utf8')
+
+  assert.match(persistenceSource, /export function getClosedBarTimes/)
+  assert.match(persistenceSource, /export function buildClosedIndicatorStateRecords/)
+  assert.match(persistenceSource, /time \+ intervalMs <= now/)
+  assert.match(persistRouteSource, /mode: 'cron'/)
+  assert.match(persistRouteSource, /CRON_PERSISTENCE_DAYS/)
+  assert.match(backfillRouteSource, /mode: 'backfill'/)
+  assert.match(backfillRouteSource, /DEFAULT_BACKFILL_DAYS = 180/)
+  assert.match(persistenceHelperSource, /OBSERVATORY_PERSIST_SECRET/)
+  assert.match(persistenceHelperSource, /CRON_SECRET/)
+  assert.match(persistenceHelperSource, /buildClosedIndicatorStateRecords/)
+  assert.match(persistenceHelperSource, /observatory_indicator_states\?on_conflict=id/)
+  assert.doesNotMatch(observatoryApiSource, /persistObservatoryLookback|observatory_indicator_states/)
+  assert.match(vercelSource, /"path": "\/api\/persist-observatory-states"/)
+  assert.match(vercelSource, /"schedule": "15 2 \* \* \*"/)
+  assert.match(parityChecklistSource, /api\/persist-observatory-states\.ts/)
+  assert.match(parityChecklistSource, /api\/backfill-observatory-states\.ts/)
+  assert.match(engineeringMapSource, /Secret-gated cron writer/)
+  assert.match(engineeringMapSource, /Secret-gated manual backfill route/)
 }
 
 function assertIndicatorRange(values, minExpected, maxExpected, tolerance = 0) {

@@ -34,8 +34,16 @@ This map reflects the current mounted product: the live observatory shell.
 - Source of truth for price-derived indicator categories, bar states, heatmap/report clusters, and boolean state records.
 
 ### `supabase/observatory_indicator_states.sql`
-- Minimal persistence schema for future per-bar indicator on/off writes.
-- This is the observatory-specific storage path going forward.
+- Minimal persistence schema for per-bar indicator on/off writes.
+- This is now the observatory-specific historical ledger.
+
+### `api/persist-observatory-states.ts`
+- Secret-gated cron writer for `observatory_indicator_states`.
+- Recomputes recent closed bars from the same observatory engine used by the UI, then upserts the boolean ledger.
+
+### `api/backfill-observatory-states.ts`
+- Secret-gated manual backfill route for one `coin + interval` window at a time.
+- Reuses the same persistence path as the cron writer so historical replay and ongoing writes stay consistent.
 
 ## Removed legacy architecture
 
@@ -49,5 +57,5 @@ The old setup/tracker/collector product surfaces and APIs were removed from the 
 ## Cleanup guidance
 
 - Keep release decisions aligned to the mounted observatory shell, not to the older setup-first architecture.
-- Treat `observatory_indicator_states` as the next backend expansion point instead of reintroducing setup-history infrastructure.
+- Treat `observatory_indicator_states` as the observatory history ledger instead of reintroducing setup-history infrastructure.
 - If a future internal tool needs setup/backtest workflows again, add it behind a separate boundary instead of mixing it back into the observatory runtime.
