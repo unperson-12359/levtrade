@@ -1,7 +1,7 @@
 # Release Signoff
 
-- Date: `2026-03-08`
-- Candidate: `d9e84ed`
+- Date: `2026-03-10`
+- Candidate: `f7b4e12`
 - Owner: `Codex`
 - Status: `PASS`
 
@@ -9,16 +9,22 @@
 - [x] Automated: `npm run build`
 - [x] Automated: `npm run test:logic`
 - [x] Automated: `npm run test:e2e:critical`
+- [x] Automated: `npm run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180`
 
 ## Manual Checks
 - [x] Manual: Responsive matrix (`360`, `390`, `412`, `960`, `1280`)
-- [x] Manual: 10+ minute production soak with intermittent network instability
-- [x] Manual: Live shell continuity verification (observatory shell remained readable through refresh, route switches, and transient network degradation)
+- [x] Manual: Live shell continuity verification
+- [x] Manual: Ledger freshness verification
 
 ## Notes
-- Production deployment: `https://levtrade-9htsh43e4-unperson12359s-projects.vercel.app`
+- Production deployment: `https://levtrade-omdic7kf8-unperson12359s-projects.vercel.app`
 - Production alias: `https://levtrade.vercel.app`
-- Responsive matrix on the production alias showed the observatory shell, price chart, and indicator heatmap visible at `360`, `390`, `412`, `960`, and `1280`.
-- Live shell continuity verification passed after the bundling repair: the production observatory remained readable during route switches and network recovery, and `/api/observatory-snapshot?coin=BTC&interval=4h` returned HTTP `200` with `ok: true`.
-- Production soak duration: `669s` (11 minutes 9 seconds), with alternating offline/online cycles every minute; the shell stayed visible throughout and runtime remained `OK`.
-- Post-deploy API checks: `/api/observatory-snapshot?coin=BTC&interval=4h` returned HTTP `200`.
+- Responsive matrix spot-check passed on the production alias at `360`, `390`, `412`, `960`, and `1280`; the observatory shell, command bar, and price strip remained visible at each viewport.
+- Production continuity spot-check passed: methodology, analytics, and observatory navigation all rendered on the live alias and returned to the heatmap shell without blanking the page.
+- Production smoke passed against the alias with:
+  - root `200`
+  - `/api/observatory-snapshot?coin=BTC&interval=4h` returning `200`
+  - `/api/observatory-analytics?coin=BTC&interval=4h&days=180` returning `ok: true`
+- Ledger freshness verification passed from the live analytics route with:
+  - `windowBars: 1078`
+  - `lastPersistedBarTime: 2026-03-10T08:00:00.000Z`

@@ -4357,3 +4357,21 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - Production release signoff still needs to be rewritten against the final pushed candidate hash after live smoke verification.
 - Remaining incomplete work:
   - Commit, push, live smoke verification, and release-signoff finalization remain to be completed after this log entry.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
+- Goal: Finalize production release verification and signoff for the observatory remediation candidate.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `docs/release-signoff.md`
+  - `scripts/release-gate.mjs`
+- Verification:
+  - `node scripts/release-gate.mjs --verify-only` PASS
+  - `npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180` PASS
+  - Production responsive matrix spot-check PASS at `360`, `390`, `412`, `960`, `1280`
+  - Production continuity spot-check PASS across observatory, methodology, and analytics
+  - Live analytics ledger freshness PASS (`windowBars=1078`, `lastPersistedBarTime=2026-03-10T08:00:00.000Z`)
+- Follow-up risks / next steps:
+  - The release gate now validates recent signoff metadata and smoke coverage, but the signoff process still depends on a follow-up docs commit after the release candidate commit so the candidate hash remains explicit.
+  - Deep dead-CSS pruning is still deferred to a CSS-only cleanup pass.
+- Remaining incomplete work:
+  - Push the release-signoff docs commit after this entry.

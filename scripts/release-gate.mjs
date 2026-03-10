@@ -10,18 +10,17 @@ const verifyOnly = process.argv.includes('--verify-only')
 const MAX_SIGNOFF_AGE_DAYS = 3
 
 if (!verifyOnly) {
-  runCommand('npm run build')
-  runCommand('npm run test:logic')
-  runCommand('npm run test:e2e:critical')
+  runCommand('npm.cmd', ['run', 'build'])
+  runCommand('npm.cmd', ['run', 'test:logic'])
+  runCommand('npm.cmd', ['run', 'test:e2e:critical'])
 }
 
 verifySignoff(signoffPath)
 console.log(`Release gate passed (${verifyOnly ? 'verify-only' : 'full'} mode).`)
 
-function runCommand(command) {
-  const result = spawnSync(command, {
+function runCommand(file, args) {
+  const result = spawnSync(file, args, {
     cwd: repoRoot,
-    shell: true,
     stdio: 'inherit',
   })
 
@@ -77,23 +76,23 @@ function verifySignoff(path) {
 }
 
 function getAcceptableCandidates() {
-  const current = captureGit('rev-parse --short HEAD')
-  const parent = captureGit('rev-parse --short HEAD^')
-  return [current, parent].filter(Boolean)
-}
-
-function captureGit(args) {
-  const result = spawnSync(`git ${args}`, {
-    cwd: repoRoot,
-    shell: true,
-    encoding: 'utf8',
-  })
-
-  if (result.status !== 0) {
-    return ''
+  const logPath = join(repoRoot, '.git', 'logs', 'HEAD')
+  if (!existsSync(logPath)) {
+    return []
   }
 
-  return result.stdout.trim()
+  const lines = readFileSync(logPath, 'utf8')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const latestLine = lines[lines.length - 1] ?? ''
+  const match = latestLine.match(/^([0-9a-f]{40})\s+([0-9a-f]{40})\s+/i)
+  if (!match) {
+    return []
+  }
+
+  return [match[2].slice(0, 7), match[1].slice(0, 7)].filter(Boolean)
 }
 
 function fail(message) {
