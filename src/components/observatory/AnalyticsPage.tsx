@@ -5,6 +5,7 @@ import {
   type PersistedAnalyticsCategoryRow,
   type PersistedObservatoryAnalytics,
 } from '../../observatory/analytics'
+import { formatUtcDate } from '../../observatory/timeFormat'
 import type { IndicatorCategory, ObservatorySnapshot } from '../../observatory/types'
 import type { TrackedCoin } from '../../types/market'
 
@@ -413,11 +414,7 @@ function formatInteger(value: number) {
 }
 
 function formatCompactTime(value: number) {
-  return new Date(value).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return formatUtcDate(value)
 }
 
 function formatValue(value: number | null, unit: string) {

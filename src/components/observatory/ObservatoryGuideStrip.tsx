@@ -1,4 +1,5 @@
 import type { ObservatoryLiveStatus } from '../../hooks/useIndicatorObservatory'
+import { formatUtcTime } from '../../observatory/timeFormat'
 import { OBSERVATORY_READING_STEPS } from './methodologyContent'
 
 interface ObservatoryGuideStripProps {
@@ -109,7 +110,5 @@ function formatGuideStatus(status: ObservatoryLiveStatus): string {
 }
 
 function formatGuideObservedAt(observedAt: string | null): string {
-  const time = Date.parse(observedAt ?? '')
-  if (!Number.isFinite(time)) return '--'
-  return new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return formatUtcTime(observedAt)
 }

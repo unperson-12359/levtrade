@@ -4511,3 +4511,25 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - The previously identified dead CSS residue still remains outside the risk/perf blocks removed in the earlier batch.
 - Remaining incomplete work:
   - The fix is local only until it is committed, pushed, and production-smoked.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
+- Goal: Fix the observatory/report day-skipping display bug by moving mounted candle timestamps to shared UTC formatting and locking the behavior with regression coverage.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `src/observatory/timeFormat.ts`
+  - `src/components/observatory/AnalyticsPage.tsx`
+  - `src/components/observatory/CandleReportPage.tsx`
+  - `src/components/observatory/IndicatorClusterLanes.tsx`
+  - `src/components/observatory/ObservatoryGuideStrip.tsx`
+  - `src/components/observatory/ObservatoryLayout.tsx`
+  - `tests/e2e/critical-flows.spec.ts`
+  - `tests/run-logic-tests.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `node tests/run-logic-tests.mjs` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - This fixes the candle/report/heatmap day-label drift caused by browser-local time formatting, but if you still see a real continuity gap after deployment the next pass should inspect `snapshot.timeline` generation directly instead of the presentation layer.
+  - The production site will not reflect this UTC timestamp fix until the change is committed, pushed, and deployed.
+- Remaining incomplete work:
+  - Changes are local only; they have not been committed or pushed in this pass.

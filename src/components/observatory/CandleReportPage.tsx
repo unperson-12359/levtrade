@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { PriceChart } from '../chart/PriceChart'
+import { formatUtcDateTime } from '../../observatory/timeFormat'
 import type { CandleHitCluster, IndicatorCategory, IndicatorHitEvent, IndicatorMetric } from '../../observatory/types'
 import type { TrackedCoin } from '../../types/market'
 
@@ -205,7 +206,7 @@ export function CandleReportPage({
             &rarr;
           </button>
         </nav>
-        <time className="obs-report__bar-time">{new Date(cluster.time).toLocaleString()}</time>
+        <time className="obs-report__bar-time">{formatUtcDateTime(cluster.time)}</time>
         <span className="obs-report__bar-hits">{activeCount}/{totalCount}</span>
 
         <div className="obs-report__bar-price" data-testid="obs-cluster-candle-price">

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDataManager } from '../../hooks/useDataManager'
 import { useHashRouter } from '../../hooks/useHashRouter'
 import { useIndicatorObservatory } from '../../hooks/useIndicatorObservatory'
+import { formatUtcDateTime, formatUtcTime } from '../../observatory/timeFormat'
 import type { IndicatorCategory, IndicatorHealthStatus } from '../../observatory/types'
 import { useStore } from '../../store'
 import { TRACKED_COINS } from '../../types/market'
@@ -504,7 +505,7 @@ export function ObservatoryLayout() {
               liveStatus={liveDisplayStatus}
               observedAt={priceContext.observedAt}
               expanded={observatoryGuideExpanded}
-              selectedClusterLabel={selectedTimelineCluster ? new Date(selectedTimelineCluster.time).toLocaleString() : 'No selection yet'}
+              selectedClusterLabel={selectedTimelineCluster ? formatUtcDateTime(selectedTimelineCluster.time) : 'No selection yet'}
               selectedClusterHits={selectedTimelineCluster?.totalHits ?? null}
               onOpenMethodology={openMethodology}
               onToggleExpanded={toggleObservatoryGuideExpanded}
@@ -569,7 +570,7 @@ export function ObservatoryLayout() {
                   <section className="obs-panel obs-panel--rail">
                     <div className="obs-panel__eyebrow">Step 2 · What is active now</div>
                     <div className="obs-rail-card__headline">
-                      {latestTimelineCluster ? new Date(latestTimelineCluster.time).toLocaleString() : 'No live cluster'}
+                      {latestTimelineCluster ? formatUtcDateTime(latestTimelineCluster.time) : 'No live cluster'}
                     </div>
                     <p className="obs-panel__copy">
                       This is the quick read of live pressure. Broad counts across categories matter more than a single isolated indicator state.
@@ -598,7 +599,7 @@ export function ObservatoryLayout() {
                   <section className="obs-panel obs-panel--rail obs-panel--selected-cluster" data-testid="obs-selected-cluster-card">
                     <div className="obs-panel__eyebrow">Step 3 · Explain the selected candle</div>
                     <div className="obs-rail-card__headline">
-                      {selectedTimelineCluster ? new Date(selectedTimelineCluster.time).toLocaleString() : 'No selected cluster'}
+                      {selectedTimelineCluster ? formatUtcDateTime(selectedTimelineCluster.time) : 'No selected cluster'}
                     </div>
                     <p className="obs-panel__copy">
                       Use this card to turn heatmap pressure into meaning before opening the full report.
@@ -839,9 +840,7 @@ function formatConnectionStatus(status: 'connecting' | 'connected' | 'disconnect
 }
 
 function formatObservedAt(observedAt: string | null): string {
-  const time = Date.parse(observedAt ?? '')
-  if (!Number.isFinite(time)) return 'Observed --'
-  return `Observed ${new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+  return `Observed ${formatUtcTime(observedAt)}`
 }
 
 function formatPrice(value: number | null): string {

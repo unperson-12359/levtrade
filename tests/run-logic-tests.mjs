@@ -27,6 +27,7 @@ runContractInterfaceSourceCheck()
 runObservatoryRemoteResetSourceCheck()
 runClusterResizeSourceCheck()
 runObservatoryAccessibilitySourceCheck()
+runObservatoryUtcTimeSourceCheck()
 runObservatoryPersistenceSourceCheck()
 runObservatoryAnalyticsSourceCheck()
 runBundleDriftCheck()
@@ -418,6 +419,32 @@ function runObservatoryAccessibilitySourceCheck() {
   assert.match(reportSource, /aria-label="Previous candle"/)
   assert.match(reportSource, /aria-label="Next candle"/)
   assert.match(reportSource, /aria-controls="obs-report-chart-panel"/)
+}
+
+function runObservatoryUtcTimeSourceCheck() {
+  const timeFormatSource = readFileSync(join(__dirname, '../src/observatory/timeFormat.ts'), 'utf8')
+  const layoutSource = readFileSync(join(__dirname, '../src/components/observatory/ObservatoryLayout.tsx'), 'utf8')
+  const reportSource = readFileSync(join(__dirname, '../src/components/observatory/CandleReportPage.tsx'), 'utf8')
+  const guideStripSource = readFileSync(join(__dirname, '../src/components/observatory/ObservatoryGuideStrip.tsx'), 'utf8')
+  const clusterSource = readFileSync(join(__dirname, '../src/components/observatory/IndicatorClusterLanes.tsx'), 'utf8')
+  const analyticsSource = readFileSync(join(__dirname, '../src/components/observatory/AnalyticsPage.tsx'), 'utf8')
+
+  assert.match(timeFormatSource, /timeZone: 'UTC'/)
+  assert.match(timeFormatSource, /export function formatUtcDateTime/)
+  assert.match(timeFormatSource, /export function formatUtcDate/)
+  assert.match(timeFormatSource, /export function formatUtcTime/)
+  assert.match(layoutSource, /formatUtcDateTime/)
+  assert.match(layoutSource, /formatUtcTime/)
+  assert.match(reportSource, /formatUtcDateTime/)
+  assert.match(guideStripSource, /formatUtcTime/)
+  assert.match(clusterSource, /formatUtcDateTime/)
+  assert.match(analyticsSource, /formatUtcDate/)
+  assert.doesNotMatch(layoutSource, /new Date\(.*\)\.toLocaleString/)
+  assert.doesNotMatch(layoutSource, /new Date\(.*\)\.toLocaleTimeString/)
+  assert.doesNotMatch(reportSource, /new Date\(.*\)\.toLocaleString/)
+  assert.doesNotMatch(guideStripSource, /toLocaleTimeString/)
+  assert.doesNotMatch(clusterSource, /new Date\(.*\)\.toLocaleString/)
+  assert.doesNotMatch(analyticsSource, /toLocaleDateString/)
 }
 
 function runObservatoryPersistenceSourceCheck() {

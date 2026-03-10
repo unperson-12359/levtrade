@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { formatUtcDateTime } from '../../observatory/timeFormat'
 import type { CandleHitCluster, IndicatorCategory } from '../../observatory/types'
 
 const LANE_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
@@ -122,7 +123,7 @@ export function IndicatorClusterLanes({
                     onClick={() => onSelectTime(cluster.time)}
                     aria-pressed={selected}
                     data-testid="obs-cluster-cell"
-                    title={`${new Date(cluster.time).toLocaleString()} | ${lane}: ${count} active state${count === 1 ? '' : 's'}`}
+                    title={`${formatUtcDateTime(cluster.time)} | ${lane}: ${count} active state${count === 1 ? '' : 's'}`}
                   >
                     {showCount ? count : ''}
                   </button>

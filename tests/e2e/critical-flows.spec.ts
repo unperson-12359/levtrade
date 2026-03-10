@@ -33,7 +33,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-methodology-live')).toBeVisible()
     await page.getByTestId('obs-methodology-open-observatory').click()
     await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
-    await ensureObservatoryState(page)
+    await seedObservatoryState(page)
     await expect(page.getByTestId('obs-guide-strip')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
     await expect(page.getByTestId('obs-live-status')).toContainText('Live')
@@ -54,6 +54,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-report-category-share')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-report')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-report-row').first()).toBeVisible()
+    await expect(page.locator('.obs-report__bar-time')).toContainText('UTC')
     await expect(page).toHaveURL(/#\/observatory\/report/)
     await page.getByTestId('obs-candle-report-back').click()
     await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
@@ -183,40 +184,51 @@ async function seedObservatoryState(page: Page) {
     prices[coin] = String(base)
   }
 
-  await page.evaluate(({ prices, candlesByCoin }) => {
-    const store = window.__LEVTRADE_STORE__
-    if (!store) throw new Error('E2E store hook not installed')
-    const actions = store.getState()
-    actions.selectCoin('BTC')
-    actions.setInterval('4h')
-    actions.setConnectionStatus('connected')
-    actions.setPrices(prices)
-    actions.clearRuntimeDiagnostics()
+  await runWithStoreRetry(page, async () => {
+    await page.waitForFunction(() => Boolean(window.__LEVTRADE_STORE__))
+    await page.evaluate(({ prices, candlesByCoin }) => {
+      const store = window.__LEVTRADE_STORE__
+      if (!store) throw new Error('E2E store hook not installed')
+      const actions = store.getState()
+      actions.selectCoin('BTC')
+      actions.setInterval('4h')
+      actions.setConnectionStatus('connected')
+      actions.setPrices(prices)
+      actions.clearRuntimeDiagnostics()
 
-    for (const coin of Object.keys(candlesByCoin)) {
-      actions.setCandles(coin, candlesByCoin[coin]['4h'] as any, '4h')
-      actions.setCandles(coin, candlesByCoin[coin]['1d'] as any, '1d')
-    }
-  }, { prices, candlesByCoin })
+      for (const coin of Object.keys(candlesByCoin)) {
+        actions.setCandles(coin, candlesByCoin[coin]['4h'] as any, '4h')
+        actions.setCandles(coin, candlesByCoin[coin]['1d'] as any, '1d')
+      }
+    }, { prices, candlesByCoin })
+
+    await page.waitForFunction(() => {
+      const store = window.__LEVTRADE_STORE__
+      if (!store) return false
+      const state = store.getState()
+      return (
+        state.connectionStatus === 'connected' &&
+        !!state.prices.BTC &&
+        state.candles.BTC['4h'].length > 0 &&
+        state.candles.BTC['1d'].length > 0
+      )
+    })
+  })
 
   await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 }
 
-async function ensureObservatoryState(page: Page) {
-  const needsSeed = await page.evaluate(() => {
-    const store = window.__LEVTRADE_STORE__
-    if (!store) return true
-    const state = store.getState()
-    return (
-      state.connectionStatus !== 'connected' ||
-      !state.prices.BTC ||
-      state.candles.BTC['4h'].length === 0 ||
-      state.candles.BTC['1d'].length === 0
-    )
-  })
-
-  if (needsSeed) {
-    await seedObservatoryState(page)
+async function runWithStoreRetry(page: Page, action: () => Promise<void>, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    try {
+      await action()
+      return
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      const isNavigationReset = message.includes('Execution context was destroyed') || message.includes('Target page, context or browser has been closed')
+      if (!isNavigationReset || attempt === retries - 1) throw error
+      await page.waitForTimeout(100)
+    }
   }
 }
 
