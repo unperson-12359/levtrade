@@ -4351,3 +4351,15 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - Direct service-role counting from this machine remains constrained by Supabase secret-key protections, so live verification is best done through the analytics route and backfill responses.
 - Remaining incomplete work:
   - No operator dashboard exists yet for ledger freshness, row growth, or failed cron visibility.
+## 2026-03-10 - Codex
+- Goal: Fix the production analytics reader again after confirming Supabase was capping each page at `1000` rows, which kept the route from loading the full `180d` ledger.
+- Files changed:
+  - `api/_observatoryAnalytics.ts`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `node tests/run-logic-tests.mjs` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - Production still needs one final live verification that `api/observatory-analytics` now reports the full historical window after deployment.
+- Remaining incomplete work:
+  - Direct row-count introspection from this machine is still constrained by Supabase secret-key protections; live verification continues to rely on route outputs and backfill responses.

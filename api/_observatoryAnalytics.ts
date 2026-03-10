@@ -4,7 +4,7 @@ import { buildPersistedObservatoryAnalytics, type TrackedCoin } from './_signals
 import type { ObservatoryInterval } from './_hyperliquid.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
-const READ_BATCH_SIZE = 10_000
+const READ_BATCH_SIZE = 1_000
 
 interface LedgerRow {
   candle_time: string
