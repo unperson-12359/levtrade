@@ -4266,3 +4266,13 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - Some old CSS selectors for deleted workflow surfaces still exist in `src/index.css`; they are dead styling only and no longer affect the mounted observatory path.
 - Remaining incomplete work:
   - No production bar-close persistence worker has been implemented yet for `observatory_indicator_states`.
+## 2026-03-10 - Codex
+- Goal: Fix the production deployment after the observatory cleanup by aligning Vercel config with the remaining live API surface.
+- Files changed:
+  - `vercel.json`
+- Verification:
+  - `npm.cmd run build` PASS
+- Follow-up risks / next steps:
+  - Production still needs a successful redeploy confirmation after the config fix is pushed.
+- Remaining incomplete work:
+  - The `observatory_indicator_states` writer/backfill path is still not implemented.

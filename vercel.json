@@ -3,7 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/compute-signals.ts": {
+    "api/observatory-snapshot.ts": {
       "maxDuration": 30
     }
   }
