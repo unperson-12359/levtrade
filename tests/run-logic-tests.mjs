@@ -405,9 +405,16 @@ function runObservatoryRemoteResetSourceCheck() {
 
 function runClusterResizeSourceCheck() {
   const clusterSource = readFileSync(join(__dirname, '../src/components/observatory/IndicatorClusterLanes.tsx'), 'utf8')
+  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
   assert.match(clusterSource, /const \[viewportWidth, setViewportWidth\] = useState/)
   assert.match(clusterSource, /window\.addEventListener\('resize', syncViewportWidth\)/)
   assert.match(clusterSource, /const isNarrowViewport = viewportWidth <= 760/)
+  assert.match(clusterSource, /const isFullDailySequence = mode === 'simple' && timeframe === '1d'/)
+  assert.match(clusterSource, /if \(mode === 'pro' \|\| isFullDailySequence\) return source/)
+  assert.match(clusterSource, /obs-cluster__heatmap--daily-full/)
+  assert.match(cssSource, /\.obs-cluster__heatmap--daily-full \{/)
+  assert.match(cssSource, /\.obs-cluster__lane--daily-full \{/)
+  assert.match(cssSource, /\.obs-cluster__cells--daily-full \{/)
 }
 
 function runObservatoryAccessibilitySourceCheck() {

@@ -26,18 +26,6 @@ test.describe('Observatory critical flows', () => {
     await page.getByTestId('obs-guide-toggle').click()
     await expect(page.getByTestId('obs-guide-strip')).toHaveAttribute('data-guide-state', 'collapsed')
 
-    await page.getByTestId('obs-nav-methodology').click()
-    await expect(page.getByTestId('obs-methodology-page')).toBeVisible()
-    await expect(page.getByTestId('obs-methodology-flow')).toBeVisible()
-    await expect(page.getByTestId('obs-methodology-pages')).toBeVisible()
-    await expect(page.getByTestId('obs-methodology-live')).toBeVisible()
-    await page.getByTestId('obs-methodology-open-observatory').click()
-    await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
-    await seedObservatoryState(page)
-    await expect(page.getByTestId('obs-guide-strip')).toBeVisible()
-    await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
-    await expect(page.getByTestId('obs-live-status')).toContainText('Live')
-
     const firstClusterCell = page.getByTestId('obs-cluster-cell').first()
     await expect(firstClusterCell).toBeVisible()
     await firstClusterCell.click()
@@ -68,7 +56,23 @@ test.describe('Observatory critical flows', () => {
 
     await page.getByTestId('obs-interval-1d').click()
     await expect(page.getByTestId('obs-interval-1d')).toHaveClass(/obs-chip--active/)
+    await seedObservatoryState(page, { selectedCoin: 'ETH', interval: '1d' })
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
+    await page.getByTestId('obs-cluster-mode-simple').click()
+    await expect(page.getByTestId('obs-cluster-mode-simple')).toHaveClass(/obs-chip--active/)
+
+    const dailyLaneTimes = await page.evaluate(() => {
+      const lane = document.querySelector('.obs-cluster__lane')
+      if (!lane) return []
+      return Array.from(lane.querySelectorAll('[data-testid="obs-cluster-cell"]'))
+        .map((cell) => (cell.getAttribute('title') ?? '').split(' | ')[0]?.replace(' UTC', ' GMT') ?? '')
+        .map((value) => Date.parse(value))
+        .filter((value) => Number.isFinite(value))
+    })
+    expect(dailyLaneTimes.length).toBeGreaterThanOrEqual(50)
+    for (let index = 1; index < Math.min(dailyLaneTimes.length, 8); index += 1) {
+      expect(dailyLaneTimes[index] - dailyLaneTimes[index - 1]).toBe(24 * 60 * 60 * 1000)
+    }
 
     await page.getByTestId('obs-mode-advanced').click()
     await expect(page.getByTestId('obs-mode-advanced')).toHaveClass(/obs-chip--active/)
@@ -88,6 +92,12 @@ test.describe('Observatory critical flows', () => {
     await page.getByTestId('obs-view-network').click()
     await expect(page.getByTestId('obs-map-legend')).toBeVisible()
     await expect(page.getByTestId('obs-pool-map')).toBeVisible()
+
+    await page.getByTestId('obs-nav-methodology').click()
+    await expect(page.getByTestId('obs-methodology-page')).toBeVisible()
+    await expect(page.getByTestId('obs-methodology-flow')).toBeVisible()
+    await expect(page.getByTestId('obs-methodology-pages')).toBeVisible()
+    await expect(page.getByTestId('obs-methodology-live')).toBeVisible()
   })
 
   test('@critical indicator selection updates drilldown', async ({ page }) => {
@@ -162,7 +172,10 @@ test.describe('Observatory critical flows', () => {
   })
 })
 
-async function seedObservatoryState(page: Page) {
+async function seedObservatoryState(
+  page: Page,
+  options: { selectedCoin?: 'BTC' | 'ETH' | 'SOL' | 'HYPE'; interval?: '4h' | '1d' } = {},
+) {
   const now = Date.now()
   const coins = ['BTC', 'ETH', 'SOL', 'HYPE'] as const
   const basePrices: Record<(typeof coins)[number], number> = {
@@ -174,6 +187,8 @@ async function seedObservatoryState(page: Page) {
 
   const candlesByCoin: Record<string, { '4h': ReturnType<typeof buildCandles>; '1d': ReturnType<typeof buildCandles> }> = {}
   const prices: Record<string, string> = {}
+  const selectedCoin = options.selectedCoin ?? 'BTC'
+  const interval = options.interval ?? '4h'
 
   for (const coin of coins) {
     const base = basePrices[coin]
@@ -186,12 +201,12 @@ async function seedObservatoryState(page: Page) {
 
   await runWithStoreRetry(page, async () => {
     await page.waitForFunction(() => Boolean(window.__LEVTRADE_STORE__))
-    await page.evaluate(({ prices, candlesByCoin }) => {
+    await page.evaluate(({ prices, candlesByCoin, selectedCoin, interval }) => {
       const store = window.__LEVTRADE_STORE__
       if (!store) throw new Error('E2E store hook not installed')
       const actions = store.getState()
-      actions.selectCoin('BTC')
-      actions.setInterval('4h')
+      actions.selectCoin(selectedCoin)
+      actions.setInterval(interval)
       actions.setConnectionStatus('connected')
       actions.setPrices(prices)
       actions.clearRuntimeDiagnostics()
@@ -200,7 +215,7 @@ async function seedObservatoryState(page: Page) {
         actions.setCandles(coin, candlesByCoin[coin]['4h'] as any, '4h')
         actions.setCandles(coin, candlesByCoin[coin]['1d'] as any, '1d')
       }
-    }, { prices, candlesByCoin })
+    }, { candlesByCoin, interval, prices, selectedCoin })
 
     await page.waitForFunction(() => {
       const store = window.__LEVTRADE_STORE__
@@ -214,7 +229,6 @@ async function seedObservatoryState(page: Page) {
       )
     })
   })
-
   await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 }
 

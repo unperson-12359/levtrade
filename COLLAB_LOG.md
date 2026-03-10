@@ -4533,3 +4533,21 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - The production site will not reflect this UTC timestamp fix until the change is committed, pushed, and deployed.
 - Remaining incomplete work:
   - Changes are local only; they have not been committed or pushed in this pass.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
+- Goal: Stop the daily heatmap from skipping bars in simple mode by rendering the full 1d sequence and locking the behavior with source and browser regression checks.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `src/components/observatory/IndicatorClusterLanes.tsx`
+  - `src/index.css`
+  - `tests/e2e/critical-flows.spec.ts`
+  - `tests/run-logic-tests.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `node tests/run-logic-tests.mjs` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - `1d` simple mode now shows the full daily sequence, but `4h` simple mode still intentionally compresses the rail. If you later want exact bar-by-bar continuity there too, that should be a separate UI density pass.
+  - The mock E2E seed helper now supports restoring a specific `coin + interval` so the daily continuity check is stable after route and market changes.
+- Remaining incomplete work:
+  - Changes are local only; they have not been committed or pushed in this pass.

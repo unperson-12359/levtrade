@@ -6699,6 +6699,20 @@ button {
   gap: 0.12rem;
 }
 
+.obs-cluster__heatmap--daily-full {
+  overflow-x: auto;
+  padding-bottom: 0.64rem;
+  scrollbar-gutter: stable both-edges;
+}
+
+.obs-cluster__lane--daily-full {
+  min-width: 40rem;
+}
+
+.obs-cluster__cells--daily-full {
+  grid-auto-columns: 11px;
+}
+
 .obs-cluster__cell {
   min-height: 18px;
 }
@@ -6711,6 +6725,14 @@ button {
   .obs-panel--heatmap-rail .obs-cluster__cells {
     grid-auto-columns: minmax(11px, 1fr);
     gap: 0.14rem;
+  }
+
+  .obs-panel--heatmap-rail .obs-cluster__lane--daily-full {
+    min-width: 42rem;
+  }
+
+  .obs-panel--heatmap-rail .obs-cluster__cells--daily-full {
+    grid-auto-columns: 12px;
   }
 
 .obs-panel--heatmap-rail .obs-cluster__cell {
@@ -6730,6 +6752,19 @@ button {
 @media (max-width: 760px) {
   .obs-cluster__heatmap {
     gap: 0.34rem;
+  }
+
+  .obs-cluster__heatmap--daily-full {
+    overflow-x: auto;
+  }
+
+  .obs-cluster__lane--daily-full {
+    min-width: 34rem;
+  }
+
+  .obs-cluster__cells--daily-full {
+    grid-auto-columns: 8px;
+    gap: 2px;
   }
 
   .obs-cluster__cells {

@@ -35,6 +35,7 @@ export function IndicatorClusterLanes({
 
   const isNarrowViewport = viewportWidth <= 760
   const isDesktopSideRail = layout === 'side-rail' && !isNarrowViewport
+  const isFullDailySequence = mode === 'simple' && timeframe === '1d'
   const windowSize = isNarrowViewport
     ? mode === 'pro'
       ? (timeframe === '4h' ? 72 : 54)
@@ -48,7 +49,7 @@ export function IndicatorClusterLanes({
         : (timeframe === '4h' ? 96 : 72)
   const source = useMemo(() => timeline.slice(-windowSize), [timeline, windowSize])
   const clusters = useMemo(() => {
-    if (mode === 'pro') return source
+    if (mode === 'pro' || isFullDailySequence) return source
     const targetPoints = isNarrowViewport
       ? (timeframe === '4h' ? 24 : 18)
       : isDesktopSideRail
@@ -57,7 +58,7 @@ export function IndicatorClusterLanes({
           ? 48
           : 38
     return downsampleClusters(source, targetPoints)
-  }, [isDesktopSideRail, isNarrowViewport, mode, source, timeframe])
+  }, [isDesktopSideRail, isFullDailySequence, isNarrowViewport, mode, source, timeframe])
 
   const maxLaneCount = useMemo(() => {
     let maxCount = 0
@@ -93,9 +94,14 @@ export function IndicatorClusterLanes({
         </div>
       </div>
 
-      <div className="obs-cluster__heatmap obs-cluster__heatmap--compact">
+      <div
+        className={`obs-cluster__heatmap obs-cluster__heatmap--compact ${isFullDailySequence ? 'obs-cluster__heatmap--daily-full' : ''}`}
+      >
         {LANE_ORDER.map((lane) => (
-          <div key={lane} className="obs-cluster__lane obs-cluster__lane--compact">
+          <div
+            key={lane}
+            className={`obs-cluster__lane obs-cluster__lane--compact ${isFullDailySequence ? 'obs-cluster__lane--daily-full' : ''}`}
+          >
             {(() => {
               const latest = clusters[clusters.length - 1]
               const latestCount = latest?.laneCounts[lane] ?? 0
@@ -109,7 +115,9 @@ export function IndicatorClusterLanes({
                 </div>
               )
             })()}
-            <div className="obs-cluster__cells obs-cluster__cells--compact">
+            <div
+              className={`obs-cluster__cells obs-cluster__cells--compact ${isFullDailySequence ? 'obs-cluster__cells--daily-full' : ''}`}
+            >
               {clusters.map((cluster) => {
                 const count = cluster.laneCounts[lane] ?? 0
                 const selected = cluster.time === activeTime
