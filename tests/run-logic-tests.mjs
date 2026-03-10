@@ -673,6 +673,8 @@ function runObservatoryAnalyticsSourceCheck() {
   assert.match(analyticsModuleSource, /export function buildSnapshotAnalytics/)
   assert.match(analyticsApiSource, /loadPersistedObservatoryAnalytics/)
   assert.match(analyticsApiSource, /days = parsePositiveInteger/)
+  assert.match(analyticsHelperSource, /from '\.\/_signals\.mjs'/)
+  assert.doesNotMatch(analyticsHelperSource, /import \{ buildPersistedObservatoryAnalytics .* from '\.\.\/src\/observatory\/analytics'/)
   assert.match(analyticsHelperSource, /observatory_indicator_states/)
   assert.match(analyticsHelperSource, /Range-Unit': 'items'/)
   assert.match(parityChecklistSource, /api\/observatory-analytics\.ts/)

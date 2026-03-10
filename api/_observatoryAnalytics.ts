@@ -1,9 +1,6 @@
 import type { IndicatorCategory } from '../src/observatory/types'
-import {
-  buildPersistedObservatoryAnalytics,
-  type PersistedObservatoryAnalytics,
-} from '../src/observatory/analytics'
-import type { TrackedCoin } from './_signals.mjs'
+import type { PersistedObservatoryAnalytics } from '../src/observatory/analytics'
+import { buildPersistedObservatoryAnalytics, type TrackedCoin } from './_signals.mjs'
 import type { ObservatoryInterval } from './_hyperliquid.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000

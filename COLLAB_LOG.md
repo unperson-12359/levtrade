@@ -4321,3 +4321,19 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - The live shell still intentionally reads the snapshot window; only the Analytics page is ledger-backed in this pass.
 - Remaining incomplete work:
   - No operator-facing freshness/runbook surface has been added yet for ledger health beyond the current API and database checks.
+## 2026-03-10 - Codex
+- Goal: Fix the production analytics API after Vercel failed to bundle the new shared analytics builder into the serverless function.
+- Files changed:
+  - `api/_observatoryAnalytics.ts`
+  - `api/_signals.d.mts`
+  - `src/signals/api-entry.ts`
+  - `tests/run-logic-tests.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `node tests/run-logic-tests.mjs` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - Production still needs the corrected deployment verified live after push.
+  - The remaining product-level follow-up is operator monitoring and any deeper historical analytics surfaces beyond the current page.
+- Remaining incomplete work:
+  - No dedicated operator freshness dashboard exists yet for the ledger; verification is still API/database-based.

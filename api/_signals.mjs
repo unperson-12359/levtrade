@@ -3060,6 +3060,93 @@ function isFiniteNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+// src/observatory/analytics.ts
+var ANALYTICS_CATEGORY_ORDER = ["Trend", "Momentum", "Volatility", "Volume", "Structure"];
+function buildPersistedObservatoryAnalytics(input) {
+  const barsByTime = /* @__PURE__ */ new Map();
+  const indicatorOrder = [];
+  const seenIndicators = /* @__PURE__ */ new Set();
+  const categoryByIndicator = /* @__PURE__ */ new Map();
+  for (const row of input.rows) {
+    let bar = barsByTime.get(row.candleTime);
+    if (!bar) {
+      bar = /* @__PURE__ */ new Map();
+      barsByTime.set(row.candleTime, bar);
+    }
+    bar.set(row.indicatorId, { category: row.category, isOn: row.isOn });
+    if (!seenIndicators.has(row.indicatorId)) {
+      seenIndicators.add(row.indicatorId);
+      indicatorOrder.push(row.indicatorId);
+      categoryByIndicator.set(row.indicatorId, row.category);
+    }
+  }
+  const times = [...barsByTime.keys()].sort((left, right) => left - right);
+  const rows = indicatorOrder.map((indicatorId) => ({
+    indicatorId,
+    category: categoryByIndicator.get(indicatorId) ?? "Trend",
+    activeBars: 0,
+    activeRate: 0,
+    currentStreak: 0,
+    maxStreak: 0,
+    lastHitTime: null,
+    recentHitTimes: []
+  }));
+  const rowByIndicator = new Map(rows.map((row) => [row.indicatorId, row]));
+  const liveStreaks = new Map(indicatorOrder.map((indicatorId) => [indicatorId, 0]));
+  const categoryTotalHits = new Map(ANALYTICS_CATEGORY_ORDER.map((category) => [category, 0]));
+  const categoryActiveBars = new Map(ANALYTICS_CATEGORY_ORDER.map((category) => [category, 0]));
+  for (const time of times) {
+    const bar = barsByTime.get(time);
+    if (!bar) continue;
+    const barLaneCounts = /* @__PURE__ */ new Map();
+    for (const indicatorId of indicatorOrder) {
+      const state = bar.get(indicatorId);
+      const row = rowByIndicator.get(indicatorId);
+      if (!row) continue;
+      const isOn = state?.isOn ?? false;
+      if (isOn) {
+        row.activeBars += 1;
+        row.lastHitTime = time;
+        row.recentHitTimes.push(time);
+        const nextStreak = (liveStreaks.get(indicatorId) ?? 0) + 1;
+        liveStreaks.set(indicatorId, nextStreak);
+        row.maxStreak = Math.max(row.maxStreak, nextStreak);
+        barLaneCounts.set(row.category, (barLaneCounts.get(row.category) ?? 0) + 1);
+      } else {
+        liveStreaks.set(indicatorId, 0);
+      }
+    }
+    for (const category of ANALYTICS_CATEGORY_ORDER) {
+      const laneCount = barLaneCounts.get(category) ?? 0;
+      categoryTotalHits.set(category, (categoryTotalHits.get(category) ?? 0) + laneCount);
+      if (laneCount > 0) {
+        categoryActiveBars.set(category, (categoryActiveBars.get(category) ?? 0) + 1);
+      }
+    }
+  }
+  const windowBars = Math.max(times.length, 1);
+  for (const row of rows) {
+    row.activeRate = row.activeBars / windowBars;
+    row.currentStreak = liveStreaks.get(row.indicatorId) ?? 0;
+    row.recentHitTimes = row.recentHitTimes.slice(-4).reverse();
+  }
+  rows.sort((left, right) => right.activeBars - left.activeBars || right.activeRate - left.activeRate || right.maxStreak - left.maxStreak);
+  return {
+    coin: input.coin,
+    interval: input.interval,
+    days: input.days,
+    windowBars: times.length,
+    totalHits: rows.reduce((sum, row) => sum + row.activeBars, 0),
+    lastPersistedBarTime: times[times.length - 1] ?? null,
+    rows,
+    categoryRows: ANALYTICS_CATEGORY_ORDER.map((category) => ({
+      category,
+      totalHits: categoryTotalHits.get(category) ?? 0,
+      activeRate: (categoryActiveBars.get(category) ?? 0) / windowBars
+    })).sort((left, right) => right.totalHits - left.totalHits)
+  };
+}
+
 // src/observatory/persistence.ts
 var INTERVAL_MS = {
   "1h": 36e5,
@@ -3084,6 +3171,7 @@ export {
   buildClosedIndicatorStateRecords,
   buildIndicatorStateRecords,
   buildObservatorySnapshot,
+  buildPersistedObservatoryAnalytics,
   buildSetupId,
   computeATR,
   computeComposite,

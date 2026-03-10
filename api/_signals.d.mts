@@ -101,6 +101,40 @@ export function buildObservatorySnapshot(input: {
   oiHistory: Array<{ time: number; oi: number }>
 }): ObservatorySnapshot
 
+export function buildPersistedObservatoryAnalytics(input: {
+  coin: TrackedCoin
+  interval: '4h' | '1d'
+  days: number
+  rows: Array<{
+    candleTime: number
+    indicatorId: string
+    category: ObservatorySnapshot['indicators'][number]['category']
+    isOn: boolean
+  }>
+}): {
+  coin: TrackedCoin
+  interval: '4h' | '1d'
+  days: number
+  windowBars: number
+  totalHits: number
+  lastPersistedBarTime: number | null
+  rows: Array<{
+    indicatorId: string
+    category: ObservatorySnapshot['indicators'][number]['category']
+    activeBars: number
+    activeRate: number
+    currentStreak: number
+    maxStreak: number
+    lastHitTime: number | null
+    recentHitTimes: number[]
+  }>
+  categoryRows: Array<{
+    category: ObservatorySnapshot['indicators'][number]['category']
+    totalHits: number
+    activeRate: number
+  }>
+}
+
 export function buildIndicatorStateRecords(snapshot: ObservatorySnapshot): IndicatorStateRecord[]
 export function getClosedBarTimes(snapshot: ObservatorySnapshot, now?: number): number[]
 export function buildClosedIndicatorStateRecords(
