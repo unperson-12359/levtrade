@@ -13,9 +13,11 @@ This checklist is the release contract for the live observatory product.
 - `src/hooks/useIndicatorObservatory.ts`
 - `src/services/dataManager.ts`
 - `api/observatory-snapshot.ts`
+- `api/observatory-analytics.ts`
 - `api/persist-observatory-states.ts`
 - `api/backfill-observatory-states.ts`
 - `src/observatory/engine.ts`
+- `src/observatory/analytics.ts`
 - `src/observatory/persistence.ts`
 - `api/_signals.mjs`
 
@@ -55,12 +57,14 @@ npm.cmd run test:e2e:critical
 
 ## API verification
 - `/api/observatory-snapshot?coin=BTC&interval=4h` returns `200`
+- `/api/observatory-analytics?coin=BTC&interval=4h&days=180` returns `200`
 - the payload returns `ok: true`
 - the snapshot includes the observatory model needed by the shell
+- the analytics payload returns ledger-backed rows and category totals
 - the generated bundle `api/_signals.mjs` matches the current observatory source tree
 - the persistence writer remains secret-gated and does not run through the public observatory route
 - `vercel.json` includes the daily cron for `/api/persist-observatory-states`
 
 ## Known deferred work
-- analytics still read from the live snapshot window instead of the persisted ledger
+- the live shell still reads the snapshot window; only the Analytics page is ledger-backed
 - operator runbooks for invoking `api/backfill-observatory-states` still need to be documented outside the release checklist

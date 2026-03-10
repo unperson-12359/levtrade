@@ -4300,3 +4300,24 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - The live observatory and analytics pages still read from the in-memory snapshot window; they do not query the persisted ledger yet.
 - Remaining incomplete work:
   - No operator-facing runbook has been added yet for invoking `api/backfill-observatory-states` across all markets/intervals.
+## 2026-03-10 - Codex
+- Goal: Switch the Analytics page to the persisted observatory ledger with a new read-only analytics API while keeping the live shell snapshot-driven.
+- Files changed:
+  - `api/_observatoryAnalytics.ts`
+  - `api/observatory-analytics.ts`
+  - `docs/engineering-map.md`
+  - `docs/production-parity-checklist.md`
+  - `src/components/observatory/AnalyticsPage.tsx`
+  - `src/index.css`
+  - `src/observatory/analytics.ts`
+  - `tests/e2e/critical-flows.spec.ts`
+  - `tests/run-logic-tests.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `node tests/run-logic-tests.mjs` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - Production should be backfilled to the full `180d` horizon for all tracked `coin + interval` pairs so the analytics page has meaningful history immediately.
+  - The live shell still intentionally reads the snapshot window; only the Analytics page is ledger-backed in this pass.
+- Remaining incomplete work:
+  - No operator-facing freshness/runbook surface has been added yet for ledger health beyond the current API and database checks.

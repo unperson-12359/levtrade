@@ -7371,6 +7371,35 @@ button {
   gap: 0.72rem;
 }
 
+.obs-analytics__source {
+  display: grid;
+  gap: 0.12rem;
+  margin-top: 0.72rem;
+  padding: 0.58rem 0.68rem;
+  border: 1px solid rgba(21, 17, 12, 0.16);
+  background: rgba(255, 252, 245, 0.84);
+}
+
+.obs-analytics__source strong {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.obs-analytics__source span {
+  font-size: 0.76rem;
+  color: var(--obs-muted-2);
+}
+
+.obs-analytics__source--ledger {
+  border-color: rgba(69, 130, 93, 0.24);
+}
+
+.obs-analytics__source--live-window {
+  border-color: rgba(177, 103, 51, 0.24);
+}
+
 .obs-analytics__summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -1,11 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  ANALYTICS_CATEGORY_ORDER,
+  buildSnapshotAnalytics,
+  type PersistedAnalyticsCategoryRow,
+  type PersistedObservatoryAnalytics,
+} from '../../observatory/analytics'
 import type { IndicatorCategory, ObservatorySnapshot } from '../../observatory/types'
 import type { TrackedCoin } from '../../types/market'
 
-const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
-
 type AnalyticsSortKey = 'activeBars' | 'activeRate' | 'currentStreak' | 'maxStreak'
 type CategoryFilter = IndicatorCategory | 'All'
+type AnalyticsSourceMode = 'ledger' | 'live-window'
 
 interface AnalyticsPageProps {
   coin: TrackedCoin
@@ -32,40 +37,111 @@ interface IndicatorAnalyticsRow {
   transitionRate: number
 }
 
+interface AnalyticsApiResponse {
+  ok?: boolean
+  analytics?: PersistedObservatoryAnalytics
+  error?: string
+}
+
+const LEDGER_LOOKBACK_DAYS = 180
+
 export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps) {
   const [sortKey, setSortKey] = useState<AnalyticsSortKey>('activeBars')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All')
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null)
+  const [persistedAnalytics, setPersistedAnalytics] = useState<PersistedObservatoryAnalytics | null>(null)
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null)
+  const [loadingPersisted, setLoadingPersisted] = useState(false)
 
-  const analytics = useMemo(() => buildAnalytics(snapshot), [snapshot])
+  const fallbackAnalytics = useMemo(() => buildSnapshotAnalytics(snapshot), [snapshot])
+
+  useEffect(() => {
+    if (import.meta.env.VITE_E2E_MOCK === '1') {
+      setPersistedAnalytics(null)
+      setAnalyticsError(null)
+      setLoadingPersisted(false)
+      return
+    }
+
+    let active = true
+    const controller = new AbortController()
+    setPersistedAnalytics(null)
+
+    const pull = async () => {
+      setLoadingPersisted(true)
+      setAnalyticsError(null)
+
+      try {
+        const response = await fetch(
+          `/api/observatory-analytics?coin=${coin}&interval=${timeframe}&days=${LEDGER_LOOKBACK_DAYS}`,
+          { signal: controller.signal },
+        )
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
+
+        const payload = (await response.json()) as AnalyticsApiResponse
+        if (!active || payload.ok !== true || !payload.analytics) return
+
+        setPersistedAnalytics(payload.analytics)
+      } catch (error) {
+        if (!active || controller.signal.aborted) return
+        setPersistedAnalytics(null)
+        setAnalyticsError(error instanceof Error ? error.message : 'Unable to load analytics ledger.')
+      } finally {
+        if (active) {
+          setLoadingPersisted(false)
+        }
+      }
+    }
+
+    void pull()
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [coin, timeframe])
+
+  const analytics = persistedAnalytics ?? fallbackAnalytics
+  const sourceMode: AnalyticsSourceMode = persistedAnalytics ? 'ledger' : 'live-window'
+  const analyticsRows = useMemo(() => mergeAnalyticsRows(snapshot, analytics), [analytics, snapshot])
+  const categoryRows = useMemo(() => mergeCategoryRows(analytics.categoryRows), [analytics.categoryRows])
 
   const visibleRows = useMemo(() => {
     const filtered = categoryFilter === 'All'
-      ? analytics.rows
-      : analytics.rows.filter((row) => row.category === categoryFilter)
+      ? analyticsRows
+      : analyticsRows.filter((row) => row.category === categoryFilter)
 
     return filtered.slice().sort((a, b) => compareRows(a, b, sortKey))
-  }, [analytics.rows, categoryFilter, sortKey])
+  }, [analyticsRows, categoryFilter, sortKey])
 
   const selectedIndicator = useMemo(
-    () => visibleRows.find((row) => row.id === selectedIndicatorId) ?? analytics.rows.find((row) => row.id === selectedIndicatorId) ?? visibleRows[0] ?? analytics.rows[0] ?? null,
-    [analytics.rows, selectedIndicatorId, visibleRows],
+    () =>
+      visibleRows.find((row) => row.id === selectedIndicatorId) ??
+      analyticsRows.find((row) => row.id === selectedIndicatorId) ??
+      visibleRows[0] ??
+      analyticsRows[0] ??
+      null,
+    [analyticsRows, selectedIndicatorId, visibleRows],
   )
 
   const summaryCards = useMemo(() => {
-    const hottest = analytics.rows[0] ?? null
-    const liveStreak = analytics.rows.slice().sort((a, b) => b.currentStreak - a.currentStreak || b.totalHits - a.totalHits)[0] ?? null
+    const hottest = analyticsRows[0] ?? null
+    const liveStreak = analyticsRows
+      .slice()
+      .sort((a, b) => b.currentStreak - a.currentStreak || b.totalHits - a.totalHits)[0] ?? null
 
     return [
       {
         label: 'Window',
-        value: `${snapshot.barStates.length} bars`,
-        meta: `${coin} / ${timeframe}`,
+        value: sourceMode === 'ledger' ? `${analytics.days}d ledger` : `${analytics.windowBars} bars`,
+        meta: `${analytics.windowBars} bars / ${coin} / ${timeframe}`,
       },
       {
         label: 'Active states',
         value: formatInteger(analytics.totalHits),
-        meta: 'All indicator-on bars',
+        meta: sourceMode === 'ledger' ? 'Persisted indicator-on bars' : 'Visible window indicator-on bars',
       },
       {
         label: 'Most persistent',
@@ -73,12 +149,12 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
         meta: hottest ? `${hottest.totalHits} active bars` : 'No active states',
       },
       {
-        label: 'Live streak',
+        label: 'Current streak',
         value: liveStreak ? liveStreak.label : '--',
-        meta: liveStreak ? `${liveStreak.currentStreak} bars` : 'No live streak',
+        meta: liveStreak ? `${liveStreak.currentStreak} bars` : 'No current streak',
       },
     ]
-  }, [analytics.rows, analytics.totalHits, coin, snapshot.barStates.length, timeframe])
+  }, [analytics.days, analytics.totalHits, analytics.windowBars, analyticsRows, coin, sourceMode, timeframe])
 
   return (
     <section className="obs-analytics" data-testid="obs-analytics-page">
@@ -88,7 +164,12 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
             <div className="obs-panel__eyebrow">Indicator analytics</div>
             <h2 className="obs-panel__title">Persistence and streak engine</h2>
           </div>
-          <p className="obs-panel__hint">Use this after the live read. It explains persistence and recurrence; it is not the first page to interpret the market.</p>
+          <p className="obs-panel__hint">Use this after the live read. It explains recurrence across the ledger, not just what is happening on the latest candle.</p>
+        </div>
+
+        <div className={`obs-analytics__source obs-analytics__source--${sourceMode}`} data-testid="obs-analytics-source">
+          <strong>{sourceMode === 'ledger' ? `${analytics.days}d ledger` : 'Live window fallback'}</strong>
+          <span>{buildSourceMeta(analytics, sourceMode, loadingPersisted, analyticsError)}</span>
         </div>
 
         <div className="obs-analytics__summary">
@@ -125,7 +206,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
           </div>
 
           <div className="obs-analytics__filters">
-            {(['All', ...CATEGORY_ORDER] as const).map((category) => (
+            {(['All', ...ANALYTICS_CATEGORY_ORDER] as const).map((category) => (
               <button
                 key={category}
                 type="button"
@@ -191,7 +272,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
                       </div>
                     ))
                   ) : (
-                    <div className="obs-empty">No active bars in the visible window.</div>
+                    <div className="obs-empty">No active bars in the selected analytics window.</div>
                   )}
                 </div>
               </>
@@ -202,7 +283,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
             <div className="obs-panel__eyebrow">Category totals</div>
             <h2 className="obs-panel__title">Where signals cluster</h2>
             <div className="obs-pulse-list">
-              {analytics.categoryRows.map((row) => (
+              {categoryRows.map((row) => (
                 <div key={row.category} className="obs-pulse-row">
                   <span>{row.category}</span>
                   <span>{row.totalHits} active states / {formatPct(row.activeRate)}</span>
@@ -215,7 +296,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
             <div className="obs-panel__eyebrow">Streak leaders</div>
             <h2 className="obs-panel__title">Persistent signals</h2>
             <div className="obs-pulse-list">
-              {analytics.rows
+              {analyticsRows
                 .slice()
                 .sort((a, b) => b.currentStreak - a.currentStreak || b.maxStreak - a.maxStreak || b.totalHits - a.totalHits)
                 .slice(0, 6)
@@ -233,71 +314,58 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
   )
 }
 
-function buildAnalytics(snapshot: ObservatorySnapshot) {
-  const rows = snapshot.indicators.map<IndicatorAnalyticsRow>((indicator) => ({
-    id: indicator.id,
-    label: indicator.label,
-    description: indicator.description,
-    category: indicator.category,
-    state: indicator.currentState,
-    unit: indicator.unit,
-    currentValue: indicator.currentValue,
-    quantileBucket: indicator.quantileBucket,
-    totalHits: 0,
-    activeBars: 0,
-    activeRate: 0,
-    currentStreak: 0,
-    maxStreak: 0,
-    lastHitTime: null,
-    recentHitTimes: [],
-    transitionRate: indicator.frequency.stateTransitionRate,
-  }))
+function mergeAnalyticsRows(snapshot: ObservatorySnapshot, analytics: PersistedObservatoryAnalytics): IndicatorAnalyticsRow[] {
+  const persistedByIndicator = new Map(analytics.rows.map((row) => [row.indicatorId, row]))
 
-  const categoryActiveBars = new Map<IndicatorCategory, number>(CATEGORY_ORDER.map((category) => [category, 0]))
-  const categoryTotalHits = new Map<IndicatorCategory, number>(CATEGORY_ORDER.map((category) => [category, 0]))
-
-  for (const barState of snapshot.barStates) {
-    const activeIndicators = new Set(barState.activeIndicatorIds)
-    for (const row of rows) {
-      if (activeIndicators.has(row.id)) {
-        row.totalHits += 1
-        row.activeBars += 1
-        row.currentStreak += 1
-        row.maxStreak = Math.max(row.maxStreak, row.currentStreak)
-        row.lastHitTime = barState.time
-        row.recentHitTimes.push(barState.time)
-      } else {
-        row.currentStreak = 0
-      }
+  return snapshot.indicators.map<IndicatorAnalyticsRow>((indicator) => {
+    const persisted = persistedByIndicator.get(indicator.id)
+    return {
+      id: indicator.id,
+      label: indicator.label,
+      description: indicator.description,
+      category: indicator.category,
+      state: indicator.currentState,
+      unit: indicator.unit,
+      currentValue: indicator.currentValue,
+      quantileBucket: indicator.quantileBucket,
+      totalHits: persisted?.activeBars ?? 0,
+      activeBars: persisted?.activeBars ?? 0,
+      activeRate: persisted?.activeRate ?? 0,
+      currentStreak: persisted?.currentStreak ?? 0,
+      maxStreak: persisted?.maxStreak ?? 0,
+      lastHitTime: persisted?.lastHitTime ?? null,
+      recentHitTimes: persisted?.recentHitTimes ?? [],
+      transitionRate: indicator.frequency.stateTransitionRate,
     }
+  }).sort((left, right) => right.totalHits - left.totalHits || right.activeRate - left.activeRate || right.maxStreak - left.maxStreak)
+}
 
-    for (const category of CATEGORY_ORDER) {
-      const laneCount = barState.laneCounts[category] ?? 0
-      categoryTotalHits.set(category, (categoryTotalHits.get(category) ?? 0) + laneCount)
-      if (laneCount > 0) {
-        categoryActiveBars.set(category, (categoryActiveBars.get(category) ?? 0) + 1)
-      }
-    }
-  }
-
-  const timelineCount = Math.max(snapshot.barStates.length, 1)
-  for (const row of rows) {
-    row.activeRate = row.activeBars / timelineCount
-  }
-
-  rows.sort((a, b) => b.totalHits - a.totalHits || b.activeRate - a.activeRate || b.maxStreak - a.maxStreak)
-
-  const categoryRows = CATEGORY_ORDER.map((category) => ({
+function mergeCategoryRows(categoryRows: PersistedAnalyticsCategoryRow[]) {
+  const byCategory = new Map(categoryRows.map((row) => [row.category, row]))
+  return ANALYTICS_CATEGORY_ORDER.map((category) => ({
     category,
-    totalHits: categoryTotalHits.get(category) ?? 0,
-    activeRate: (categoryActiveBars.get(category) ?? 0) / timelineCount,
-  })).sort((a, b) => b.totalHits - a.totalHits)
+    totalHits: byCategory.get(category)?.totalHits ?? 0,
+    activeRate: byCategory.get(category)?.activeRate ?? 0,
+  })).sort((left, right) => right.totalHits - left.totalHits)
+}
 
-  return {
-    rows,
-    totalHits: rows.reduce((sum, row) => sum + row.totalHits, 0),
-    categoryRows,
+function buildSourceMeta(
+  analytics: PersistedObservatoryAnalytics,
+  sourceMode: AnalyticsSourceMode,
+  loadingPersisted: boolean,
+  analyticsError: string | null,
+) {
+  if (sourceMode === 'ledger') {
+    const persistedTime = analytics.lastPersistedBarTime ? formatCompactTime(analytics.lastPersistedBarTime) : '--'
+    return `${analytics.windowBars} bars loaded through ${persistedTime}.`
   }
+  if (loadingPersisted) {
+    return 'Showing the visible snapshot window while the ledger loads.'
+  }
+  if (analyticsError) {
+    return `Ledger unavailable (${analyticsError}). Showing the visible snapshot window instead.`
+  }
+  return 'Showing the visible snapshot window instead of persisted history.'
 }
 
 function compareRows(a: IndicatorAnalyticsRow, b: IndicatorAnalyticsRow, sortKey: AnalyticsSortKey) {

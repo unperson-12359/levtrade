@@ -45,6 +45,14 @@ This map reflects the current mounted product: the live observatory shell.
 - Secret-gated manual backfill route for one `coin + interval` window at a time.
 - Reuses the same persistence path as the cron writer so historical replay and ongoing writes stay consistent.
 
+### `api/observatory-analytics.ts`
+- Read-only analytics route backed by `observatory_indicator_states`.
+- Aggregates historical active bars, streaks, last-hit times, and category totals for the Analytics page.
+
+### `src/observatory/analytics.ts`
+- Shared analytics builder for the persisted ledger and the live snapshot fallback window.
+- Keeps the Analytics page contract stable while the live shell remains snapshot-driven.
+
 ## Removed legacy architecture
 
 The old setup/tracker/collector product surfaces and APIs were removed from the mounted app and the repo:

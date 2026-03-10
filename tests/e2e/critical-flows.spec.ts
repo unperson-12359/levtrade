@@ -60,6 +60,7 @@ test.describe('Observatory critical flows', () => {
 
     await page.getByTestId('obs-nav-analytics').click()
     await expect(page.getByTestId('obs-analytics-page')).toBeVisible()
+    await expect(page.getByTestId('obs-analytics-source')).toBeVisible()
     await expect(page.getByTestId('obs-analytics-table')).toBeVisible()
     await expect(page.getByTestId('obs-analytics-inspector')).toBeVisible()
     await page.getByTestId('obs-nav-observatory').click()

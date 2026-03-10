@@ -40,6 +40,7 @@ runObservatoryRemoteResetSourceCheck()
 runClusterResizeSourceCheck()
 runObservatoryAccessibilitySourceCheck()
 runObservatoryPersistenceSourceCheck()
+runObservatoryAnalyticsSourceCheck()
 runBundleDriftCheck()
 
 console.log('Logic regression checks passed')
@@ -351,6 +352,7 @@ function runObservatoryShellSourceCheck() {
   assert.match(analyticsSource, /data-testid="obs-analytics-page"/)
   assert.match(analyticsSource, /data-testid="obs-analytics-table"/)
   assert.match(analyticsSource, /data-testid="obs-analytics-inspector"/)
+  assert.match(analyticsSource, /data-testid="obs-analytics-source"/)
   assert.match(methodologySource, /data-testid="obs-methodology-page"/)
   assert.match(methodologySource, /data-testid="obs-methodology-flow"/)
   assert.match(methodologySource, /data-testid="obs-methodology-pages"/)
@@ -652,6 +654,29 @@ function runObservatoryPersistenceSourceCheck() {
   assert.match(parityChecklistSource, /api\/backfill-observatory-states\.ts/)
   assert.match(engineeringMapSource, /Secret-gated cron writer/)
   assert.match(engineeringMapSource, /Secret-gated manual backfill route/)
+}
+
+function runObservatoryAnalyticsSourceCheck() {
+  const analyticsPageSource = readFileSync(join(__dirname, '../src/components/observatory/AnalyticsPage.tsx'), 'utf8')
+  const analyticsModuleSource = readFileSync(join(__dirname, '../src/observatory/analytics.ts'), 'utf8')
+  const analyticsApiSource = readFileSync(join(__dirname, '../api/observatory-analytics.ts'), 'utf8')
+  const analyticsHelperSource = readFileSync(join(__dirname, '../api/_observatoryAnalytics.ts'), 'utf8')
+  const parityChecklistSource = readFileSync(join(__dirname, '../docs/production-parity-checklist.md'), 'utf8')
+  const engineeringMapSource = readFileSync(join(__dirname, '../docs/engineering-map.md'), 'utf8')
+
+  assert.match(analyticsPageSource, /\/api\/observatory-analytics\?coin=/)
+  assert.match(analyticsPageSource, /buildSnapshotAnalytics/)
+  assert.match(analyticsPageSource, /Live window fallback/)
+  assert.match(analyticsPageSource, /LEDGER_LOOKBACK_DAYS = 180/)
+  assert.match(analyticsPageSource, /analytics\.days\}d ledger/)
+  assert.match(analyticsModuleSource, /export function buildPersistedObservatoryAnalytics/)
+  assert.match(analyticsModuleSource, /export function buildSnapshotAnalytics/)
+  assert.match(analyticsApiSource, /loadPersistedObservatoryAnalytics/)
+  assert.match(analyticsApiSource, /days = parsePositiveInteger/)
+  assert.match(analyticsHelperSource, /observatory_indicator_states/)
+  assert.match(analyticsHelperSource, /Range-Unit': 'items'/)
+  assert.match(parityChecklistSource, /api\/observatory-analytics\.ts/)
+  assert.match(engineeringMapSource, /Read-only analytics route backed by `observatory_indicator_states`/)
 }
 
 function assertIndicatorRange(values, minExpected, maxExpected, tolerance = 0) {
