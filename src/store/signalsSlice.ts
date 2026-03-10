@@ -92,16 +92,13 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
 
     set((state) => ({
       signals: { ...state.signals, [coin]: result },
+      lastSignalComputedAt: Date.now(),
     }))
-
-    const referencePrice = state.prices[coin] ?? closes[closes.length - 1] ?? 0
-    get().trackSignals(coin, result, referencePrice)
   },
 
   computeAllSignals: () => {
     const state = get()
     const newSignals = { ...state.signals }
-    const coinResults: { coin: TrackedCoin; result: AssetSignals; refPrice: number }[] = []
 
     for (const coin of TRACKED_COINS) {
       const candles = state.candles[coin]
@@ -132,16 +129,9 @@ export const createSignalsSlice: StateCreator<AppStore, [], [], SignalsSlice> = 
       }
 
       newSignals[coin] = result
-      const refPrice = state.prices[coin] ?? closes[closes.length - 1] ?? 0
-      coinResults.push({ coin, result, refPrice })
     }
 
     // Single set() call for all 4 coins + timestamp
     set({ signals: newSignals, lastSignalComputedAt: Date.now() })
-
-    // Track signals after the batch set (each checks dedup internally)
-    for (const { coin, result, refPrice } of coinResults) {
-      get().trackSignals(coin, result, refPrice)
-    }
   },
 })

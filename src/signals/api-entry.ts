@@ -28,15 +28,3 @@ export type {
   IndicatorStateRecord,
   ObservatorySnapshot,
 } from '../observatory/types'
-
-// Shared tracker logic for collector
-export {
-  buildTrackedRecords,
-  shouldTrackRecord,
-  scoreDirection,
-  directionalFromNumber,
-  emptySignalOutcome,
-  TRACKER_WINDOWS,
-} from './trackerLogic'
-export { computeTrackerStats, SIGNAL_KIND_LABELS } from './trackerStats'
-export type { TrackedSignalRecord, TrackedSignalOutcome, TrackerWindow, TrackedSignalKind } from '../types/tracker'

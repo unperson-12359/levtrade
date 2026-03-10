@@ -76,7 +76,11 @@ export function IndicatorClusterLanes({
   }, [clusters, selectedTime])
 
   if (clusters.length === 0) {
-    return <div className="obs-cluster-empty">No indicator state history is available for this timeframe yet.</div>
+    return (
+      <section className="obs-cluster" data-testid="obs-cluster-lanes">
+        <div className="obs-cluster-empty">No indicator state history is available for this timeframe yet.</div>
+      </section>
+    )
   }
 
   return (

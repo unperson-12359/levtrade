@@ -4,7 +4,7 @@ Date: `2026-03-09`
 
 ## Summary
 
-The mounted product is the observatory shell in `src/App.tsx`. The largest remaining architecture problem is not the observatory UI itself; it is the legacy setup/tracker/canonical runtime that was still executing in the background through the global data manager and store contracts.
+The mounted product is the observatory shell in `src/App.tsx`. The largest architecture problem identified in the review was the legacy setup/tracker/canonical runtime that used to sit behind the global manager and store contracts. That dead branch has now been removed.
 
 This review split the repo into:
 - active observatory runtime
@@ -33,22 +33,17 @@ This review split the repo into:
 - Deleted the unmounted setup-history / live-setups / performance-dashboard hook-component chain.
 - Rewrote engineering/release-contract docs to describe the observatory-first architecture.
 
-## Legacy architecture still present
+## Legacy architecture removed
 
-These areas are still in the repo but are no longer part of the mounted observatory path:
+The repo cleanup removed:
 
-- `src/store/setupSlice.ts`
-- `src/store/trackerSlice.ts`
-- `src/components/setup/*`
-- `api/server-setups.ts`
-- `api/signal-accuracy.ts`
-- `api/collector-heartbeat.ts`
-- `api/upload-setups.ts`
-- `src/server/collector/runCollector.ts`
-- legacy Supabase tables for setup/tracker/canonical analytics
+- setup/tracker store slices
+- setup/risk/tracker/decision workflow components that were no longer mounted
+- canonical setup, signal-accuracy, heartbeat, and execution/backtest APIs
+- collector runtime scripts and generated collector bundle
+- legacy Supabase schema for server setups and tracked signals
 
-## Recommended next removals
+## Remaining follow-up
 
-- Remove the old source-check assertions in `tests/run-logic-tests.mjs` that still enforce unmounted workflow surfaces.
-- Decide whether legacy collector/setup APIs stay as internal tooling or are removed entirely.
-- Add the real writer/backfill path for `observatory_indicator_states` if observatory persistence is the target architecture.
+- Add the real writer/backfill path for `observatory_indicator_states`.
+- Decide whether the current chart/risk composition path should stay as-is or be simplified further around the boolean bar-state model.

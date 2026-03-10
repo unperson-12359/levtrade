@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const signals = await import('../api/_signals.mjs')
-const collector = await import('../api/_collector.mjs')
 const {
   resolveSetupWindow,
   computeOIDelta,
@@ -27,17 +26,8 @@ runPositionPolicyTest()
 runSuggestedPositionCompositionTest()
 runObservatoryRuntimeSourceCheck()
 runObservatoryApiBundlingSourceCheck()
-runWorkflowTerminologyCheck()
-runWorkflowStateSourceCheck()
 runObservatoryShellSourceCheck()
-runEntryReadinessRailSourceCheck()
-runStep2KpiLayoutCheck()
-runSuggestedSetupKpiLayoutCheck()
-runStep1CompactDensityCheck()
-runMarketMomentsSourceCheck()
-runStep3CompactDensityCheck()
-runHeroPairCompressionCheck()
-runTrackerRiskSourceCheck()
+runObservatoryCleanupSourceCheck()
 runRuntimeStabilitySourceCheck()
 runObservatoryIndicatorHealthTest()
 runObservatoryBooleanStateTest()
@@ -46,7 +36,6 @@ runContractInterfaceSourceCheck()
 runObservatoryRemoteResetSourceCheck()
 runClusterResizeSourceCheck()
 runObservatoryAccessibilitySourceCheck()
-runApiDaysClampSourceCheck()
 runBundleDriftCheck()
 
 console.log('Logic regression checks passed')
@@ -84,7 +73,6 @@ function runResolveOutcomeTest() {
   assert.equal(outcome.priceAtResolution, 105)
   assert.equal(outcome.result, 'expired')
   assert.equal(outcome.coverageStatus, 'full')
-  // 5 candles: 21:00 through 01:00 inclusive (floor of signal hour through floor of boundary)
   assert.equal(outcome.candleCountUsed, 5)
 }
 
@@ -306,25 +294,15 @@ function runObservatoryRuntimeSourceCheck() {
   assert.match(managerSource, /scheduleNextPoll/)
   assert.match(managerSource, /runPollingCycle/)
   assert.match(managerSource, /executePollingCycle/)
-  assert.doesNotMatch(managerSource, /fetchServerSetups/)
-  assert.doesNotMatch(managerSource, /fetchCollectorHeartbeatStatus/)
-  assert.doesNotMatch(managerSource, /fetchExecutionEvents/)
-  assert.doesNotMatch(managerSource, /uploadLocalSetups/)
-  assert.doesNotMatch(managerSource, /fetchFundingHistory/)
-  assert.doesNotMatch(managerSource, /fetchFearGreed/)
-  assert.doesNotMatch(managerSource, /fetchCoinGeckoGlobal/)
-  assert.doesNotMatch(managerSource, /fetchBinanceFundingRate/)
-  assert.doesNotMatch(managerSource, /fetchBinanceOpenInterest/)
-  assert.doesNotMatch(dataHookSource, /computeAllSignals/)
-  assert.doesNotMatch(dataHookSource, /trackAllDecisionSnapshots/)
-  assert.doesNotMatch(dataHookSource, /resolveSetupOutcomes/)
-  assert.doesNotMatch(dataHookSource, /resolveTrackedOutcomes/)
-  assert.doesNotMatch(dataHookSource, /pruneTrackerHistory/)
-  assert.match(engineeringMapSource, /mounted product: the live observatory shell/i)
-  assert.match(engineeringMapSource, /Legacy architecture still present/i)
+  assert.doesNotMatch(managerSource, /fetchServerSetups|fetchCollectorHeartbeatStatus|fetchExecutionEvents|uploadLocalSetups/)
+  assert.doesNotMatch(managerSource, /fetchFundingHistory|fetchFearGreed|fetchCoinGeckoGlobal|fetchBinanceFundingRate|fetchBinanceOpenInterest/)
+  assert.match(dataHookSource, /computeAllSignals/)
+  assert.doesNotMatch(dataHookSource, /trackAllDecisionSnapshots|resolveSetupOutcomes|resolveTrackedOutcomes|pruneTrackerHistory/)
+  assert.match(engineeringMapSource, /current mounted product: the live observatory shell/i)
+  assert.match(engineeringMapSource, /Removed legacy architecture/i)
   assert.match(parityChecklistSource, /api\/observatory-snapshot\.ts/)
-  assert.doesNotMatch(parityChecklistSource, /Required Supabase tables/)
-  assert.doesNotMatch(parityChecklistSource, /tracked_signals/)
+  assert.match(parityChecklistSource, /observatory_indicator_states/)
+  assert.doesNotMatch(parityChecklistSource, /tracked_signals|server_setups|collector_heartbeat/)
 }
 
 function runObservatoryApiBundlingSourceCheck() {
@@ -332,34 +310,6 @@ function runObservatoryApiBundlingSourceCheck() {
 
   assert.match(observatoryApiSource, /from '\.\/_signals\.mjs'/)
   assert.doesNotMatch(observatoryApiSource, /from '\.\.\/src\/observatory\/engine'/)
-}
-
-function runWorkflowTerminologyCheck() {
-  const workflowSource = readFileSync(join(__dirname, '../src/utils/workflowGuidance.ts'), 'utf8')
-  assert.match(workflowSource, /title: 'POSITION COMPOSITION'/)
-  assert.match(workflowSource, /account-sized composition/)
-}
-
-function runWorkflowStateSourceCheck() {
-  const workflowSource = readFileSync(join(__dirname, '../src/utils/workflowGuidance.ts'), 'utf8')
-  const marketSource = readFileSync(join(__dirname, '../src/components/market/MarketRail.tsx'), 'utf8')
-  const signalSource = readFileSync(join(__dirname, '../src/components/signal/SignalSection.tsx'), 'utf8')
-  const riskSource = readFileSync(join(__dirname, '../src/components/risk/RiskSection.tsx'), 'utf8')
-  const stepLabelSource = readFileSync(join(__dirname, '../src/components/methodology/StepLabel.tsx'), 'utf8')
-  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
-
-  assert.match(workflowSource, /export function getWorkflowStepStates/)
-  assert.match(workflowSource, /export type WorkflowVisualState = 'pass' \| 'fail' \| 'wait'/)
-  assert.match(workflowSource, /export type WorkflowAccessState = 'current' \| 'unlocked' \| 'locked'/)
-  assert.match(workflowSource, /label: 'LOCKED'/)
-  assert.match(workflowSource, /label: provisionalIsDanger \? 'DO NOT TAKE' : 'DRAFT ONLY'/)
-  assert.match(marketSource, /workflow-card/)
-  assert.match(signalSource, /workflow-card/)
-  assert.match(riskSource, /workflow-card/)
-  assert.match(riskSource, /status-pill status-pill--\$\{step3\.tone\}/)
-  assert.match(stepLabelSource, /STEP \$\{step\} OF 3/)
-  assert.match(cssSource, /\.workflow-card--pulse/)
-  assert.match(cssSource, /prefers-reduced-motion: reduce/)
 }
 
 function runObservatoryShellSourceCheck() {
@@ -403,10 +353,7 @@ function runObservatoryShellSourceCheck() {
   assert.match(methodologySource, /data-testid="obs-methodology-live"/)
   assert.match(methodologySource, /data-testid="obs-methodology-workflow"/)
   assert.doesNotMatch(methodologySource, /How to know what you can trust/)
-  assert.doesNotMatch(methodologyContentSource, /Canonical vs local/)
-  assert.doesNotMatch(methodologyContentSource, /How recent the canonical snapshot is/)
-  assert.doesNotMatch(methodologyContentSource, /category: 'Flow'/)
-  assert.doesNotMatch(methodologySource, /What the six lanes mean/)
+  assert.doesNotMatch(methodologyContentSource, /Canonical vs local|How recent the canonical snapshot is|category: 'Flow'/)
   assert.match(reportSource, /data-testid="obs-candle-report-page"/)
   assert.match(reportSource, /data-testid="obs-candle-report-back"/)
   assert.match(reportSource, /data-testid="obs-candle-report-prev"/)
@@ -421,8 +368,7 @@ function runObservatoryShellSourceCheck() {
   assert.match(observatoryHookSource, /export type ObservatoryLiveStatus = 'live' \| 'updating' \| 'delayed' \| 'disconnected'/)
   assert.match(observatoryHookSource, /fundingHistory: \[\]/)
   assert.match(observatoryHookSource, /oiHistory: \[\]/)
-  assert.doesNotMatch(observatoryHookSource, /const fundingHistory = useStore/)
-  assert.doesNotMatch(observatoryHookSource, /const oiHistory = useStore/)
+  assert.doesNotMatch(observatoryHookSource, /const fundingHistory = useStore|const oiHistory = useStore/)
   assert.match(routerSource, /#\/observatory/)
   assert.match(routerSource, /#\/observatory\/report/)
   assert.match(routerSource, /#\/analytics/)
@@ -441,205 +387,51 @@ function runObservatoryShellSourceCheck() {
   assert.match(cssSource, /\.obs-grid \{/)
 }
 
-function runEntryReadinessRailSourceCheck() {
-  const railSource = readFileSync(join(__dirname, '../src/components/chart/EntryReadinessRail.tsx'), 'utf8')
-  const hookSource = readFileSync(join(__dirname, '../src/hooks/useEntryReadiness.ts'), 'utf8')
-  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
+function runObservatoryCleanupSourceCheck() {
+  const storeSource = readFileSync(join(__dirname, '../src/store/index.ts'), 'utf8')
+  const uiSliceSource = readFileSync(join(__dirname, '../src/store/uiSlice.ts'), 'utf8')
+  const apiClientSource = readFileSync(join(__dirname, '../src/services/api.ts'), 'utf8')
+  const packageSource = readFileSync(join(__dirname, '../package.json'), 'utf8')
+  const auditSource = readFileSync(join(__dirname, '../audits/observatory-first-codebase-review-2026-03-09.md'), 'utf8')
 
-  assert.match(railSource, /className="entry-readiness-rail"/)
-  assert.match(railSource, /className="entry-readiness-rail__lights"/)
-  assert.match(railSource, /entry-readiness-light--\$\{light\.state\}/)
-  assert.match(railSource, /entry-readiness-light--locked/)
-  assert.match(railSource, /role="progressbar"/)
-  assert.match(railSource, /entry-readiness-gauge__needle/)
-  assert.match(railSource, /entry-readiness-rail__pct--\$\{readiness\.primaryBand\}/)
-  assert.match(railSource, /entry-readiness-progress__fill--\$\{readiness\.direction\}/)
-  assert.match(railSource, /entry-readiness-rail__lock/)
-  assert.match(railSource, /entry-readiness-rail__confidence/)
-  assert.match(railSource, /readiness\.weightedConfidencePct/)
-  assert.match(railSource, /entry-readiness-rail__confidence-value--\$\{readiness\.confidenceBand\}/)
-  assert.match(railSource, /readiness\.triggerProgressPct/)
+  const removedFiles = [
+    '../src/store/setupSlice.ts',
+    '../src/store/trackerSlice.ts',
+    '../api/server-setups.ts',
+    '../api/signal-accuracy.ts',
+    '../api/collector-heartbeat.ts',
+    '../api/upload-setups.ts',
+    '../api/events/stream.ts',
+    '../api/compute-signals.ts',
+    '../api/_collector.mjs',
+    '../src/server/collector/runCollector.ts',
+    '../src/components/setup/SetupCard.tsx',
+    '../src/components/market/MarketRail.tsx',
+    '../src/components/signal/SignalSection.tsx',
+    '../src/components/risk/RiskSection.tsx',
+    '../src/components/tracker/AccuracyPanel.tsx',
+    '../src/hooks/useServerTrackerStats.ts',
+    '../src/hooks/useTrackerStats.ts',
+    '../src/hooks/useEntryReadiness.ts',
+    '../src/signals/trackerLogic.ts',
+    '../src/signals/trackerStats.ts',
+    '../supabase/server_setups.sql',
+    '../supabase/tracked_signals.sql',
+    '../supabase/collector_heartbeat.sql',
+  ]
 
-  assert.match(hookSource, /computeSetupMetrics/)
-  assert.match(hookSource, /getWorkflowStepStates/)
-  assert.match(hookSource, /lockedByStep/)
-  assert.match(hookSource, /direction: EntryReadinessDirection/)
-  assert.match(hookSource, /triggerProgressPct/)
-  assert.match(hookSource, /weightedConfidencePct/)
-  assert.match(hookSource, /primaryBand/)
-  assert.match(hookSource, /confidenceBand/)
-  assert.match(hookSource, /Data Fresh/)
-  assert.match(hookSource, /Regime/)
-  assert.match(hookSource, /Price Position/)
-  assert.match(hookSource, /Crowd Positioning/)
-  assert.match(hookSource, /Money Flow/)
-  assert.match(hookSource, /Entry Geometry/)
-  assert.match(hookSource, /Composite Output/)
-  assert.match(hookSource, /Risk Gate/)
+  for (const relativePath of removedFiles) {
+    assert.equal(existsSync(join(__dirname, relativePath)), false, `${relativePath} should have been removed`)
+  }
 
-  assert.match(cssSource, /\.chart-header-row--enhanced \{/)
-  assert.match(cssSource, /\.entry-readiness-rail \{/)
-  assert.match(cssSource, /\.entry-readiness-light--on \{/)
-  assert.match(cssSource, /\.entry-readiness-light--locked \{/)
-  assert.match(cssSource, /\.entry-readiness-progress__centerline \{/)
-  assert.match(cssSource, /\.entry-readiness-progress__fill--high \{/)
-  assert.match(cssSource, /\.entry-readiness-progress__fill--short \{/)
-  assert.match(cssSource, /\.entry-readiness-gauge__needle \{/)
-  assert.match(cssSource, /\.entry-readiness-rail__lock \{/)
-  assert.match(cssSource, /\.entry-readiness-rail__confidence \{/)
-  assert.match(cssSource, /\.entry-readiness-rail__confidence-value--high \{/)
-}
-
-function runStep2KpiLayoutCheck() {
-  const signalSource = readFileSync(join(__dirname, '../src/components/signal/SignalSection.tsx'), 'utf8')
-  const geometrySource = readFileSync(join(__dirname, '../src/components/entry/EntryGeometryPanel.tsx'), 'utf8')
-  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
-
-  assert.doesNotMatch(signalSource, /sectionId="step2-advanced"/)
-  assert.doesNotMatch(signalSource, /ExpandableSection/)
-  assert.match(signalSource, /className="step2-parallel-shell"/)
-  assert.match(signalSource, /className="step2-parallel-shell__setup"/)
-  assert.match(signalSource, /className="step2-parallel-shell__kpis"/)
-  assert.match(signalSource, /className="step2-kpi-shell"/)
-  assert.match(signalSource, /className="step2-kpi-row step2-kpi-row--double"/)
-  assert.doesNotMatch(signalSource, /step2-kpi-row--single/)
-  assert.match(signalSource, /<EntryGeometryPanel embedded mode="compactKpi" \/>/)
-  assert.match(geometrySource, /mode\?: 'default' \| 'compactKpi'/)
-  assert.match(geometrySource, /if \(mode === 'compactKpi'\)/)
-  assert.doesNotMatch(geometrySource, /step2-kpi-row--geometry/)
-  assert.match(cssSource, /\.step2-parallel-shell \{/)
-  assert.match(cssSource, /\.step2-parallel-shell__setup \.setup-card \{/)
-  assert.match(cssSource, /\.step2-kpi-shell \{/)
-  assert.match(cssSource, /\.step2-kpi-row \{/)
-  assert.match(cssSource, /\.step2-kpi-row--double \{/)
-  assert.doesNotMatch(cssSource, /\.step2-kpi-row--single \{/)
-  assert.match(cssSource, /\.step2-kpi-card--clickable/)
-}
-
-function runSuggestedSetupKpiLayoutCheck() {
-  const setupSource = readFileSync(join(__dirname, '../src/components/setup/SetupCard.tsx'), 'utf8')
-  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
-
-  assert.match(setupSource, /className="setup-card__kpi-row"/)
-  assert.match(setupSource, /setup-kpi-card/)
-  assert.match(setupSource, /className="panel-title setup-card__title"/)
-  assert.match(setupSource, /className="panel-copy setup-card__empty-copy"/)
-  assert.match(setupSource, /className="decision-strip__chips setup-card__empty-reasons"/)
-  assert.match(setupSource, /className="setup-card__summary setup-card__summary--compact"/)
-  assert.doesNotMatch(setupSource, /setup-card__prices/)
-  assert.match(cssSource, /\.setup-card__kpi-row \{/)
-  assert.match(cssSource, /grid-template-columns: repeat\(9, minmax\(0, 1fr\)\);/)
-  assert.match(cssSource, /\.setup-kpi-card \{/)
-  assert.match(cssSource, /\.step2-parallel-shell__setup \.setup-card__summary--compact \{/)
-  assert.match(cssSource, /\.step2-parallel-shell__setup \.setup-card__empty-copy \{/)
-  assert.match(cssSource, /\.step2-parallel-shell__setup \.setup-card__empty-reasons \{/)
-}
-
-function runStep1CompactDensityCheck() {
-  const marketSource = readFileSync(join(__dirname, '../src/components/market/MarketRail.tsx'), 'utf8')
-  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
-  const expandableSource = readFileSync(join(__dirname, '../src/components/shared/ExpandableSection.tsx'), 'utf8')
-
-  assert.match(marketSource, /className="market-rail-grid step1-compact-grid"/)
-  assert.match(marketSource, /className="context-panels context-panels--compact"/)
-  assert.match(marketSource, /className="subpanel-shell step1-compact-tile"/)
-  assert.match(marketSource, /className="step1-compact-copy"/)
-  assert.match(cssSource, /\.step1-compact-grid \{/)
-  assert.match(cssSource, /\.step1-compact-tile \{/)
-  assert.match(cssSource, /\.step1-compact-copy \{/)
-  assert.match(cssSource, /expandable-section\[data-section-id="step1-advanced"\]/)
-  assert.match(expandableSource, /data-section-id=\{sectionId\}/)
-}
-
-function runMarketMomentsSourceCheck() {
-  const marketSource = readFileSync(join(__dirname, '../src/components/market/MarketRail.tsx'), 'utf8')
-  const hookSource = readFileSync(join(__dirname, '../src/hooks/useMarketMoments.ts'), 'utf8')
-  const signalSource = readFileSync(join(__dirname, '../src/signals/marketMoments.ts'), 'utf8')
-  const configSource = readFileSync(join(__dirname, '../src/config/marketMoments.ts'), 'utf8')
-  const typeSource = readFileSync(join(__dirname, '../src/types/marketMoments.ts'), 'utf8')
-  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
-
-  assert.match(marketSource, /useMarketMoments/)
-  assert.match(marketSource, /MarketMomentsPanel/)
-  assert.match(marketSource, /Market Moments/)
-  assert.match(marketSource, /Context only/)
-  assert.match(marketSource, /formatMomentCountdown/)
-  assert.match(marketSource, /nextMomentTone/)
-
-  assert.match(hookSource, /buildMomentSnapshotFromHourlyCandles/)
-  assert.match(hookSource, /resolutionCandles/)
-  assert.match(hookSource, /extendedCandles/)
-
-  assert.match(signalSource, /computeMarketMomentSnapshot/)
-  assert.match(signalSource, /collectMomentInstances/)
-  assert.match(signalSource, /MACRO_EVENT_SCHEDULE_UTC/)
-  assert.match(signalSource, /us_cash_open/)
-  assert.match(signalSource, /month_end/)
-  assert.match(signalSource, /quarter_end/)
-
-  assert.match(configSource, /MARKET_MOMENT_LABELS/)
-  assert.match(configSource, /MACRO_EVENT_SCHEDULE_UTC/)
-  assert.match(configSource, /FOMC Rate Decision/)
-  assert.match(configSource, /US Nonfarm Payrolls/)
-  assert.match(configSource, /US CPI/)
-
-  assert.match(typeSource, /export interface MarketMomentSnapshot/)
-  assert.match(typeSource, /export interface MarketMomentAggregate/)
-  assert.match(typeSource, /export interface UpcomingMarketMoment/)
-
-  assert.match(cssSource, /\.context-panels__subnote \{/)
-}
-
-function runStep3CompactDensityCheck() {
-  const riskSectionSource = readFileSync(join(__dirname, '../src/components/risk/RiskSection.tsx'), 'utf8')
-  const riskFormSource = readFileSync(join(__dirname, '../src/components/risk/RiskForm.tsx'), 'utf8')
-  const riskResultsSource = readFileSync(join(__dirname, '../src/components/risk/RiskResults.tsx'), 'utf8')
-  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
-
-  assert.match(riskSectionSource, /risk-stack--compact/)
-  assert.match(riskSectionSource, /risk-section--compact/)
-  assert.match(riskSectionSource, /risk-section__detail/)
-  assert.match(riskFormSource, /risk-form--compact/)
-  assert.match(riskFormSource, /risk-form__capital-row/)
-  assert.match(riskFormSource, /risk-info-grid--compact/)
-  assert.match(riskResultsSource, /risk-results--compact/)
-  assert.match(riskResultsSource, /risk-kpi-grid--compact/)
-  assert.match(riskResultsSource, /sectionId="step3-advanced"/)
-  assert.match(riskResultsSource, /risk-stat-card/)
-  assert.match(cssSource, /\.risk-section--compact \{/)
-  assert.match(cssSource, /\.risk-form__capital-row \{/)
-  assert.match(cssSource, /\.risk-kpi-grid--compact \{/)
-  assert.match(cssSource, /expandable-section\[data-section-id="step3-advanced"\]/)
-}
-
-function runHeroPairCompressionCheck() {
-  const heroSource = readFileSync(join(__dirname, '../src/components/decision/DecisionHero.tsx'), 'utf8')
-  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
-
-  assert.match(heroSource, /decision-hero__pair/)
-  assert.match(heroSource, /decision-hero__pair-card/)
-  assert.match(heroSource, /decision-hero__pair-card--action/)
-  assert.match(heroSource, /decision-hero__pair-card--wait/)
-  assert.match(heroSource, /decision-hero__summary--compact/)
-  assert.match(heroSource, /decision-hero__reasons-label/)
-  assert.match(heroSource, /decision-hero__reason-chips/)
-  assert.match(cssSource, /\.decision-hero__pair \{/)
-  assert.match(cssSource, /\.decision-hero__pair-card \{/)
-  assert.match(cssSource, /\.decision-hero__pair-card--action \{/)
-  assert.match(cssSource, /\.decision-hero__pair-card--wait \{/)
-  assert.match(cssSource, /\.decision-hero__summary--compact \{/)
-  assert.match(cssSource, /\.decision-hero__reasons-label \{/)
-  assert.match(cssSource, /\.decision-hero__reason-chips \{/)
-  assert.match(cssSource, /@media \(min-width: 1281px\)/)
-  assert.match(cssSource, /\.workflow-row-top--split \.workflow-row-top__signal > \.workflow-card > \.panel-copy \{/)
-}
-
-function runTrackerRiskSourceCheck() {
-  const trackerSource = readFileSync(join(__dirname, '../src/store/trackerSlice.ts'), 'utf8')
-  assert.match(trackerSource, /computeSuggestedPositionComposition/)
-  assert.doesNotMatch(trackerSource, /computeRisk\(state\.riskInputs/)
-  assert.match(trackerSource, /state\.resolutionCandles\[coin\]/)
-  assert.match(trackerSource, /preferredCandles/)
+  assert.doesNotMatch(storeSource, /createSetupSlice|createTrackerSlice|localTrackedSetups|trackedSignals|trackedOutcomes|serverTrackedSetups/)
+  assert.doesNotMatch(uiSliceSource, /canonicalFreshness|signalAccuracyFreshness|collectorFreshness|eventStreamStatus|executionEvents/)
+  assert.match(apiClientSource, /export async function fetchAllMids/)
+  assert.match(apiClientSource, /export async function fetchCandles/)
+  assert.doesNotMatch(apiClientSource, /fetchServerSetups|fetchSignalAccuracy|fetchCollectorHeartbeat|fetchExecutionEvents|fetchPortfolioSnapshot|fetchBacktestResult/)
+  assert.doesNotMatch(packageSource, /build:api-collector|build:collector|collector:once|collector:start|repair:server-outcomes/)
+  assert.match(auditSource, /Legacy architecture removed/)
+  assert.match(auditSource, /observatory_indicator_states/)
 }
 
 function runRuntimeStabilitySourceCheck() {
@@ -760,6 +552,47 @@ function runDeterministicReplayCheck() {
   assert.deepEqual(firstPass, secondPass)
 }
 
+function runContractInterfaceSourceCheck() {
+  const contractsSource = readFileSync(join(__dirname, '../src/contracts/v1.ts'), 'utf8')
+  const observatoryApiSource = readFileSync(join(__dirname, '../api/observatory-snapshot.ts'), 'utf8')
+  const packageSource = readFileSync(join(__dirname, '../package.json'), 'utf8')
+
+  assert.match(contractsSource, /export const CONTRACT_VERSION_V1 = 'v1'/)
+  assert.match(contractsSource, /export interface ContractMetaV1/)
+  assert.match(contractsSource, /export type DataSourceV1 = 'canonical' \| 'fallback' \| 'collector' \| 'local' \| 'derived'/)
+  assert.doesNotMatch(contractsSource, /ExecutionEventV1|BacktestResultV1|LivePerformanceSnapshotV1/)
+  assert.match(observatoryApiSource, /contractVersion: CONTRACT_VERSION_V1/)
+  assert.match(packageSource, /"build:signals"/)
+}
+
+function runObservatoryRemoteResetSourceCheck() {
+  const hookSource = readFileSync(join(__dirname, '../src/hooks/useIndicatorObservatory.ts'), 'utf8')
+  assert.match(hookSource, /const requestKey = `\$\{coin\}:\$\{canonicalInterval\}`/)
+  assert.match(hookSource, /const \[remoteKey, setRemoteKey\] = useState<string \| null>\(null\)/)
+  assert.match(hookSource, /setRemoteSnapshot\(null\)/)
+  assert.match(hookSource, /setRemotePriceContext\(null\)/)
+  assert.match(hookSource, /setRemoteKey\(requestKey\)/)
+  assert.match(hookSource, /const hasMatchingRemote = remoteKey === requestKey/)
+}
+
+function runClusterResizeSourceCheck() {
+  const clusterSource = readFileSync(join(__dirname, '../src/components/observatory/IndicatorClusterLanes.tsx'), 'utf8')
+  assert.match(clusterSource, /const \[viewportWidth, setViewportWidth\] = useState/)
+  assert.match(clusterSource, /window\.addEventListener\('resize', syncViewportWidth\)/)
+  assert.match(clusterSource, /const isNarrowViewport = viewportWidth <= 760/)
+}
+
+function runObservatoryAccessibilitySourceCheck() {
+  const layoutSource = readFileSync(join(__dirname, '../src/components/observatory/ObservatoryLayout.tsx'), 'utf8')
+  const reportSource = readFileSync(join(__dirname, '../src/components/observatory/CandleReportPage.tsx'), 'utf8')
+  assert.match(layoutSource, /aria-controls="obs-diagnostics-detail"/)
+  assert.match(layoutSource, /aria-controls="obs-live-chart-panel"/)
+  assert.match(layoutSource, /aria-controls="obs-catalog-panel"/)
+  assert.match(reportSource, /aria-label="Previous candle"/)
+  assert.match(reportSource, /aria-label="Next candle"/)
+  assert.match(reportSource, /aria-controls="obs-report-chart-panel"/)
+}
+
 function assertIndicatorRange(values, minExpected, maxExpected, tolerance = 0) {
   assert.ok(values.length > 0)
   const min = Math.min(...values)
@@ -836,66 +669,6 @@ function buildObservatoryCandles(count, startPrice) {
   }
 
   return result
-}
-
-function runContractInterfaceSourceCheck() {
-  const serverSetupsSource = readFileSync(join(__dirname, '../api/server-setups.ts'), 'utf8')
-  const accuracySource = readFileSync(join(__dirname, '../api/signal-accuracy.ts'), 'utf8')
-  const heartbeatSource = readFileSync(join(__dirname, '../api/collector-heartbeat.ts'), 'utf8')
-  const streamSource = readFileSync(join(__dirname, '../api/events/stream.ts'), 'utf8')
-  const portfolioSource = readFileSync(join(__dirname, '../api/portfolios/[portfolioId]/snapshot.ts'), 'utf8')
-  const backtestsSource = readFileSync(join(__dirname, '../api/strategies/[strategyId]/backtests.ts'), 'utf8')
-  const apiClientSource = readFileSync(join(__dirname, '../src/services/api.ts'), 'utf8')
-  const contractsSource = readFileSync(join(__dirname, '../src/contracts/v1.ts'), 'utf8')
-
-  assert.match(contractsSource, /export const CONTRACT_VERSION_V1 = 'v1'/)
-  assert.match(contractsSource, /export interface ExecutionEventV1/)
-  assert.match(serverSetupsSource, /contractVersion: CONTRACT_VERSION_V1/)
-  assert.match(serverSetupsSource, /meta: buildContractMeta/)
-  assert.match(accuracySource, /contractVersion: CONTRACT_VERSION_V1/)
-  assert.match(heartbeatSource, /contractVersion: CONTRACT_VERSION_V1/)
-  assert.match(streamSource, /event: execution/)
-  assert.match(portfolioSource, /LivePerformanceSnapshotV1/)
-  assert.match(backtestsSource, /BacktestResultV1/)
-  assert.match(apiClientSource, /fetchExecutionEvents/)
-  assert.match(apiClientSource, /fetchPortfolioSnapshot/)
-  assert.match(apiClientSource, /fetchBacktestResult/)
-}
-
-function runObservatoryRemoteResetSourceCheck() {
-  const hookSource = readFileSync(join(__dirname, '../src/hooks/useIndicatorObservatory.ts'), 'utf8')
-  assert.match(hookSource, /const requestKey = `\$\{coin\}:\$\{canonicalInterval\}`/)
-  assert.match(hookSource, /const \[remoteKey, setRemoteKey\] = useState<string \| null>\(null\)/)
-  assert.match(hookSource, /setRemoteSnapshot\(null\)/)
-  assert.match(hookSource, /setRemotePriceContext\(null\)/)
-  assert.match(hookSource, /setRemoteKey\(requestKey\)/)
-  assert.match(hookSource, /const hasMatchingRemote = remoteKey === requestKey/)
-}
-
-function runClusterResizeSourceCheck() {
-  const clusterSource = readFileSync(join(__dirname, '../src/components/observatory/IndicatorClusterLanes.tsx'), 'utf8')
-  assert.match(clusterSource, /const \[viewportWidth, setViewportWidth\] = useState/)
-  assert.match(clusterSource, /window\.addEventListener\('resize', syncViewportWidth\)/)
-  assert.match(clusterSource, /const isNarrowViewport = viewportWidth <= 760/)
-}
-
-function runObservatoryAccessibilitySourceCheck() {
-  const layoutSource = readFileSync(join(__dirname, '../src/components/observatory/ObservatoryLayout.tsx'), 'utf8')
-  const reportSource = readFileSync(join(__dirname, '../src/components/observatory/CandleReportPage.tsx'), 'utf8')
-  assert.match(layoutSource, /aria-controls="obs-diagnostics-detail"/)
-  assert.match(layoutSource, /aria-controls="obs-live-chart-panel"/)
-  assert.match(layoutSource, /aria-controls="obs-catalog-panel"/)
-  assert.match(reportSource, /aria-label="Previous candle"/)
-  assert.match(reportSource, /aria-label="Next candle"/)
-  assert.match(reportSource, /aria-controls="obs-report-chart-panel"/)
-}
-
-function runApiDaysClampSourceCheck() {
-  const serverSetupsSource = readFileSync(join(__dirname, '../api/server-setups.ts'), 'utf8')
-  const signalAccuracySource = readFileSync(join(__dirname, '../api/signal-accuracy.ts'), 'utf8')
-  assert.match(serverSetupsSource, /Math\.max\(1, Math\.min\(MAX_DAYS, parsedDays\)\)/)
-  assert.match(serverSetupsSource, /fetchLatestServerSetupUpdatedAt/)
-  assert.match(signalAccuracySource, /Math\.max\(1, Math\.min\(MAX_DAYS, rawDays\)\)/)
 }
 
 function candle(time, open, high, low, close) {
@@ -1005,7 +778,6 @@ function buildSignals(overrides = {}) {
 
 function runBundleDriftCheck() {
   checkBundle('_signals', signals, join(__dirname, '../api/_signals.d.mts'))
-  checkBundle('_collector', collector, join(__dirname, '../api/_collector.d.mts'))
 }
 
 function checkBundle(name, mod, declPath) {

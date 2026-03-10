@@ -7,6 +7,10 @@ export function useDataManager() {
   const managerRef = useRef<DataManager | null>(null)
   const interval = useStore((s) => s.selectedInterval)
   const selectedCoin = useStore((s) => s.selectedCoin)
+  const computeAllSignals = useStore((s) => s.computeAllSignals)
+  const signalInputsVersion = useStore((state) =>
+    TRACKED_COINS.map((coin) => `${coin}:${state.candles[coin].length}:${state.prices[coin] ?? 'na'}`).join('|'),
+  )
   const enabled = import.meta.env.VITE_E2E_MOCK !== '1'
 
   useEffect(() => {
@@ -62,4 +66,9 @@ export function useDataManager() {
       // Errors handled inside DataManager
     })
   }, [enabled, selectedCoin])
+
+  useEffect(() => {
+    if (!enabled) return
+    computeAllSignals()
+  }, [computeAllSignals, enabled, interval, signalInputsVersion])
 }

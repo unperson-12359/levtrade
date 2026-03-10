@@ -1707,32 +1707,6 @@ function buildSetupId(setup) {
     normalizePriceKey(setup.targetPrice)
   ].join(":");
 }
-function buildTrackedSignalId(input) {
-  return [
-    "signal",
-    input.coin,
-    input.kind,
-    String(input.timestamp),
-    normalizeDirectionKey(input.direction),
-    sanitizeKey(input.label),
-    strengthBucket(input.strength)
-  ].join(":");
-}
-function strengthBucket(value) {
-  if (value >= 0.66) return "high";
-  if (value >= 0.33) return "medium";
-  return "low";
-}
-function sanitizeKey(value) {
-  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  return normalized || "na";
-}
-function normalizeDirectionKey(direction) {
-  if (direction === "long" || direction === "short" || direction === "neutral") {
-    return direction;
-  }
-  return "na";
-}
 
 // src/observatory/engine.ts
 var BOUNDED_RANGES = {
@@ -3085,225 +3059,12 @@ function rankValues(values) {
 function isFiniteNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
 }
-
-// src/signals/trackerLogic.ts
-var TRACKER_WINDOWS = {
-  "4h": 4 * 60 * 60 * 1e3,
-  "24h": 24 * 60 * 60 * 1e3,
-  "72h": 72 * 60 * 60 * 1e3
-};
-function buildTrackedRecords(coin, signals, referencePrice) {
-  const timestamp = signals.updatedAt;
-  return [
-    buildRecord({
-      source: "signal-engine",
-      coin,
-      timestamp,
-      kind: "composite",
-      direction: signals.composite.direction,
-      strength: Math.abs(signals.composite.value),
-      label: signals.composite.label,
-      referencePrice,
-      metadata: {
-        agreementCount: signals.composite.agreementCount,
-        agreementTotal: signals.composite.agreementTotal
-      }
-    }),
-    buildRecord({
-      source: "signal-engine",
-      coin,
-      timestamp,
-      kind: "zScore",
-      direction: directionalFromNumber(signals.zScore.normalizedSignal),
-      strength: Math.abs(signals.zScore.normalizedSignal),
-      label: signals.zScore.label,
-      referencePrice,
-      metadata: {
-        value: signals.zScore.value
-      }
-    }),
-    buildRecord({
-      source: "signal-engine",
-      coin,
-      timestamp,
-      kind: "funding",
-      direction: directionalFromNumber(signals.funding.normalizedSignal),
-      strength: Math.abs(signals.funding.normalizedSignal),
-      label: signals.funding.label,
-      referencePrice,
-      metadata: {
-        rate: signals.funding.currentRate,
-        zScore: signals.funding.zScore
-      }
-    }),
-    buildRecord({
-      source: "signal-engine",
-      coin,
-      timestamp,
-      kind: "oiDelta",
-      direction: directionalFromNumber(signals.oiDelta.normalizedSignal),
-      strength: Math.abs(signals.oiDelta.normalizedSignal),
-      label: signals.oiDelta.label,
-      referencePrice,
-      metadata: {
-        oiChangePct: signals.oiDelta.oiChangePct,
-        priceChangePct: signals.oiDelta.priceChangePct,
-        confirmation: signals.oiDelta.confirmation
-      }
-    }),
-    buildRecord({
-      source: "signal-engine",
-      coin,
-      timestamp,
-      kind: "hurst",
-      direction: "neutral",
-      strength: signals.hurst.confidence,
-      label: signals.hurst.regime,
-      referencePrice,
-      metadata: {
-        value: signals.hurst.value,
-        confidence: signals.hurst.confidence
-      }
-    }),
-    buildRecord({
-      source: "signal-engine",
-      coin,
-      timestamp,
-      kind: "entryGeometry",
-      direction: signals.entryGeometry.directionBias,
-      strength: Math.abs(signals.entryGeometry.stretchZEquivalent) / 3,
-      label: signals.entryGeometry.entryQuality,
-      referencePrice,
-      metadata: {
-        stretch: signals.entryGeometry.stretchZEquivalent,
-        atrDislocation: signals.entryGeometry.atrDislocation
-      }
-    })
-  ];
-}
-function buildRecord(input) {
-  return {
-    ...input,
-    id: buildTrackedSignalId(input)
-  };
-}
-function shouldTrackRecord(record, existing) {
-  const previous = [...existing].reverse().find((item) => item.coin === record.coin && item.kind === record.kind);
-  if (!previous) {
-    return true;
-  }
-  if (record.timestamp - previous.timestamp >= TRACKER_DEDUPE_WINDOW_MS) {
-    return true;
-  }
-  return previous.direction !== record.direction || previous.label !== record.label || strengthBucket(previous.strength) !== strengthBucket(record.strength);
-}
-function scoreDirection(direction, returnPct) {
-  if (direction === "neutral") {
-    return null;
-  }
-  if (direction === "long") {
-    return returnPct > 0;
-  }
-  return returnPct < 0;
-}
-function directionalFromNumber(value) {
-  if (value > 0.1) return "long";
-  if (value < -0.1) return "short";
-  return "neutral";
-}
-function emptySignalOutcome(window) {
-  return {
-    recordId: "",
-    // will be set by caller
-    window,
-    resolvedAt: null,
-    futurePrice: null,
-    returnPct: null,
-    correct: null
-  };
-}
-
-// src/signals/trackerStats.ts
-var SIGNAL_KIND_LABELS = {
-  decision: "Decision",
-  composite: "Composite",
-  zScore: "Z-Score",
-  funding: "Funding",
-  oiDelta: "OI Delta",
-  hurst: "Regime",
-  entryGeometry: "Entry Geometry"
-};
-var WINDOWS = ["4h", "24h", "72h"];
-function buildWindowMetrics(recordIds, outcomes) {
-  const idSet = new Set(recordIds);
-  return WINDOWS.reduce((acc, window) => {
-    const windowOutcomes = outcomes.filter((outcome) => outcome.window === window && idSet.has(outcome.recordId));
-    const scored = windowOutcomes.filter((outcome) => outcome.correct !== null);
-    const correctSize = scored.filter((outcome) => outcome.correct === true).length;
-    const returns = scored.map((outcome) => outcome.returnPct).filter((value) => value !== null);
-    acc[window] = {
-      sampleSize: scored.length,
-      resolvedSize: windowOutcomes.filter((outcome) => outcome.resolvedAt !== null).length,
-      correctSize,
-      hitRate: scored.length > 0 ? correctSize / scored.length : null,
-      avgReturnPct: returns.length > 0 ? returns.reduce((sum, value) => sum + value, 0) / returns.length : null
-    };
-    return acc;
-  }, {});
-}
-function buildLatestResolved(recordId, window, correct, returnPct, resolvedAt, records) {
-  const record = records.find((item) => item.id === recordId);
-  if (!record) {
-    return null;
-  }
-  return {
-    kind: record.kind,
-    label: SIGNAL_KIND_LABELS[record.kind],
-    coin: record.coin,
-    window,
-    correct,
-    returnPct,
-    resolvedAt
-  };
-}
-function computeTrackerStats(records, outcomes) {
-  const byKind = Object.keys(SIGNAL_KIND_LABELS).map((kind) => {
-    const typedKind = kind;
-    const kindRecords = records.filter((record) => record.kind === typedKind);
-    return {
-      kind: typedKind,
-      label: SIGNAL_KIND_LABELS[typedKind],
-      totalSignals: kindRecords.length,
-      windows: buildWindowMetrics(kindRecords.map((record) => record.id), outcomes)
-    };
-  });
-  const totalSignals = records.length;
-  const totalResolved = outcomes.filter((outcome) => outcome.resolvedAt !== null).length;
-  const overallByWindow = buildWindowMetrics(records.map((record) => record.id), outcomes);
-  const bestKind24h = [...byKind].filter((item) => item.windows["24h"].sampleSize > 0 && item.windows["24h"].hitRate !== null).sort((a, b) => {
-    const delta = (b.windows["24h"].hitRate ?? -1) - (a.windows["24h"].hitRate ?? -1);
-    if (delta !== 0) return delta;
-    return b.windows["24h"].sampleSize - a.windows["24h"].sampleSize;
-  })[0] ?? null;
-  const latestResolved = [...outcomes].filter((outcome) => outcome.resolvedAt !== null && outcome.correct !== null).sort((a, b) => (b.resolvedAt ?? 0) - (a.resolvedAt ?? 0))[0];
-  return {
-    totalSignals,
-    totalResolved,
-    overallByWindow,
-    byKind,
-    bestKind24h,
-    latestResolved: latestResolved ? buildLatestResolved(latestResolved.recordId, latestResolved.window, latestResolved.correct, latestResolved.returnPct, latestResolved.resolvedAt, records) : null
-  };
-}
 export {
   SETUP_WINDOWS,
-  SIGNAL_KIND_LABELS,
   TRACKED_COINS,
-  TRACKER_WINDOWS,
   buildIndicatorStateRecords,
   buildObservatorySnapshot,
   buildSetupId,
-  buildTrackedRecords,
   computeATR,
   computeComposite,
   computeEntryGeometry,
@@ -3317,16 +3078,11 @@ export {
   computeSignalsAtTime,
   computeSuggestedPositionComposition,
   computeSuggestedSetup,
-  computeTrackerStats,
   computeZScore,
   deriveCompositionRiskStatus,
-  directionalFromNumber,
   emptyOutcome,
-  emptySignalOutcome,
   generateBackfillTimestamps,
   parseCandle,
   resolveSetupWindow,
-  scoreDirection,
-  shouldTrackRecord,
   summarizeCoverage
 };

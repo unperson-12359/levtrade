@@ -27,7 +27,7 @@ The gate script requires the signoff file to include:
   - `Automated: npm run test:e2e:critical`
   - `Manual: Responsive matrix`
   - `Manual: 10+ minute production soak`
-  - `Manual: Trust source verification`
+  - `Manual: Live shell continuity verification`
 
 ## Critical E2E scope
 
@@ -41,4 +41,4 @@ The gate script requires the signoff file to include:
 
 ## Manual verification intent
 
-- `Trust source verification` means validating current data-source and fallback messaging for the observatory, not the removed dashboard-era setup workflow.
+- `Live shell continuity verification` means confirming the observatory shell stays readable through refresh, route changes, and transient network interruptions without surfacing retired setup/tracker architecture.

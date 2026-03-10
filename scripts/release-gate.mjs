@@ -42,7 +42,7 @@ function verifySignoff(path) {
     /- \[x\] Automated:\s*`?npm run test:e2e:critical`?/i,
     /- \[x\] Manual:\s*Responsive matrix/i,
     /- \[x\] Manual:\s*10\+ minute production soak/i,
-    /- \[x\] Manual:\s*Trust source verification/i,
+    /- \[x\] Manual:\s*Live shell continuity verification/i,
   ]
 
   for (const check of requiredChecks) {

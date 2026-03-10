@@ -5,7 +5,7 @@ This checklist is the release contract for the live observatory product.
 ## Product truth
 - The active product is the observatory shell mounted from `src/App.tsx`.
 - Production parity means the live observatory behaves the same in browser, Vercel, and the generated API bundle.
-- Legacy setup/tracker/collector infrastructure is not part of the observatory release gate unless the current mounted app depends on it.
+- Legacy setup/tracker/collector infrastructure is not part of the observatory release gate.
 
 ## Required release surfaces
 - `src/components/observatory/*`
@@ -26,9 +26,6 @@ This checklist is the release contract for the live observatory product.
 - `observatory_indicator_states`
   - planned persistence layer for per-bar indicator booleans
   - not required for the current live shell to render
-- legacy setup/tracker/collector tables and APIs
-  - not required for the observatory release gate
-  - review separately before any deletion or migration
 
 ## Release build steps
 
@@ -54,4 +51,4 @@ npm.cmd run test:e2e:critical
 
 ## Known deferred work
 - bar-close writes into `observatory_indicator_states` are not implemented yet
-- the legacy setup/tracker/collector stack still exists in the repo and should not be treated as the live observatory contract
+- replay/backfill tooling for `observatory_indicator_states` is still missing

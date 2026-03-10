@@ -1,13 +1,11 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { createMarketDataSlice, type MarketDataSlice } from './marketDataSlice'
-import { createSetupSlice, type SetupSlice } from './setupSlice'
 import { createSignalsSlice, type SignalsSlice } from './signalsSlice'
-import { createTrackerSlice, type TrackerSlice } from './trackerSlice'
 import { createUISlice, type UISlice } from './uiSlice'
 import { createContextSlice, type ContextSlice } from './contextSlice'
 
-export type AppStore = MarketDataSlice & SignalsSlice & SetupSlice & TrackerSlice & UISlice & ContextSlice
+export type AppStore = MarketDataSlice & SignalsSlice & UISlice & ContextSlice
 
 // Throttle-with-trailing localStorage writes.
 // Trailing debounce (2s) coalesces rapid set() bursts.
@@ -64,8 +62,6 @@ export const useStore = create<AppStore>()(
     (...a) => ({
       ...createMarketDataSlice(...a),
       ...createSignalsSlice(...a),
-      ...createSetupSlice(...a),
-      ...createTrackerSlice(...a),
       ...createUISlice(...a),
       ...createContextSlice(...a),
     }),
@@ -77,42 +73,28 @@ export const useStore = create<AppStore>()(
         selectedCoin: state.selectedCoin,
         selectedInterval: state.selectedInterval,
         riskInputs: state.riskInputs,
-        riskInputsLocked: state.riskInputsLocked,
-        localTrackedSetups: state.localTrackedSetups,
-        trackedSignals: state.trackedSignals,
-        trackedOutcomes: state.trackedOutcomes,
-        trackerLastRunAt: state.trackerLastRunAt,
-        riskInputsUpdatedAt: state.riskInputsUpdatedAt,
         lastSignalComputedAt: state.lastSignalComputedAt,
       }),
       merge: (persistedState, currentState) => {
-        const persisted = persistedState as Partial<AppStore> & { trackedSetups?: unknown[] }
+        const persisted = persistedState as Partial<AppStore>
         const merged = { ...currentState, ...persisted }
+
         if (merged.selectedInterval !== '4h' && merged.selectedInterval !== '1d') {
           merged.selectedInterval = '4h'
         }
         if (merged.riskInputs && merged.riskInputs.leverage > 40) {
           merged.riskInputs = { ...merged.riskInputs, leverage: 40 }
         }
-        // Close overlay panels on refresh so dashboard is always the landing
+
+        // Close overlay panels on refresh so the observatory remains the landing surface.
         if (merged.expandedSections) {
           merged.expandedSections = { ...merged.expandedSections }
           delete merged.expandedSections['analytics']
           delete merged.expandedSections['how-it-works']
           delete merged.expandedSections['menu']
         }
-        // Migrate legacy trackedSetups → localTrackedSetups
-        if (persisted.trackedSetups && Array.isArray(persisted.trackedSetups) && persisted.trackedSetups.length > 0) {
-          merged.localTrackedSetups = persisted.trackedSetups as AppStore['localTrackedSetups']
-        }
-        // Server setups are never persisted — always start empty, hydrated from server
-        merged.serverTrackedSetups = []
+
         merged.runtimeDiagnostics = []
-        merged.canonicalFreshness = 'stale'
-        merged.signalAccuracyFreshness = 'stale'
-        merged.collectorFreshness = 'stale'
-        merged.eventStreamStatus = 'idle'
-        merged.executionEvents = []
         return merged as AppStore
       },
     },

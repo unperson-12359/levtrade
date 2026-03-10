@@ -37,35 +37,17 @@ This map reflects the current mounted product: the live observatory shell.
 - Minimal persistence schema for future per-bar indicator on/off writes.
 - This is the observatory-specific storage path going forward.
 
-## Legacy architecture still present
+## Removed legacy architecture
 
-These areas are not part of the mounted observatory product, but still exist in the repo:
+The old setup/tracker/collector product surfaces and APIs were removed from the mounted app and the repo:
 
-### `src/store/setupSlice.ts`
-- Legacy setup-history state and settlement path.
-
-### `src/store/trackerSlice.ts`
-- Legacy tracked-signal history and outcome path.
-
-### `api/server-setups.ts`
-- Canonical setup-history API.
-
-### `api/signal-accuracy.ts`
-- Canonical tracked-signal accuracy API.
-
-### `api/collector-heartbeat.ts`
-- Collector liveness API.
-
-### `src/server/collector/runCollector.ts`
-- Legacy collector runtime for setup/tracker/canonical analytics.
-
-### `supabase/server_setups.sql`
-### `supabase/tracked_signals.sql`
-### `supabase/collector_heartbeat.sql`
-- Legacy schema for the older canonical setup/tracker architecture.
+- setup/tracker store slices
+- collector and canonical setup APIs
+- unmounted setup/risk/tracker/decision workflow components
+- collector scripts and Supabase schema for the retired setup-history architecture
 
 ## Cleanup guidance
 
-- Do not treat legacy setup/tracker/collector code as part of the active observatory product unless a live import path proves otherwise.
-- Prefer isolating or removing legacy runtime dependencies from the observatory before deleting deeper legacy code.
 - Keep release decisions aligned to the mounted observatory shell, not to the older setup-first architecture.
+- Treat `observatory_indicator_states` as the next backend expansion point instead of reintroducing setup-history infrastructure.
+- If a future internal tool needs setup/backtest workflows again, add it behind a separate boundary instead of mixing it back into the observatory runtime.

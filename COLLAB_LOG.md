@@ -4233,3 +4233,36 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - `observatory_indicator_states` still lacks a writer/backfill path; the review only confirmed the target schema and product direction.
 - Remaining incomplete work:
   - Legacy setup/tracker/collector APIs and slices are still present and were intentionally not deleted in this pass because they are more entangled than the runtime/dead-file cleanup completed here.
+## 2026-03-09 - Codex GPT-5
+- Goal: Finish the observatory-first cleanup by deleting the remaining setup/tracker/collector architecture, simplifying the store and API surface, and preserving live observatory continuity through interval switches.
+- Files changed:
+  - `package.json`
+  - `api/_signals.d.mts`
+  - `api/_signals.mjs`
+  - `audits/observatory-first-codebase-review-2026-03-09.md`
+  - `docs/engineering-map.md`
+  - `docs/production-parity-checklist.md`
+  - `docs/release-gate.md`
+  - `docs/release-signoff.md`
+  - `scripts/release-gate.mjs`
+  - `src/components/observatory/IndicatorClusterLanes.tsx`
+  - `src/contracts/v1.ts`
+  - `src/hooks/useDataManager.ts`
+  - `src/services/api.ts`
+  - `src/signals/api-entry.ts`
+  - `src/store/index.ts`
+  - `src/store/signalsSlice.ts`
+  - `src/store/uiSlice.ts`
+  - `src/types/index.ts`
+  - `src/utils/identity.ts`
+  - `tests/run-logic-tests.mjs`
+  - removed legacy setup/tracker/collector APIs, scripts, store slices, unmounted workflow components, and legacy Supabase schema
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - The remaining major backend gap is still the real writer/backfill path for `observatory_indicator_states`.
+  - Some old CSS selectors for deleted workflow surfaces still exist in `src/index.css`; they are dead styling only and no longer affect the mounted observatory path.
+- Remaining incomplete work:
+  - No production bar-close persistence worker has been implemented yet for `observatory_indicator_states`.

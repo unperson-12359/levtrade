@@ -1,14 +1,12 @@
 // Type declarations for pre-bundled _signals.mjs (generated from src/signals/api-entry.ts)
-// Only declares symbols actually used by API functions — not the full barrel.
 
 import type { AssetSignals, RiskStatus } from '../src/types/signals'
-import type { Candle, FundingHistoryEntry, RawCandle, TrackedCoin } from '../src/types/market'
-import type { ObservatorySnapshot } from '../src/observatory/types'
+import type { Candle, FundingHistoryEntry, OISnapshot, RawCandle, TrackedCoin } from '../src/types/market'
+import type { ObservatorySnapshot, IndicatorStateRecord } from '../src/observatory/types'
 import type { SuggestedPositionComposition } from '../src/types/position'
 import type { SetupOutcome, SetupWindow, SetupCoverageStatus, SuggestedSetup } from '../src/types/setup'
-import type { TrackedSignalRecord, TrackedSignalOutcome, TrackerStats } from '../src/types/tracker'
 
-export type { FundingHistoryEntry, RawCandle, TrackedCoin } from '../src/types/market'
+export type { FundingHistoryEntry, OISnapshot, RawCandle, TrackedCoin } from '../src/types/market'
 export const TRACKED_COINS: readonly TrackedCoin[]
 export function parseCandle(raw: RawCandle): Candle
 
@@ -22,10 +20,25 @@ export function summarizeCoverage(
   current: SetupCoverageStatus | undefined,
 ): SetupCoverageStatus
 
-export function computeTrackerStats(
-  records: TrackedSignalRecord[],
-  outcomes: TrackedSignalOutcome[],
-): TrackerStats
+export function computeSetupMetrics(
+  signals: AssetSignals,
+  options?: { confidenceScale?: number; confidenceCap?: number },
+): {
+  confidence: number
+  confidenceTier: SuggestedSetup['confidenceTier']
+  timeframe: SuggestedSetup['timeframe']
+}
+
+export function computePositionPolicy(
+  setup: SuggestedSetup,
+  mode: 'validated' | 'provisional',
+  accountSize: number,
+): {
+  leverage: number
+  marginUsd: number
+  targetRiskPct: number
+  capitalFractionCap: number
+}
 
 export function computeSuggestedPositionComposition(input: {
   coin: TrackedCoin
@@ -39,10 +52,44 @@ export function deriveCompositionRiskStatus(composition: SuggestedPositionCompos
 export function computeSignalsAtTime(
   coin: TrackedCoin,
   candles: Array<{ time: number; open: number; high: number; low: number; close: number; volume?: number; trades?: number }>,
-  fundingHistory: Array<{ time: number; rate?: number; fundingRate?: string }>,
-  oiHistory: Array<{ time: number; oi: number }>,
+  fundingHistory: FundingHistoryEntry[],
+  oiHistory: OISnapshot[],
   targetTime: number,
 ): AssetSignals | null
+
+export function computeSuggestedSetup(
+  coin: TrackedCoin,
+  signals: AssetSignals,
+  currentPrice: number,
+  overrides?: Partial<Pick<SuggestedSetup, 'generatedAt' | 'source'>>,
+): SuggestedSetup | null
+
+export function computeProvisionalSetup(
+  coin: TrackedCoin,
+  signals: AssetSignals,
+  currentPrice: number,
+  overrides?: Partial<Pick<SuggestedSetup, 'generatedAt' | 'source'>>,
+): SuggestedSetup | null
+
+export function resolveSetupWindow(
+  setup: SuggestedSetup,
+  window: SetupWindow,
+  candles: Candle[],
+  now?: number,
+): SetupOutcome | null
+
+export function computeOIDelta(
+  history: Array<{ time: number; oi: number }>,
+  closes: number[],
+): {
+  oiChangePct: number
+  priceChangePct: number
+  confirmation: boolean
+  normalizedSignal: number
+  label: string
+  color: 'green' | 'yellow' | 'red'
+  explanation: string
+}
 
 export function generateBackfillTimestamps(lastComputedAt: number, now: number, stepMs?: number): number[]
 
@@ -53,3 +100,5 @@ export function buildObservatorySnapshot(input: {
   fundingHistory: Array<{ time: number; rate: number }>
   oiHistory: Array<{ time: number; oi: number }>
 }): ObservatorySnapshot
+
+export function buildIndicatorStateRecords(snapshot: ObservatorySnapshot): IndicatorStateRecord[]
