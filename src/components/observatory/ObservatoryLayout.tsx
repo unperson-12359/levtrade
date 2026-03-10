@@ -26,6 +26,8 @@ export function ObservatoryLayout() {
   const selectCoin = useStore((state) => state.selectCoin)
   const selectedInterval = useStore((state) => state.selectedInterval)
   const setInterval = useStore((state) => state.setInterval)
+  const observatoryGuideExpanded = useStore((state) => state.observatoryGuideExpanded)
+  const toggleObservatoryGuideExpanded = useStore((state) => state.toggleObservatoryGuideExpanded)
   const connectionStatus = useStore((state) => state.connectionStatus)
   const runtimeDiagnostics = useStore((state) => state.runtimeDiagnostics)
   const prices = useStore((state) => state.prices)
@@ -501,9 +503,11 @@ export function ObservatoryLayout() {
               primaryView={primaryView}
               liveStatus={liveDisplayStatus}
               observedAt={priceContext.observedAt}
+              expanded={observatoryGuideExpanded}
               selectedClusterLabel={selectedTimelineCluster ? new Date(selectedTimelineCluster.time).toLocaleString() : 'No selection yet'}
               selectedClusterHits={selectedTimelineCluster?.totalHits ?? null}
               onOpenMethodology={openMethodology}
+              onToggleExpanded={toggleObservatoryGuideExpanded}
             />
 
             <div className={`obs-workspace ${isTimelineView ? 'obs-workspace--timeline' : ''}`}>

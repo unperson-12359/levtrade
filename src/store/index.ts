@@ -60,6 +60,7 @@ export const useStore = create<AppStore>()(
       partialize: (state) => ({
         selectedCoin: state.selectedCoin,
         selectedInterval: state.selectedInterval,
+        observatoryGuideExpanded: state.observatoryGuideExpanded,
       }),
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<AppStore>
@@ -67,6 +68,9 @@ export const useStore = create<AppStore>()(
 
         if (merged.selectedInterval !== '4h' && merged.selectedInterval !== '1d') {
           merged.selectedInterval = '4h'
+        }
+        if (typeof merged.observatoryGuideExpanded !== 'boolean') {
+          merged.observatoryGuideExpanded = false
         }
 
         merged.runtimeDiagnostics = []

@@ -4375,3 +4375,24 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - Deep dead-CSS pruning is still deferred to a CSS-only cleanup pass.
 - Remaining incomplete work:
   - Push the release-signoff docs commit after this entry.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
+- Goal: Shrink the observatory guide strip into a compact collapsed-by-default bar with an optional expanded explainer state.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `src/components/observatory/ObservatoryGuideStrip.tsx`
+  - `src/components/observatory/ObservatoryLayout.tsx`
+  - `src/index.css`
+  - `src/store/index.ts`
+  - `src/store/uiSlice.ts`
+  - `tests/e2e/critical-flows.spec.ts`
+  - `tests/run-logic-tests.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - The guide is much smaller by default, but the expanded state still uses the 4-card structure; if you want it even lighter, the next cut should reduce the expanded cards to a 2-column or single-column checklist.
+  - The guide expansion preference now persists in local storage through the Zustand store.
+- Remaining incomplete work:
+  - Changes are local only; they have not been committed or pushed in this pass.

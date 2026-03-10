@@ -14,10 +14,13 @@ export interface RuntimeDiagnostic {
 export interface UISlice {
   selectedCoin: TrackedCoin
   selectedInterval: ObservatoryCandleInterval
+  observatoryGuideExpanded: boolean
   runtimeDiagnostics: RuntimeDiagnostic[]
 
   selectCoin: (coin: TrackedCoin) => void
   setInterval: (interval: ObservatoryCandleInterval) => void
+  setObservatoryGuideExpanded: (expanded: boolean) => void
+  toggleObservatoryGuideExpanded: () => void
   pushRuntimeDiagnostic: (diagnostic: {
     source: string
     message: string
@@ -29,11 +32,17 @@ export interface UISlice {
 export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => ({
   selectedCoin: 'BTC',
   selectedInterval: '4h',
+  observatoryGuideExpanded: false,
   runtimeDiagnostics: [],
 
   selectCoin: (coin) => set({ selectedCoin: coin }),
 
   setInterval: (interval) => set({ selectedInterval: interval }),
+
+  setObservatoryGuideExpanded: (expanded) => set({ observatoryGuideExpanded: expanded }),
+
+  toggleObservatoryGuideExpanded: () =>
+    set((state) => ({ observatoryGuideExpanded: !state.observatoryGuideExpanded })),
 
   pushRuntimeDiagnostic: (diagnostic) =>
     set((state) => {
