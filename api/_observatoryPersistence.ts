@@ -31,6 +31,7 @@ interface PersistedStateRow {
   candle_time: string
   indicator_id: string
   category: IndicatorStateRecord['category']
+  rule_version: string
   is_on: boolean
 }
 
@@ -136,6 +137,7 @@ function toPersistenceRow(record: IndicatorStateRecord): PersistedStateRow {
     candle_time: new Date(record.candleTime).toISOString(),
     indicator_id: record.indicatorId,
     category: record.category,
+    rule_version: OBSERVATORY_RULESET_VERSION,
     is_on: record.isOn,
   }
 }

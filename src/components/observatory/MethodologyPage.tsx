@@ -47,7 +47,12 @@ export function MethodologyPage({
         </div>
 
         <div className="obs-methodology__cta-row">
-          <button type="button" className="obs-panel__action" onClick={onOpenObservatory}>
+          <button
+            type="button"
+            className="obs-panel__action"
+            onClick={onOpenObservatory}
+            data-testid="obs-methodology-open-observatory"
+          >
             Open live observatory
           </button>
           <button type="button" className="obs-panel__action obs-panel__action--secondary" onClick={onOpenAnalytics}>

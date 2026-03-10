@@ -19,14 +19,36 @@ verifySignoff(signoffPath)
 console.log(`Release gate passed (${verifyOnly ? 'verify-only' : 'full'} mode).`)
 
 function runCommand(file, args) {
-  const result = spawnSync(file, args, {
-    cwd: repoRoot,
-    stdio: 'inherit',
-  })
+  const result = process.platform === 'win32'
+    ? spawnSync(
+        'powershell.exe',
+        ['-NoProfile', '-Command', buildPowerShellCommand(file, args)],
+        {
+          cwd: repoRoot,
+          stdio: 'inherit',
+        },
+      )
+    : spawnSync(file, args, {
+        cwd: repoRoot,
+        stdio: 'inherit',
+      })
+
+  if (result.error) {
+    fail(`Unable to run ${file} ${args.join(' ')}: ${result.error.message}`)
+  }
 
   if (result.status !== 0) {
-    process.exit(result.status ?? 1)
+    fail(`${file} ${args.join(' ')} exited with status ${result.status ?? 1}.`)
   }
+}
+
+function buildPowerShellCommand(file, args) {
+  const parts = [file, ...args].map(quotePowerShell)
+  return `& ${parts.join(' ')}`
+}
+
+function quotePowerShell(value) {
+  return `'${String(value).replace(/'/g, "''")}'`
 }
 
 function verifySignoff(path) {

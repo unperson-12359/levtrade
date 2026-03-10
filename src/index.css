@@ -7155,15 +7155,16 @@ button {
     grid-template-rows: auto minmax(0, 1fr);
   }
 
-  .obs-panel--heatmap-rail {
-    display: grid;
-  }
+.obs-panel--heatmap-rail {
+  display: grid;
+  animation: none;
+}
 
-  .obs-panel--heatmap-rail .obs-cluster {
-    display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr);
-    height: 100%;
-  }
+.obs-panel--heatmap-rail .obs-cluster {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: 100%;
+}
 }
 
 /* Heatmap spacing optimization */
@@ -7252,10 +7253,18 @@ button {
     gap: 0.14rem;
   }
 
-  .obs-panel--heatmap-rail .obs-cluster__cell {
-    min-height: 20px;
-    font-size: 0.5rem;
-  }
+.obs-panel--heatmap-rail .obs-cluster__cell {
+  min-height: 20px;
+  font-size: 0.5rem;
+  transition: background var(--obs-duration-fast) var(--obs-ease-standard),
+    border-color var(--obs-duration-fast) var(--obs-ease-standard),
+    box-shadow var(--obs-duration-fast) var(--obs-ease-standard),
+    opacity var(--obs-duration-fast) var(--obs-ease-standard);
+}
+
+.obs-panel--heatmap-rail .obs-cluster__cell:hover {
+  transform: none;
+}
 }
 
 @media (max-width: 760px) {

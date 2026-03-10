@@ -5,9 +5,13 @@ create table if not exists observatory_indicator_states (
   candle_time timestamptz not null,
   indicator_id text not null,
   category text not null,
+  rule_version text not null default 'unknown',
   is_on boolean not null,
   created_at timestamptz not null default now()
 );
+
+alter table observatory_indicator_states
+  add column if not exists rule_version text not null default 'unknown';
 
 create index if not exists idx_observatory_indicator_states_market_bar
   on observatory_indicator_states (coin, interval, candle_time desc);

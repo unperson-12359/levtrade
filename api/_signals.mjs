@@ -1380,8 +1380,7 @@ function buildPriceContext(input) {
     lastPrice,
     change24hPct,
     intervalReturnPct,
-    observedAt: Number.isFinite(observedAtMs) ? new Date(observedAtMs).toISOString() : null,
-    updatedAt: new Date(generatedAtMs).toISOString()
+    observedAt: Number.isFinite(observedAtMs) ? new Date(observedAtMs).toISOString() : null
   };
 }
 

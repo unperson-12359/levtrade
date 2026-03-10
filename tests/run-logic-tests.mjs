@@ -191,8 +191,11 @@ function runObservatoryCleanupSourceCheck() {
     '../src/utils/colors.ts',
     '../src/utils/contextGuidance.ts',
     '../src/utils/explanations.ts',
+    '../src/utils/format.ts',
     '../src/utils/identity.ts',
     '../src/utils/oiSeries.ts',
+    '../src/utils/contextFreshness.ts',
+    '../src/utils/candleTime.ts',
     '../src/utils/setupCoverage.ts',
     '../src/types/context.ts',
     '../src/types/position.ts',
@@ -366,6 +369,7 @@ function runContractInterfaceSourceCheck() {
   const contractsSource = readFileSync(join(__dirname, '../src/contracts/v1.ts'), 'utf8')
   const observatoryApiSource = readFileSync(join(__dirname, '../api/observatory-snapshot.ts'), 'utf8')
   const analyticsApiSource = readFileSync(join(__dirname, '../api/observatory-analytics.ts'), 'utf8')
+  const priceContextSource = readFileSync(join(__dirname, '../src/observatory/priceContext.ts'), 'utf8')
   const packageSource = readFileSync(join(__dirname, '../package.json'), 'utf8')
 
   assert.match(contractsSource, /export const CONTRACT_VERSION_V1 = 'v1'/)
@@ -376,6 +380,7 @@ function runContractInterfaceSourceCheck() {
   assert.match(analyticsApiSource, /source: 'ledger'/)
   assert.match(observatoryApiSource, /contractVersion: CONTRACT_VERSION_V1/)
   assert.match(analyticsApiSource, /contractVersion: CONTRACT_VERSION_V1/)
+  assert.doesNotMatch(priceContextSource, /updatedAt/)
   assert.match(packageSource, /"build:signals"/)
 }
 
@@ -430,14 +435,17 @@ function runObservatoryPersistenceSourceCheck() {
   assert.match(persistenceHelperSource, /CRON_SECRET/)
   assert.match(persistenceHelperSource, /buildClosedIndicatorStateRecords/)
   assert.match(persistenceHelperSource, /observatory_indicator_states\?on_conflict=id/)
+  assert.match(persistenceHelperSource, /rule_version: OBSERVATORY_RULESET_VERSION/)
   assert.doesNotMatch(persistenceHelperSource, /querySecret/)
   assert.doesNotMatch(observatoryApiSource, /persistObservatoryLookback|observatory_indicator_states/)
   assert.match(vercelSource, /"path": "\/api\/persist-observatory-states"/)
   assert.match(vercelSource, /"schedule": "15 2 \* \* \*"/)
   assert.match(parityChecklistSource, /api\/persist-observatory-states\.ts/)
   assert.match(parityChecklistSource, /api\/backfill-observatory-states\.ts/)
+  assert.match(parityChecklistSource, /rule_version/)
   assert.match(engineeringMapSource, /Secret-gated cron writer/)
   assert.match(engineeringMapSource, /Secret-gated manual backfill route/)
+  assert.match(engineeringMapSource, /rule_version/)
 }
 
 function runObservatoryAnalyticsSourceCheck() {

@@ -3,7 +3,6 @@ export interface PriceContext {
   change24hPct: number | null
   intervalReturnPct: number | null
   observedAt: string | null
-  updatedAt: string
 }
 
 interface PriceContextCandle {
@@ -44,7 +43,5 @@ export function buildPriceContext(input: {
     change24hPct,
     intervalReturnPct,
     observedAt: Number.isFinite(observedAtMs) ? new Date(observedAtMs as number).toISOString() : null,
-    updatedAt: new Date(generatedAtMs).toISOString(),
   }
 }
-

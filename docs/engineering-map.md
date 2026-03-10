@@ -38,6 +38,7 @@ This map reflects the current mounted product: the live observatory shell.
 ### `supabase/observatory_indicator_states.sql`
 - Minimal persistence schema for per-bar indicator on/off writes.
 - This is now the observatory-specific historical ledger.
+- The ledger now records `rule_version` so future indicator-rules changes can be traced to the rows they produced.
 
 ### `api/persist-observatory-states.ts`
 - Secret-gated cron writer for `observatory_indicator_states`.

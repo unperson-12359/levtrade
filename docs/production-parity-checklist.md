@@ -35,6 +35,7 @@ This checklist is the release contract for the live observatory product.
 ## Active persistence infrastructure
 - `observatory_indicator_states`
   - server-written boolean ledger for closed-bar indicator states
+  - each row should carry the active observatory `rule_version`
   - powered by `api/persist-observatory-states.ts` for daily writes
   - backfilled by `api/backfill-observatory-states.ts`
   - not required for the current live shell to render
