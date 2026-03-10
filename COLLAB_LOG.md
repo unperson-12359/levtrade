@@ -4494,3 +4494,20 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - The methodology round-trip in mocked E2E can still reset seeded store state, so the test now re-seeds defensively; if that behavior ever appears outside mock mode it should be investigated as a real app bug.
 - Remaining incomplete work:
   - Changes are local only; they have not been committed or pushed in this pass.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
+- Goal: Roll back the unsafe cross-boundary Hyperliquid helper extraction after it regressed the live snapshot route, while keeping the interval-aware cache cleanup intact.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `api/_hyperliquid.ts`
+  - `src/services/api.ts`
+  - `src/shared/hyperliquid.ts`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `node tests/run-logic-tests.mjs` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - The browser/server Hyperliquid helper duplication is still unresolved and should be retried later with a safer shared module layout that is proven in production before release.
+  - The previously identified dead CSS residue still remains outside the risk/perf blocks removed in the earlier batch.
+- Remaining incomplete work:
+  - The fix is local only until it is committed, pushed, and production-smoked.
