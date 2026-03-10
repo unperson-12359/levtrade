@@ -4166,3 +4166,70 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - Methodology now explains live reading and shell status, but analytics and older setup-oriented surfaces elsewhere in the repo still need a separate demotion pass if they are to stop leaking the old product model.
 - Remaining incomplete work:
   - No backend transport rewrite was done in this pass; SSE/polling/collector behavior is unchanged beyond being less visible in the observatory UX.
+## 2026-03-09 - Codex GPT-5
+- Goal: Rebuild the observatory around price-derived indicator states by removing the Flow lane, generating per-bar boolean state records, and aligning analytics/reporting with the new state model.
+- Files changed:
+  - `src/observatory/types.ts`
+  - `src/observatory/engine.ts`
+  - `src/signals/api-entry.ts`
+  - `src/hooks/useIndicatorObservatory.ts`
+  - `api/observatory-snapshot.ts`
+  - `src/components/observatory/ObservatoryLayout.tsx`
+  - `src/components/observatory/IndicatorClusterLanes.tsx`
+  - `src/components/observatory/CandleReportPage.tsx`
+  - `src/components/observatory/AnalyticsPage.tsx`
+  - `src/components/observatory/PoolMap.tsx`
+  - `src/components/observatory/MethodologyPage.tsx`
+  - `src/components/observatory/methodologyContent.ts`
+  - `tests/run-logic-tests.mjs`
+  - `tests/e2e/critical-flows.spec.ts`
+  - `supabase/observatory_indicator_states.sql`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - This pass simplifies the observatory to price-derived categories and adds a minimal boolean persistence contract, but it does not yet wire a production writer that inserts `observatory_indicator_states` rows on bar close.
+  - The legacy setup/collector subsystem still exists elsewhere in the repo and should be isolated further so it stops implying a competing product architecture.
+  - The server snapshot route is now price-only, but live ingestion is still browser/store driven rather than a dedicated bar-close persistence worker.
+- Remaining incomplete work:
+  - No database write path or replay/backfill job for `observatory_indicator_states` has been implemented yet.
+## 2026-03-09 - Codex GPT-5 (generated artifact)
+- Goal: Refresh the bundled serverless signal artifact after the price-only observatory refactor.
+- Files changed:
+  - `api/_signals.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+- Follow-up risks / next steps:
+  - The generated bundle now matches the refactored observatory source and must ship with the source changes.
+- Remaining incomplete work:
+  - None beyond the unresolved observatory state-writer work already noted in the previous entry.
+## 2026-03-09 - Codex GPT-5
+- Goal: Execute the observatory-first codebase review by replacing the legacy background runtime with a live-only manager, removing isolated dead files, and rewriting docs/tests around the mounted observatory product.
+- Files changed:
+  - `src/services/dataManager.ts`
+  - `src/hooks/useDataManager.ts`
+  - `src/store/uiSlice.ts`
+  - `src/store/index.ts`
+  - `src/hooks/useSystemHealth.ts`
+  - `src/components/analytics/PerformanceDashboard.tsx`
+  - `src/components/predictions/LiveSetupsBanner.tsx`
+  - `src/components/setup/SetupHistory.tsx`
+  - `src/hooks/useLiveSetups.ts`
+  - `src/hooks/useSetupHistorySource.ts`
+  - `src/hooks/useSetupStats.ts`
+  - `docs/engineering-map.md`
+  - `docs/production-parity-checklist.md`
+  - `audits/observatory-first-codebase-review-2026-03-09.md`
+  - `tests/run-logic-tests.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - The mounted observatory no longer executes setup-history sync, collector-heartbeat polling, execution-event ingestion, or funding/OI hydration in the background, but those legacy APIs and store slices still exist elsewhere in the repo.
+  - The next safe removal batch is the remaining legacy setup/tracker/collector backend and any tests/docs that still treat those systems as primary product architecture.
+  - `observatory_indicator_states` still lacks a writer/backfill path; the review only confirmed the target schema and product direction.
+- Remaining incomplete work:
+  - Legacy setup/tracker/collector APIs and slices are still present and were intentionally not deleted in this pass because they are more entangled than the runtime/dead-file cleanup completed here.

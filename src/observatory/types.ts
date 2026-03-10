@@ -5,7 +5,6 @@ export type IndicatorCategory =
   | 'Momentum'
   | 'Volatility'
   | 'Volume'
-  | 'Flow'
   | 'Structure'
 
 export type IndicatorState = 'high' | 'low' | 'neutral'
@@ -103,6 +102,23 @@ export interface CandleHitCluster {
   laneCounts: Partial<Record<IndicatorCategory, number>>
 }
 
+export interface IndicatorBarState {
+  time: number
+  activeCount: number
+  laneCounts: Partial<Record<IndicatorCategory, number>>
+  activeIndicatorIds: string[]
+}
+
+export interface IndicatorStateRecord {
+  id: string
+  coin: TrackedCoin
+  interval: '1h' | '4h' | '1d'
+  candleTime: number
+  indicatorId: string
+  category: IndicatorCategory
+  isOn: boolean
+}
+
 export interface ObservatorySnapshot {
   coin: TrackedCoin
   interval: '1h' | '4h' | '1d'
@@ -111,5 +127,6 @@ export interface ObservatorySnapshot {
   indicators: IndicatorMetric[]
   edges: CorrelationEdge[]
   timeline: CandleHitCluster[]
+  barStates: IndicatorBarState[]
   health: IndicatorHealth
 }

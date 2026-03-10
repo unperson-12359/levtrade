@@ -1,37 +1,11 @@
-import { TRACKED_COINS, parseCandle, type AssetContext } from '../types/market'
-import {
-  fetchAllMids,
-  fetchMetaAndAssetCtxs,
-  fetchCandles,
-  fetchFundingHistory,
-  fetchFearGreed,
-  fetchCoinGeckoGlobal,
-  fetchBinanceFundingRate,
-  fetchBinanceOpenInterest,
-  fetchCollectorHeartbeatStatus,
-  fetchExecutionEvents,
-  fetchServerSetups,
-  uploadLocalSetups,
-} from './api'
-import { HyperliquidWS } from './websocket'
-import { computeSignalsAtTime, generateBackfillTimestamps } from '../signals/backfill'
-import { computeSuggestedSetup } from '../signals/setup'
-import { INTERVAL_CONFIG } from '../config/intervals'
 import type { StoreApi } from 'zustand'
+import { POLL_INTERVAL_MS } from '../config/constants'
+import { INTERVAL_CONFIG } from '../config/intervals'
 import type { AppStore } from '../store'
-import type { ExecutionEventV1, FreshnessStatusV1 } from '../contracts/v1'
+import { TRACKED_COINS, parseCandle, type TrackedCoin } from '../types/market'
+import { fetchAllMids, fetchCandles } from './api'
+import { HyperliquidWS } from './websocket'
 
-import { POLL_INTERVAL_MS, SETUP_RESOLUTION_INTERVAL, SETUP_RESOLUTION_LOOKBACK_MS } from '../config/constants'
-import { buildSetupId } from '../utils/identity'
-import type { TrackedCoin } from '../types/market'
-
-const FEAR_GREED_REFRESH_MS = 15 * 60 * 1000
-const CRYPTO_MACRO_REFRESH_MS = 5 * 60 * 1000
-const BINANCE_CONTEXT_REFRESH_MS = 2 * 60 * 1000
-const COLLECTOR_HEARTBEAT_REFRESH_MS = 2 * 60 * 1000
-const SERVER_SETUP_REFRESH_MS = 5 * 60 * 1000
-const EVENT_POLLING_REFRESH_MS = 20 * 1000
-const EVENT_RECONCILIATION_REFRESH_MS = 2 * 60 * 1000
 const NETWORK_FETCH_CONCURRENCY = 2
 const NETWORK_REQUEST_GAP_MS = 80
 
@@ -43,18 +17,6 @@ export class DataManager {
   private pollStopped = false
   private unsubscribers: (() => void)[] = []
   private initialized = false
-  private contextRefreshing = false
-  private serverSetupRefreshing = false
-  private setupSyncInFlight = false
-  private pendingSetupUploadIds = new Set<string>()
-  private lastServerSetupFetchAt: string | null = null
-  private lastServerSetupRefreshAttemptAt = 0
-  private lastCollectorHeartbeatRefreshAttemptAt = 0
-  private bootstrapBackfillInFlight = false
-  private eventSource: EventSource | null = null
-  private eventPollingTimer: ReturnType<typeof setTimeout> | null = null
-  private eventPollingInFlight = false
-  private eventReconcileTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(store: StoreApi<AppStore>) {
     this.store = store
@@ -85,14 +47,13 @@ export class DataManager {
   async initialize(): Promise<void> {
     if (this.initialized) return
     this.initialized = true
+    this.pollStopped = false
 
-    // Connect WebSocket first for real-time prices
     this.ws.onStatusChange((status) => {
       this.store.getState().setConnectionStatus(status)
     })
     this.ws.connect()
 
-    // Subscribe to real-time price updates
     const unsub = this.ws.subscribe({ type: 'allMids' }, (data) => {
       const mids = (data as { mids?: Record<string, string> })?.mids
       if (mids) {
@@ -100,105 +61,25 @@ export class DataManager {
       }
     })
     this.unsubscribers.push(unsub)
-    this.startExecutionEventFeed()
 
-    // Fetch initial data in parallel
     try {
       const selectedCoin = this.store.getState().selectedCoin
       const remainingCoins = TRACKED_COINS.filter((coin) => coin !== selectedCoin)
       await Promise.all([
-        this.fetchInitialData(),
+        this.refreshPrices(),
         this.fetchAllCandles([selectedCoin]),
-        this.fetchAllFundingHistory([selectedCoin]),
       ])
-      this.runCoreSignalPipeline()
-      void this.fetchServerSetupHistory()
-      void this.refreshCollectorHeartbeatIfNeeded(Date.now(), true)
-
-      // Fetch external context (non-blocking — failures don't affect core data)
-      void this.fetchAllExternalContext().catch((error) => {
-        this.reportRuntimeIssue('external-context.bootstrap', error, 'Failed to hydrate external context on startup')
-      })
-      void this.hydrateRemainingCoins(remainingCoins)
-      void this.runDeferredStartupBackfills()
-    } catch (err) {
-      const msg = this.reportRuntimeIssue('initialize', err, 'Failed to fetch initial data')
-      this.store.getState().addError(msg)
-    }
-
-    // Start polling for fresh funding/OI
-    this.startPolling()
-  }
-
-  private runCoreSignalPipeline(): void {
-    const state = this.store.getState()
-    state.computeAllSignals()
-    state.generateAllSetups()
-    state.trackAllDecisionSnapshots()
-    state.resolveSetupOutcomes()
-    state.pruneSetupHistory()
-    state.resolveTrackedOutcomes()
-    state.pruneTrackerHistory()
-  }
-
-  private async hydrateRemainingCoins(coins: readonly TrackedCoin[]): Promise<void> {
-    if (coins.length === 0) return
-
-    try {
-      await Promise.all([
-        this.fetchAllCandles(coins),
-        this.fetchAllFundingHistory(coins),
-      ])
-      this.runCoreSignalPipeline()
-    } catch (error) {
-      this.reportRuntimeIssue('hydrate-remaining-coins', error, 'Background coin hydration failed')
-    }
-  }
-
-  private async runDeferredStartupBackfills(): Promise<void> {
-    if (this.bootstrapBackfillInFlight) return
-
-    this.bootstrapBackfillInFlight = true
-    try {
-      await this.backfillMissedSetups()
-      await this.backfillCandlesForPendingSetups()
-      this.runCoreSignalPipeline()
-    } catch (error) {
-      this.reportRuntimeIssue('startup-backfill', error, 'Deferred startup backfill failed')
-    } finally {
-      this.bootstrapBackfillInFlight = false
-    }
-  }
-
-  private async fetchInitialData(): Promise<void> {
-    try {
-      // Fetch prices + meta
-      const [mids, [meta, assetCtxs]] = await Promise.all([
-        fetchAllMids(),
-        fetchMetaAndAssetCtxs(),
-      ])
-
-      this.store.getState().setPrices(mids)
-
-      // Map asset contexts to our tracked coins
-      const universe = meta.universe
-      for (const coin of TRACKED_COINS) {
-        const idx = universe.findIndex((u) => u.name === coin)
-        if (idx >= 0 && assetCtxs[idx]) {
-          const ctx = assetCtxs[idx]
-          this.store.getState().setAssetContext(coin, ctx)
-
-          // Store initial OI snapshot
-          const oi = parseFloat(ctx.openInterest)
-          if (isFinite(oi)) {
-            this.store.getState().appendOI(coin, Date.now(), oi)
-          }
-        }
+      if (remainingCoins.length > 0) {
+        void this.fetchAllCandles(remainingCoins).catch((error) => {
+          this.reportRuntimeIssue('hydrate-remaining-coins', error, 'Background candle hydration failed')
+        })
       }
-    } catch (err) {
-      const msg = this.reportRuntimeIssue('fetch-initial-data', err, 'Failed to fetch market data')
-      this.store.getState().addError(msg)
+    } catch (error) {
+      const message = this.reportRuntimeIssue('initialize', error, 'Failed to hydrate live observatory data')
+      this.store.getState().addError(message)
     }
+
+    this.startPolling()
   }
 
   async fetchAllCandles(coins: readonly TrackedCoin[] = TRACKED_COINS): Promise<void> {
@@ -209,511 +90,39 @@ export class DataManager {
     await runWithConcurrency(coins, NETWORK_FETCH_CONCURRENCY, async (coin) => {
       try {
         const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
-        const candles = rawCandles.map(parseCandle)
-        this.store.getState().setCandles(coin, candles)
-
-        // When display interval is 1h, reuse for resolution
-        if (this.interval === SETUP_RESOLUTION_INTERVAL) {
-          this.store.getState().setResolutionCandles(coin, candles)
-        }
-      } catch (err) {
-        const msg = this.reportRuntimeIssue(`fetch-candles:${coin}`, err, `Failed to fetch candles for ${coin}`)
-        this.store.getState().addError(msg)
-      }
-      await sleep(NETWORK_REQUEST_GAP_MS)
-    })
-
-    // When display interval is NOT 1h, separately fetch 1h candles for setup resolution
-    if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
-      await this.fetchResolutionCandles(coins)
-    }
-  }
-
-  private async fetchResolutionCandles(coins: readonly TrackedCoin[] = TRACKED_COINS): Promise<void> {
-    const now = Date.now()
-    const startTime = now - SETUP_RESOLUTION_LOOKBACK_MS
-
-    await runWithConcurrency(coins, NETWORK_FETCH_CONCURRENCY, async (coin) => {
-      try {
-        const rawCandles = await fetchCandles(coin, SETUP_RESOLUTION_INTERVAL, startTime, now)
-        const candles = rawCandles.map(parseCandle)
-        this.store.getState().setResolutionCandles(coin, candles)
-      } catch (error) {
-        this.reportRuntimeIssue(`fetch-resolution-candles:${coin}`, error, `Failed to fetch 1h resolution candles for ${coin}`)
-      }
-      await sleep(NETWORK_REQUEST_GAP_MS)
-    })
-  }
-
-  private async fetchAllFundingHistory(coins: readonly TrackedCoin[] = TRACKED_COINS): Promise<void> {
-    const now = Date.now()
-    const startTime = now - this.itvl.fundingLookbackMs
-
-    await runWithConcurrency(coins, NETWORK_FETCH_CONCURRENCY, async (coin) => {
-      try {
-        const history = await fetchFundingHistory(coin, startTime, now)
-        for (const entry of history) {
-          const rate = parseFloat(entry.fundingRate)
-          if (isFinite(rate)) {
-            this.store.getState().appendFundingRate(coin, entry.time, rate)
-          }
-        }
-      } catch (err) {
-        const msg = this.reportRuntimeIssue(`fetch-funding:${coin}`, err, `Failed to fetch funding for ${coin}`)
-        this.store.getState().addError(msg)
-      }
-      await sleep(NETWORK_REQUEST_GAP_MS)
-    })
-  }
-
-  private async fetchServerSetupHistory(): Promise<void> {
-    try {
-      const response = await fetchServerSetups(
-        this.lastServerSetupFetchAt
-          ? { updatedSince: this.lastServerSetupFetchAt }
-          : undefined,
-      )
-      this.store.getState().setCanonicalFreshness(
-        response.meta?.freshness ?? (response.setups.length > 0 ? 'fresh' : 'stale'),
-      )
-
-      if (response.fetchedAt) {
-        this.lastServerSetupFetchAt = response.fetchedAt
-      }
-
-      if (response.truncated) {
-        this.store.getState().addError(
-          `Canonical setup history is partial because the server fetch ceiling (${response.maxRowsApplied ?? response.rowCount}) was reached.`,
-        )
-      }
-
-      if (response.setups.length > 0) {
-        this.store.getState().hydrateServerSetups(response.setups)
-      }
-
-      // Auto-sync: push local-only setups to the server so all devices converge
-      void this.syncLocalSetupsToServer()
-    } catch (error) {
-      this.store.getState().setCanonicalFreshness('error')
-      this.reportRuntimeIssue('fetch-server-setups', error, 'Failed to hydrate canonical setup history')
-    }
-  }
-
-  private shouldRefreshServerSetupHistory(now: number): boolean {
-    return now - this.lastServerSetupRefreshAttemptAt >= SERVER_SETUP_REFRESH_MS
-  }
-
-  private async refreshServerSetupHistoryIfNeeded(now: number): Promise<void> {
-    if (this.serverSetupRefreshing || !this.shouldRefreshServerSetupHistory(now)) {
-      return
-    }
-
-    this.serverSetupRefreshing = true
-    this.lastServerSetupRefreshAttemptAt = now
-    try {
-      await this.fetchServerSetupHistory()
-    } finally {
-      this.serverSetupRefreshing = false
-    }
-  }
-
-  private shouldRefreshCollectorHeartbeat(now: number): boolean {
-    return now - this.lastCollectorHeartbeatRefreshAttemptAt >= COLLECTOR_HEARTBEAT_REFRESH_MS
-  }
-
-  private async refreshCollectorHeartbeatIfNeeded(now: number, force = false): Promise<void> {
-    if (!force && !this.shouldRefreshCollectorHeartbeat(now)) {
-      return
-    }
-
-    this.lastCollectorHeartbeatRefreshAttemptAt = now
-    const response = await fetchCollectorHeartbeatStatus()
-    if (response.meta?.freshness) {
-      this.store.getState().setCollectorFreshness(response.meta.freshness)
-    } else if (response.heartbeat?.status) {
-      this.store.getState().setCollectorFreshness(mapCollectorStatusToFreshness(response.heartbeat.status))
-    } else {
-      this.store.getState().setCollectorFreshness('error')
-    }
-  }
-
-  private async syncLocalSetupsToServer(): Promise<void> {
-    if (this.setupSyncInFlight) return
-
-    try {
-      this.setupSyncInFlight = true
-      const state = this.store.getState()
-      const { localTrackedSetups, serverTrackedSetups } = state
-
-      if (localTrackedSetups.length === 0) return
-
-      // Find local setups not already on the server (same dedup as useSetupHistorySource)
-      const serverIds = new Set(serverTrackedSetups.map((s) => s.id))
-      const serverKeys = new Set(serverTrackedSetups.map((s) => buildSetupId(s.setup)))
-      const localOnly = localTrackedSetups.filter(
-        (l) =>
-          l.syncEligible === true &&
-          !this.pendingSetupUploadIds.has(l.id) &&
-          !serverIds.has(l.id) &&
-          !serverKeys.has(buildSetupId(l.setup)),
-      )
-
-      if (localOnly.length === 0) return
-
-      localOnly.forEach((tracked) => this.pendingSetupUploadIds.add(tracked.id))
-      const result = await uploadLocalSetups(localOnly)
-      if (result.synced > 0) {
-        // Re-fetch server setups to hydrate the newly synced data
-        const fresh = await fetchServerSetups()
-        this.store.getState().setCanonicalFreshness(
-          fresh.meta?.freshness ?? (fresh.setups.length > 0 ? 'fresh' : 'stale'),
-        )
-        if (fresh.setups.length > 0) {
-          this.store.getState().hydrateServerSetups(fresh.setups)
-        }
-      }
-    } catch (error) {
-      this.reportRuntimeIssue('sync-local-setups', error, 'Failed to sync local setups to server')
-    } finally {
-      this.pendingSetupUploadIds.clear()
-      this.setupSyncInFlight = false
-    }
-  }
-
-  private async backfillCandlesForPendingSetups(): Promise<void> {
-    const state = this.store.getState()
-    const pendingSetups = [...state.serverTrackedSetups, ...state.localTrackedSetups].filter((tracked) =>
-      Object.values(tracked.outcomes).some((outcome) => outcome.result === 'pending'),
-    )
-
-    if (pendingSetups.length === 0) {
-      return
-    }
-
-    const oldestByCoin = new Map<(typeof TRACKED_COINS)[number], number>()
-    for (const tracked of pendingSetups) {
-      const currentOldest = oldestByCoin.get(tracked.setup.coin)
-      if (currentOldest === undefined || tracked.setup.generatedAt < currentOldest) {
-        oldestByCoin.set(tracked.setup.coin, tracked.setup.generatedAt)
-      }
-    }
-
-    for (const [coin, oldestTime] of oldestByCoin) {
-      // Fetch extended candles for the display interval
-      const existingCandles = state.candles[coin] ?? []
-      const oldestCandleTime = existingCandles.length > 0 ? existingCandles[0]!.time : Date.now()
-      if (oldestTime < oldestCandleTime) {
-        try {
-          const startTime = oldestTime - this.itvl.ms
-          const rawCandles = await fetchCandles(coin, this.interval, startTime, oldestCandleTime)
-          const candles = rawCandles.map(parseCandle)
-          if (candles.length > 0) {
-            this.store.getState().setExtendedCandles(coin, candles)
-          }
-        } catch (error) {
-          this.reportRuntimeIssue(`backfill-display-candles:${coin}`, error, `Failed display-candle backfill for ${coin}`)
-        }
-        await sleep(200)
-      }
-
-      // Always fetch 1h candles for resolution if not already 1h
-      if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
-        const resCandles = state.resolutionCandles[coin] ?? []
-        const oldestResTime = resCandles.length > 0 ? resCandles[0]!.time : Date.now()
-        if (oldestTime < oldestResTime) {
-          try {
-            const startTime = oldestTime - 3_600_000
-            const rawCandles = await fetchCandles(coin, SETUP_RESOLUTION_INTERVAL, startTime, oldestResTime)
-            const candles = rawCandles.map(parseCandle)
-            if (candles.length > 0) {
-              const merged = [...candles, ...resCandles]
-              const deduped = [...new Map(merged.map((c) => [c.time, c])).values()].sort((a, b) => a.time - b.time)
-              this.store.getState().setResolutionCandles(coin, deduped)
-            }
-          } catch (error) {
-            this.reportRuntimeIssue(`backfill-resolution-candles:${coin}`, error, `Failed resolution-candle backfill for ${coin}`)
-          }
-          await sleep(200)
-        }
-      }
-    }
-
-    this.store.getState().resolveSetupOutcomes()
-  }
-
-  private async backfillMissedSetups(): Promise<void> {
-    const state = this.store.getState()
-    const lastComputed = state.lastSignalComputedAt
-
-    // First run: nothing to backfill, just set the timestamp
-    if (lastComputed === null) {
-      return
-    }
-
-    const now = Date.now()
-    const gapPeriods = (now - lastComputed) / this.itvl.ms
-
-    // Less than 2 periods: live computation will cover it
-    if (gapPeriods < 2) {
-      return
-    }
-
-    // Fetch extended candles if gap exceeds the standard window
-    const { candleCount } = this.itvl
-    if (gapPeriods > candleCount) {
-      await this.fetchExtendedCandlesForBackfill(Math.ceil(gapPeriods) + candleCount)
-    }
-
-    // Fetch extended funding history covering the gap
-    if (gapPeriods <= 200) {
-      await this.fetchExtendedFundingForBackfill(lastComputed)
-    }
-
-    const timestamps = generateBackfillTimestamps(lastComputed, now, this.itvl.ms)
-    if (timestamps.length === 0) return
-
-    // Re-read state after fetches so we use freshly fetched data
-    const freshState = this.store.getState()
-
-    for (const coin of TRACKED_COINS) {
-      const candles = freshState.candles[coin]
-      const fundingHistory = freshState.fundingHistory[coin]
-      const oiHistory = freshState.oiHistory[coin]
-
-      for (const timestamp of timestamps) {
-        const signals = computeSignalsAtTime(coin, candles, fundingHistory, oiHistory, timestamp)
-        if (!signals) continue
-
-        // Find price at timestamp: closest candle close at or before that time
-        const priceCandle = [...candles].reverse().find((c) => c.time <= timestamp)
-        const price = priceCandle?.close
-        if (!price || !isFinite(price) || price <= 0) continue
-
-        const setup = computeSuggestedSetup(coin, signals, price, {
-          generatedAt: timestamp,
-          source: 'backfill',
-        })
-        if (setup) {
-          this.store.getState().trackSetup(setup)
-        }
-      }
-    }
-
-    this.store.getState().sortSetupsByTime()
-  }
-
-  private async fetchExtendedCandlesForBackfill(periodsNeeded: number): Promise<void> {
-    const now = Date.now()
-    const startTime = now - periodsNeeded * this.itvl.ms
-
-    for (const coin of TRACKED_COINS) {
-      try {
-        const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
-        const candles = rawCandles.map(parseCandle)
+        const candles = rawCandles.map(parseCandle).sort((left, right) => left.time - right.time)
         this.store.getState().setCandles(coin, candles)
       } catch (error) {
-        this.reportRuntimeIssue(`extended-candles-backfill:${coin}`, error, `Failed extended candle backfill for ${coin}`)
+        const message = this.reportRuntimeIssue(`fetch-candles:${coin}`, error, `Failed to fetch candles for ${coin}`)
+        this.store.getState().addError(message)
       }
-      await sleep(200)
-    }
+      await sleep(NETWORK_REQUEST_GAP_MS)
+    })
   }
 
-  private async fetchExtendedFundingForBackfill(since: number): Promise<void> {
-    for (const coin of TRACKED_COINS) {
-      try {
-        const history = await fetchFundingHistory(coin, since, Date.now())
-        for (const entry of history) {
-          const rate = parseFloat(entry.fundingRate)
-          if (isFinite(rate)) {
-            this.store.getState().appendFundingRate(coin, entry.time, rate)
-          }
-        }
-      } catch (error) {
-        this.reportRuntimeIssue(`extended-funding-backfill:${coin}`, error, `Failed funding backfill for ${coin}`)
-      }
-      await sleep(200)
-    }
-  }
-
-  private async refreshCandlesIfNeeded(coin: (typeof TRACKED_COINS)[number], now: number): Promise<void> {
-    const latestCandle = this.store.getState().candles[coin].slice(-1)[0]
-    const candleAge = latestCandle ? now - latestCandle.time : Infinity
-    const { ms, candleCount } = this.itvl
-
-    if (candleAge <= ms) {
-      return
-    }
-
-    const startTime = now - candleCount * ms
-    const rawCandles = await fetchCandles(coin, this.interval, startTime, now)
-    const candles = rawCandles.map(parseCandle)
-    this.store.getState().setCandles(coin, candles)
-    if (this.interval === SETUP_RESOLUTION_INTERVAL) {
-      this.store.getState().setResolutionCandles(coin, candles)
-    }
-  }
-
-  private async refreshResolutionCandlesIfNeeded(coin: (typeof TRACKED_COINS)[number], now: number): Promise<void> {
-    const latestCandle = this.store.getState().resolutionCandles[coin].slice(-1)[0]
-    const candleAge = latestCandle ? now - latestCandle.time : Infinity
-
-    if (candleAge <= 3_600_000) {
-      return
-    }
-
-    const startTime = now - SETUP_RESOLUTION_LOOKBACK_MS
-    const rawCandles = await fetchCandles(coin, SETUP_RESOLUTION_INTERVAL, startTime, now)
-    const candles = rawCandles.map(parseCandle)
-    this.store.getState().setResolutionCandles(coin, candles)
-  }
-
-  private startExecutionEventFeed(): void {
-    this.store.getState().setEventStreamStatus('polling')
-    this.scheduleEventPolling(0)
-
-    if (typeof EventSource === 'undefined') {
-      this.startEventReconciliationLoop()
-      return
-    }
-
-    this.connectExecutionEventSource()
-    this.startEventReconciliationLoop()
-  }
-
-  private connectExecutionEventSource(): void {
-    this.teardownEventSource()
-
+  private async refreshPrices(): Promise<void> {
     try {
-      const source = new EventSource('/api/events/stream')
-      this.eventSource = source
-
-      source.onopen = () => {
-        this.store.getState().setEventStreamStatus('connected')
-      }
-
-      source.onerror = () => {
-        this.store.getState().setEventStreamStatus('polling')
-        this.teardownEventSource()
-        this.scheduleEventPolling(1_000)
-      }
-
-      source.addEventListener('execution', (event) => {
-        const payload = parseJson((event as MessageEvent<string>).data)
-        if (!isExecutionEvent(payload)) return
-        this.ingestExecutionEvents([payload])
-      })
-
-      source.addEventListener('snapshot', (event) => {
-        const payload = parseJson((event as MessageEvent<string>).data)
-        const freshness = extractMetaFreshness(payload)
-        if (freshness) {
-          this.store.getState().setEventStreamStatus(
-            freshness === 'stale' || freshness === 'error' ? 'stale' : 'connected',
-          )
-        }
-      })
+      const mids = await fetchAllMids()
+      this.store.getState().setPrices(mids)
     } catch (error) {
-      this.reportRuntimeIssue('event-feed.sse-connect', error, 'Failed to initialize execution event stream')
-      this.store.getState().setEventStreamStatus('polling')
-      this.scheduleEventPolling(1_000)
-    }
-  }
-
-  private startEventReconciliationLoop(): void {
-    if (this.eventReconcileTimer) return
-    this.eventReconcileTimer = setInterval(() => {
-      void this.pollExecutionEvents().catch((error) => {
-        this.reportRuntimeIssue('event-feed.reconcile', error, 'Execution event reconciliation failed')
-      })
-    }, EVENT_RECONCILIATION_REFRESH_MS)
-  }
-
-  private scheduleEventPolling(delayMs: number): void {
-    if (this.pollStopped) return
-    if (this.eventPollingTimer) {
-      clearTimeout(this.eventPollingTimer)
-      this.eventPollingTimer = null
-    }
-    this.eventPollingTimer = setTimeout(() => {
-      void this.pollExecutionEvents()
-    }, Math.max(500, delayMs))
-  }
-
-  private async pollExecutionEvents(): Promise<void> {
-    if (this.pollStopped) return
-    if (this.eventPollingInFlight) return
-
-    this.eventPollingInFlight = true
-    try {
-      const response = await fetchExecutionEvents()
-      if (response.error) {
-        this.store.getState().setEventStreamStatus('error')
-      } else if (response.meta?.freshness === 'stale' || response.meta?.freshness === 'error') {
-        this.store.getState().setEventStreamStatus('stale')
-      } else if (this.store.getState().eventStreamStatus !== 'connected') {
-        this.store.getState().setEventStreamStatus('polling')
-      }
-
-      if (response.events.length > 0) {
-        this.ingestExecutionEvents(response.events)
-      }
-    } catch (error) {
-      const message = this.reportRuntimeIssue('event-feed.poll', error, 'Execution event poll failed')
+      const message = this.reportRuntimeIssue('fetch-all-mids', error, 'Failed to refresh live prices')
       this.store.getState().addError(message)
-      this.store.getState().setEventStreamStatus('error')
-    } finally {
-      this.eventPollingInFlight = false
-      this.scheduleEventPolling(EVENT_POLLING_REFRESH_MS)
     }
   }
-
-  private ingestExecutionEvents(events: ExecutionEventV1[]): void {
-    if (events.length === 0) return
-    this.store.getState().ingestExecutionEvents(events)
-
-    for (const event of events) {
-      if (event.type === 'collector.heartbeat') {
-        const status = typeof event.details?.status === 'string' ? event.details.status : null
-        this.store.getState().setCollectorFreshness(
-          status ? mapCollectorStatusToFreshness(status) : mapLevelToFreshness(event.level),
-        )
-      }
-
-      if (event.type === 'canonical.setup-history') {
-        const nextFreshness = normalizeFreshness(event.details?.freshness)
-        this.store.getState().setCanonicalFreshness(nextFreshness ?? mapLevelToFreshness(event.level))
-      }
-
-      if (event.type === 'canonical.signal-accuracy') {
-        const nextFreshness = normalizeFreshness(event.details?.freshness)
-        this.store.getState().setSignalAccuracyFreshness(nextFreshness ?? mapLevelToFreshness(event.level))
-      }
-    }
-  }
-
-  private teardownEventSource(): void {
-    if (this.eventSource) {
-      this.eventSource.close()
-      this.eventSource = null
-    }
-  }
-
-  // ── External context fetching ───────────────────────────────────────
 
   private startPolling(): void {
     this.pollStopped = false
     this.scheduleNextPoll(POLL_INTERVAL_MS)
   }
 
-  private scheduleNextPoll(delayMs: number): void {
+  private scheduleNextPoll(delayMs = POLL_INTERVAL_MS): void {
     if (this.pollStopped) return
     if (this.pollTimer) {
       clearTimeout(this.pollTimer)
-      this.pollTimer = null
     }
     this.pollTimer = setTimeout(() => {
       void this.runPollingCycle()
-    }, Math.max(500, delayMs))
+    }, delayMs)
   }
 
   private async runPollingCycle(): Promise<void> {
@@ -724,195 +133,27 @@ export class DataManager {
     }
 
     this.pollInFlight = true
-    const startedAt = Date.now()
     try {
       await this.executePollingCycle()
-    } catch (error) {
-      const message = this.reportRuntimeIssue('polling-cycle', error, 'Polling cycle failed')
-      this.store.getState().addError(message)
     } finally {
       this.pollInFlight = false
-      const elapsed = Date.now() - startedAt
-      const nextDelay = Math.max(5_000, POLL_INTERVAL_MS - elapsed)
-      this.scheduleNextPoll(nextDelay)
+      if (!this.pollStopped) {
+        this.scheduleNextPoll(POLL_INTERVAL_MS)
+      }
     }
   }
 
   private async executePollingCycle(): Promise<void> {
-    const now = Date.now()
-    const [, [meta, assetCtxs]] = await Promise.all([
-      fetchAllMids().then((mids) => this.store.getState().setPrices(mids)),
-      fetchMetaAndAssetCtxs(),
-    ])
+    const selectedCoin = this.store.getState().selectedCoin
+    const remainingCoins = TRACKED_COINS.filter((coin) => coin !== selectedCoin)
 
-    const universe = meta.universe
-    const assetByCoin = mapAssetContextsByCoin(universe, assetCtxs)
-    await runWithConcurrency(TRACKED_COINS, NETWORK_FETCH_CONCURRENCY, async (coin) => {
-      try {
-        const ctx = assetByCoin[coin]
-        if (ctx) {
-          this.store.getState().setAssetContext(coin, ctx)
-
-          const oi = parseFloat(ctx.openInterest)
-          if (isFinite(oi)) {
-            this.store.getState().appendOI(coin, now, oi)
-          }
-
-          const fr = parseFloat(ctx.funding)
-          if (isFinite(fr)) {
-            this.store.getState().appendFundingRate(coin, now, fr)
-          }
-        }
-
-        await this.refreshCandlesIfNeeded(coin, now)
-        if (this.interval !== SETUP_RESOLUTION_INTERVAL) {
-          await this.refreshResolutionCandlesIfNeeded(coin, now)
-        }
-      } catch (error) {
-        this.reportRuntimeIssue(`polling-coin-refresh:${coin}`, error, `Polling refresh failed for ${coin}`)
-      }
-    })
-
-    this.runCoreSignalPipeline()
-
-    void this.refreshServerSetupHistoryIfNeeded(now).catch((error) => {
-      this.reportRuntimeIssue('polling-refresh-server-setups', error, 'Failed incremental canonical setup refresh')
-    })
-    void this.refreshCollectorHeartbeatIfNeeded(now).catch((error) => {
-      this.reportRuntimeIssue('polling-refresh-collector-heartbeat', error, 'Failed collector heartbeat refresh')
-    })
-    void this.refreshExternalContextIfNeeded().catch((error) => {
-      this.reportRuntimeIssue('polling-refresh-external-context', error, 'Failed periodic external context refresh')
-    })
-  }
-
-  private async fetchFearGreedContext(): Promise<void> {
-    try {
-      const data = await fetchFearGreed()
-      this.store.getState().setFearGreed({
-        value: data.value,
-        classification: data.classification,
-        timestamp: Date.now(),
-        source: 'alternative-me',
-      })
-    } catch (error) {
-      this.reportRuntimeIssue('external-context-fear-greed', error, 'Failed Fear & Greed context fetch')
-    }
-  }
-
-  private async fetchCryptoMacroContext(): Promise<void> {
-    try {
-      const data = await fetchCoinGeckoGlobal()
-      const altSeasonBias =
-        data.btcDominance !== null && data.btcDominance >= 56
-          ? ('btc-headwind' as const)
-          : data.btcDominance !== null && data.btcDominance <= 52 && (data.marketCapChange24h ?? 0) > 0
-            ? ('alt-tailwind' as const)
-            : ('neutral' as const)
-
-      this.store.getState().setCryptoMacro({
-        btcDominance: data.btcDominance,
-        totalMarketCapUsd: data.totalMarketCapUsd,
-        totalVolumeUsd: data.totalVolumeUsd,
-        marketCapChange24h: data.marketCapChange24h,
-        altSeasonBias,
-        timestamp: Date.now(),
-        source: 'coingecko',
-      })
-    } catch (error) {
-      this.reportRuntimeIssue('external-context-crypto-macro', error, 'Failed CoinGecko context fetch')
-    }
-  }
-
-  private async fetchBinanceContext(): Promise<void> {
-    try {
-      const state = this.store.getState()
-      const fundingRate = {} as Record<TrackedCoin, number | null>
-      const openInterestUsd = {} as Record<TrackedCoin, number | null>
-      const fundingVsHyperliquid = {} as Record<TrackedCoin, number | null>
-      const oiVsHyperliquid = {} as Record<TrackedCoin, number | null>
-
-      await Promise.all(
-        TRACKED_COINS.map(async (coin) => {
-          const [binFunding, binOi] = await Promise.all([
-            fetchBinanceFundingRate(coin),
-            fetchBinanceOpenInterest(coin),
-          ])
-
-          fundingRate[coin] = binFunding
-          openInterestUsd[coin] = binOi
-
-          // Compute funding divergence vs Hyperliquid
-          const hlFunding = state.signals[coin]?.funding?.currentRate ?? null
-          if (binFunding !== null && hlFunding !== null) {
-            fundingVsHyperliquid[coin] = binFunding - hlFunding
-          } else {
-            fundingVsHyperliquid[coin] = null
-          }
-
-          // Compute OI divergence vs Hyperliquid
-          const hlOiStr = state.assetContexts[coin]?.openInterest
-          const hlOi = hlOiStr ? parseFloat(hlOiStr) : null
-          const hlPrice = state.prices[coin]
-          const hlOiUsd = hlOi !== null && hlPrice !== null && isFinite(hlOi) && isFinite(hlPrice)
-            ? hlOi * hlPrice
-            : null
-          if (binOi !== null && hlOiUsd !== null) {
-            oiVsHyperliquid[coin] = binOi - hlOiUsd
-          } else {
-            oiVsHyperliquid[coin] = null
-          }
-        }),
-      )
-
-      this.store.getState().setBinanceContext({
-        fundingRate,
-        openInterestUsd,
-        fundingVsHyperliquid,
-        oiVsHyperliquid,
-        timestamp: Date.now(),
-        source: 'binance',
-      })
-    } catch (error) {
-      this.reportRuntimeIssue('external-context-binance', error, 'Failed Binance context fetch')
-    }
-  }
-
-  async fetchAllExternalContext(): Promise<void> {
     await Promise.all([
-      this.fetchFearGreedContext(),
-      this.fetchCryptoMacroContext(),
-      this.fetchBinanceContext(),
+      this.refreshPrices(),
+      this.fetchAllCandles([selectedCoin]),
     ])
-  }
 
-  private shouldRefreshContext(lastTimestamp: number | null, intervalMs: number): boolean {
-    if (lastTimestamp === null) return true
-    return Date.now() - lastTimestamp >= intervalMs
-  }
-
-  private async refreshExternalContextIfNeeded(): Promise<void> {
-    if (this.contextRefreshing) return
-    this.contextRefreshing = true
-    try {
-      const state = this.store.getState()
-      const tasks: Promise<void>[] = []
-
-      if (this.shouldRefreshContext(state.fearGreed.timestamp, FEAR_GREED_REFRESH_MS)) {
-        tasks.push(this.fetchFearGreedContext())
-      }
-      if (this.shouldRefreshContext(state.cryptoMacro.timestamp, CRYPTO_MACRO_REFRESH_MS)) {
-        tasks.push(this.fetchCryptoMacroContext())
-      }
-      if (this.shouldRefreshContext(state.binanceContext.timestamp, BINANCE_CONTEXT_REFRESH_MS)) {
-        tasks.push(this.fetchBinanceContext())
-      }
-
-      if (tasks.length > 0) {
-        await Promise.all(tasks)
-      }
-    } finally {
-      this.contextRefreshing = false
+    if (remainingCoins.length > 0) {
+      await this.fetchAllCandles(remainingCoins)
     }
   }
 
@@ -921,95 +162,15 @@ export class DataManager {
       unsub()
     }
     this.unsubscribers = []
-    this.teardownEventSource()
     this.ws.disconnect()
     this.pollStopped = true
     this.pollInFlight = false
-    this.eventPollingInFlight = false
     if (this.pollTimer) {
       clearTimeout(this.pollTimer)
       this.pollTimer = null
     }
-    if (this.eventPollingTimer) {
-      clearTimeout(this.eventPollingTimer)
-      this.eventPollingTimer = null
-    }
-    if (this.eventReconcileTimer) {
-      clearInterval(this.eventReconcileTimer)
-      this.eventReconcileTimer = null
-    }
     this.initialized = false
-    this.serverSetupRefreshing = false
-    this.lastServerSetupFetchAt = null
-    this.lastServerSetupRefreshAttemptAt = 0
-    this.lastCollectorHeartbeatRefreshAttemptAt = 0
-    this.bootstrapBackfillInFlight = false
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function parseJson(raw: string): unknown {
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
-}
-
-function isExecutionEvent(value: unknown): value is ExecutionEventV1 {
-  if (!value || typeof value !== 'object') return false
-  const candidate = value as Partial<ExecutionEventV1>
-  return (
-    typeof candidate.id === 'string' &&
-    typeof candidate.time === 'string' &&
-    typeof candidate.summary === 'string' &&
-    typeof candidate.type === 'string' &&
-    (candidate.level === 'info' || candidate.level === 'warn' || candidate.level === 'error')
-  )
-}
-
-function extractMetaFreshness(value: unknown): FreshnessStatusV1 | null {
-  if (!value || typeof value !== 'object') return null
-  const candidate = value as { meta?: { freshness?: unknown } }
-  return normalizeFreshness(candidate.meta?.freshness)
-}
-
-function normalizeFreshness(value: unknown): FreshnessStatusV1 | null {
-  if (value === 'fresh' || value === 'delayed' || value === 'stale' || value === 'error') {
-    return value
-  }
-  return null
-}
-
-function mapLevelToFreshness(level: ExecutionEventV1['level']): FreshnessStatusV1 {
-  if (level === 'info') return 'fresh'
-  if (level === 'warn') return 'stale'
-  return 'error'
-}
-
-function mapCollectorStatusToFreshness(status: string): FreshnessStatusV1 {
-  if (status === 'live') return 'fresh'
-  if (status === 'stale') return 'stale'
-  if (status === 'error') return 'error'
-  return 'stale'
-}
-
-function mapAssetContextsByCoin(
-  universe: Array<{ name: string }>,
-  assetCtxs: AssetContext[],
-): Partial<Record<TrackedCoin, AssetContext>> {
-  const mapped: Partial<Record<TrackedCoin, AssetContext>> = {}
-  for (const coin of TRACKED_COINS) {
-    const idx = universe.findIndex((entry) => entry.name === coin)
-    if (idx >= 0) {
-      const ctx = assetCtxs[idx]
-      if (ctx) mapped[coin] = ctx
-    }
-  }
-  return mapped
 }
 
 async function runWithConcurrency<T>(
@@ -1020,14 +181,19 @@ async function runWithConcurrency<T>(
   if (items.length === 0) return
 
   let cursor = 0
-  const workerCount = Math.max(1, Math.min(concurrency, items.length))
-  const jobs = Array.from({ length: workerCount }, async () => {
-    while (true) {
-      const index = cursor
+  const workers = Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, async () => {
+    while (cursor < items.length) {
+      const next = items[cursor]
       cursor += 1
-      if (index >= items.length) return
-      await worker(items[index] as T)
+      if (next !== undefined) {
+        await worker(next)
+      }
     }
   })
-  await Promise.all(jobs)
+
+  await Promise.all(workers)
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }

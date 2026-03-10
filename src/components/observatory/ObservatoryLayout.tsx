@@ -13,7 +13,7 @@ import { MethodologyPage } from './MethodologyPage'
 import { ObservatoryGuideStrip } from './ObservatoryGuideStrip'
 import { PoolMap } from './PoolMap'
 
-const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Flow', 'Structure']
+const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
 const ALLOWED_INTERVALS = ['4h', '1d'] as const
 type AllowedInterval = (typeof ALLOWED_INTERVALS)[number]
 type ViewMode = 'basic' | 'advanced'
@@ -103,7 +103,6 @@ export function ObservatoryLayout() {
       Momentum: [],
       Volatility: [],
       Volume: [],
-      Flow: [],
       Structure: [],
     }
     for (const indicator of snapshot.indicators) {
@@ -521,7 +520,7 @@ export function ObservatoryLayout() {
                       {latestTimelineCluster ? new Date(latestTimelineCluster.time).toLocaleString() : 'No live cluster'}
                     </div>
                     <p className="obs-panel__copy">
-                      This is the quick read of live pressure. Broad counts across categories matter more than a single isolated hit.
+                      This is the quick read of live pressure. Broad counts across categories matter more than a single isolated indicator state.
                     </p>
                     <div className="obs-pulse-list">
                       {pulseSummary.map((item) => (
@@ -555,7 +554,7 @@ export function ObservatoryLayout() {
                     {selectedTimelineCluster ? (
                       <>
                         <div className="obs-selected-cluster__metrics">
-                          <div className="obs-detail-kv"><span>Total hits</span><span>{selectedTimelineCluster.totalHits}</span></div>
+                          <div className="obs-detail-kv"><span>Active states</span><span>{selectedTimelineCluster.totalHits}</span></div>
                           <div className="obs-detail-kv"><span>Strongest lane</span><span>{selectedClusterCategory ?? '--'}</span></div>
                           <div className="obs-detail-kv"><span>Move</span><span>{formatSignedPct(selectedTimelineCluster.price.changePct)}</span></div>
                           <div className="obs-detail-kv"><span>Close</span><span>{formatPrice(selectedTimelineCluster.price.close)}</span></div>

@@ -20,7 +20,6 @@ const CATEGORY_ORDER: IndicatorCategory[] = [
   'Momentum',
   'Volatility',
   'Volume',
-  'Flow',
   'Structure',
 ]
 

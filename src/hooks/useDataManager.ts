@@ -38,21 +38,9 @@ export function useDataManager() {
     if (!manager) return
 
     manager.fetchAllCandles([selectedCoin]).then(() => {
-      useStore.getState().computeAllSignals()
-      useStore.getState().trackAllDecisionSnapshots()
-      useStore.getState().resolveSetupOutcomes()
-      useStore.getState().resolveTrackedOutcomes()
-      useStore.getState().pruneTrackerHistory()
-
       const remainingCoins = TRACKED_COINS.filter((coin) => coin !== selectedCoin)
       if (remainingCoins.length > 0) {
-        void manager.fetchAllCandles(remainingCoins).then(() => {
-          useStore.getState().computeAllSignals()
-          useStore.getState().trackAllDecisionSnapshots()
-          useStore.getState().resolveSetupOutcomes()
-          useStore.getState().resolveTrackedOutcomes()
-          useStore.getState().pruneTrackerHistory()
-        }).catch(() => {
+        void manager.fetchAllCandles(remainingCoins).catch(() => {
           // Errors handled inside DataManager
         })
       }
@@ -60,4 +48,18 @@ export function useDataManager() {
       // Errors handled inside DataManager
     })
   }, [enabled, interval, selectedCoin])
+
+  const prevSelectedCoin = useRef(selectedCoin)
+  useEffect(() => {
+    if (!enabled) return
+    if (selectedCoin === prevSelectedCoin.current) return
+    prevSelectedCoin.current = selectedCoin
+
+    const manager = managerRef.current
+    if (!manager) return
+
+    void manager.fetchAllCandles([selectedCoin]).catch(() => {
+      // Errors handled inside DataManager
+    })
+  }, [enabled, selectedCoin])
 }

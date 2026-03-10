@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CandleHitCluster, IndicatorCategory } from '../../observatory/types'
 
-const LANE_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Flow', 'Structure']
+const LANE_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
 
 export type ClusterPresentationMode = 'simple' | 'pro'
 
@@ -76,7 +76,7 @@ export function IndicatorClusterLanes({
   }, [clusters, selectedTime])
 
   if (clusters.length === 0) {
-    return <div className="obs-cluster-empty">No indicator hit events yet for this timeframe.</div>
+    return <div className="obs-cluster-empty">No indicator state history is available for this timeframe yet.</div>
   }
 
   return (
@@ -84,7 +84,7 @@ export function IndicatorClusterLanes({
       <div className="obs-cluster__header">
         <div>
           <div className="obs-cluster__title">Step 2 · Read signal pressure</div>
-          <div className="obs-cluster__hint">Dense cells show where indicator events cluster. Select one candle, explain it below, then open the report if needed.</div>
+          <div className="obs-cluster__hint">Dense cells show where indicator states stack on the same bar. Select one candle, explain it below, then open the report if needed.</div>
         </div>
       </div>
 
@@ -118,7 +118,7 @@ export function IndicatorClusterLanes({
                     onClick={() => onSelectTime(cluster.time)}
                     aria-pressed={selected}
                     data-testid="obs-cluster-cell"
-                    title={`${new Date(cluster.time).toLocaleString()} | ${lane}: ${count} hit${count === 1 ? '' : 's'}`}
+                    title={`${new Date(cluster.time).toLocaleString()} | ${lane}: ${count} active state${count === 1 ? '' : 's'}`}
                   >
                     {showCount ? count : ''}
                   </button>

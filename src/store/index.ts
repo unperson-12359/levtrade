@@ -88,6 +88,9 @@ export const useStore = create<AppStore>()(
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<AppStore> & { trackedSetups?: unknown[] }
         const merged = { ...currentState, ...persisted }
+        if (merged.selectedInterval !== '4h' && merged.selectedInterval !== '1d') {
+          merged.selectedInterval = '4h'
+        }
         if (merged.riskInputs && merged.riskInputs.leverage > 40) {
           merged.riskInputs = { ...merged.riskInputs, leverage: 40 }
         }

@@ -65,7 +65,7 @@ export const OBSERVATORY_PAGE_PURPOSES: MethodologyCard[] = [
   },
   {
     title: 'Analytics',
-    summary: 'Your persistence surface. Use it to learn which indicators recur, transition often, or stay active over longer stretches of the visible window.',
+    summary: 'Your persistence surface. Use it to learn which indicators recur, stay active, or cluster together over longer stretches of the visible window.',
   },
 ]
 
@@ -85,10 +85,6 @@ export const OBSERVATORY_CATEGORY_EXPLANATIONS: CategoryExplanation[] = [
   {
     category: 'Volume',
     summary: 'Participation and activity. Read this to see whether the move is getting real market participation or fading on weak engagement.',
-  },
-  {
-    category: 'Flow',
-    summary: 'Funding and positioning pressure. Read this to understand whether crowd positioning is getting crowded, squeezed, or unstable.',
   },
   {
     category: 'Structure',

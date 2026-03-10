@@ -20,8 +20,14 @@ export { resolveSetupWindow, emptyOutcome, SETUP_WINDOWS } from './resolveOutcom
 export { summarizeCoverage } from '../utils/setupCoverage'
 export { buildSetupId } from '../utils/identity'
 export type { SetupOutcome, SetupWindow, SetupCoverageStatus } from '../types/setup'
-export { buildObservatorySnapshot } from '../observatory/engine'
-export type { ObservatorySnapshot, IndicatorHealth, IndicatorHealthWarning } from '../observatory/types'
+export { buildIndicatorStateRecords, buildObservatorySnapshot } from '../observatory/engine'
+export type {
+  IndicatorBarState,
+  IndicatorHealth,
+  IndicatorHealthWarning,
+  IndicatorStateRecord,
+  ObservatorySnapshot,
+} from '../observatory/types'
 
 // Shared tracker logic for collector
 export {

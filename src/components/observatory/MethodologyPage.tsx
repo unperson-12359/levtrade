@@ -104,7 +104,7 @@ export function MethodologyPage({
         <div className="obs-panel__title-row">
           <div>
             <div className="obs-panel__eyebrow">Indicator categories</div>
-            <h2 className="obs-panel__title">What the six lanes mean</h2>
+            <h2 className="obs-panel__title">What the five lanes mean</h2>
           </div>
         </div>
         <div className="obs-methodology__category-grid">

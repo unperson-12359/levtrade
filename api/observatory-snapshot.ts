@@ -1,5 +1,5 @@
 import { buildContractMeta, CONTRACT_VERSION_V1 } from './_contracts.js'
-import { buildObservatorySnapshot, TRACKED_COINS, parseCandle, type FundingHistoryEntry, type RawCandle, type TrackedCoin } from './_signals.mjs'
+import { buildObservatorySnapshot, TRACKED_COINS, parseCandle, type RawCandle, type TrackedCoin } from './_signals.mjs'
 
 interface VercelRequest {
   method?: string
@@ -38,22 +38,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const [rawCandles, fundingHistory, mids] = await Promise.all([
+    const [rawCandles, mids] = await Promise.all([
       fetchCandles(coin, interval, now - LOOKBACK_MS, now),
-      fetchFundingHistory(coin, now - LOOKBACK_MS, now),
       fetchAllMids(),
     ])
 
     const candles = rawCandles.map(parseCandle).sort((a, b) => a.time - b.time)
-    const funding = fundingHistory
-      .map((entry) => ({ time: entry.time, rate: parseFloat(entry.fundingRate) }))
-      .filter((entry) => Number.isFinite(entry.rate))
 
     const snapshot = buildObservatorySnapshot({
       coin,
       interval,
       candles,
-      fundingHistory: funding,
+      fundingHistory: [],
       oiHistory: [],
     })
 
@@ -141,15 +137,6 @@ async function fetchCandles(
   return postInfo<RawCandle[]>({
     type: 'candleSnapshot',
     req: { coin, interval, startTime, endTime },
-  })
-}
-
-async function fetchFundingHistory(coin: TrackedCoin, startTime: number, endTime: number): Promise<FundingHistoryEntry[]> {
-  return postInfo<FundingHistoryEntry[]>({
-    type: 'fundingHistory',
-    coin,
-    startTime,
-    endTime,
   })
 }
 

@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import type { IndicatorCategory, ObservatorySnapshot } from '../../observatory/types'
 import type { TrackedCoin } from '../../types/market'
 
-const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Flow', 'Structure']
+const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
 
-type AnalyticsSortKey = 'hits' | 'activeRate' | 'currentStreak' | 'maxStreak'
+type AnalyticsSortKey = 'activeBars' | 'activeRate' | 'currentStreak' | 'maxStreak'
 type CategoryFilter = IndicatorCategory | 'All'
 
 interface AnalyticsPageProps {
@@ -33,7 +33,7 @@ interface IndicatorAnalyticsRow {
 }
 
 export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps) {
-  const [sortKey, setSortKey] = useState<AnalyticsSortKey>('hits')
+  const [sortKey, setSortKey] = useState<AnalyticsSortKey>('activeBars')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All')
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null)
 
@@ -59,18 +59,18 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
     return [
       {
         label: 'Window',
-        value: `${snapshot.timeline.length} bars`,
+        value: `${snapshot.barStates.length} bars`,
         meta: `${coin} / ${timeframe}`,
       },
       {
-        label: 'Total hits',
+        label: 'Active states',
         value: formatInteger(analytics.totalHits),
-        meta: 'All indicator events',
+        meta: 'All indicator-on bars',
       },
       {
-        label: 'Most active',
+        label: 'Most persistent',
         value: hottest ? hottest.label : '--',
-        meta: hottest ? `${hottest.totalHits} hits` : 'No events',
+        meta: hottest ? `${hottest.totalHits} active bars` : 'No active states',
       },
       {
         label: 'Live streak',
@@ -78,7 +78,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
         meta: liveStreak ? `${liveStreak.currentStreak} bars` : 'No live streak',
       },
     ]
-  }, [analytics.rows, analytics.totalHits, coin, snapshot.timeline.length, timeframe])
+  }, [analytics.rows, analytics.totalHits, coin, snapshot.barStates.length, timeframe])
 
   return (
     <section className="obs-analytics" data-testid="obs-analytics-page">
@@ -86,7 +86,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
         <div className="obs-panel__title-row">
           <div>
             <div className="obs-panel__eyebrow">Indicator analytics</div>
-            <h2 className="obs-panel__title">Frequency and streak engine</h2>
+            <h2 className="obs-panel__title">Persistence and streak engine</h2>
           </div>
           <p className="obs-panel__hint">Use this after the live read. It explains persistence and recurrence; it is not the first page to interpret the market.</p>
         </div>
@@ -107,10 +107,10 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
           <div className="obs-panel__title-row">
             <div>
               <div className="obs-panel__eyebrow">Leaderboard</div>
-              <h2 className="obs-panel__title">Indicator frequency</h2>
+              <h2 className="obs-panel__title">Indicator persistence</h2>
             </div>
             <div className="obs-panel__title-actions">
-              {(['hits', 'activeRate', 'currentStreak', 'maxStreak'] as const).map((option) => (
+              {(['activeBars', 'activeRate', 'currentStreak', 'maxStreak'] as const).map((option) => (
                 <button
                   key={option}
                   type="button"
@@ -140,11 +140,11 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
           <div className="obs-analytics__table" data-testid="obs-analytics-table">
             <div className="obs-analytics__row obs-analytics__row--head">
               <span>Indicator</span>
-              <span>Hits</span>
+              <span>Active bars</span>
               <span>Active rate</span>
               <span>Current</span>
               <span>Max</span>
-              <span>Last hit</span>
+              <span>Last active</span>
             </div>
             {visibleRows.map((row) => (
               <button
@@ -181,7 +181,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
                   <div className="obs-detail-kv"><span>Transitions</span><span>{formatPct(selectedIndicator.transitionRate)}</span></div>
                 </div>
                 <p className="obs-detail-copy">{selectedIndicator.description}</p>
-                <div className="obs-detail-subtitle">Recent hits</div>
+                <div className="obs-detail-subtitle">Recent active bars</div>
                 <div className="obs-pulse-list">
                   {selectedIndicator.recentHitTimes.length > 0 ? (
                     selectedIndicator.recentHitTimes.slice(0, 4).map((time) => (
@@ -191,7 +191,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
                       </div>
                     ))
                   ) : (
-                    <div className="obs-empty">No hits in the visible window.</div>
+                    <div className="obs-empty">No active bars in the visible window.</div>
                   )}
                 </div>
               </>
@@ -205,7 +205,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
               {analytics.categoryRows.map((row) => (
                 <div key={row.category} className="obs-pulse-row">
                   <span>{row.category}</span>
-                  <span>{row.totalHits} hits / {formatPct(row.activeRate)}</span>
+                  <span>{row.totalHits} active states / {formatPct(row.activeRate)}</span>
                 </div>
               ))}
             </div>
@@ -256,36 +256,31 @@ function buildAnalytics(snapshot: ObservatorySnapshot) {
   const categoryActiveBars = new Map<IndicatorCategory, number>(CATEGORY_ORDER.map((category) => [category, 0]))
   const categoryTotalHits = new Map<IndicatorCategory, number>(CATEGORY_ORDER.map((category) => [category, 0]))
 
-  for (const cluster of snapshot.timeline) {
-    const perIndicatorCounts = new Map<string, number>()
-    const activeCategories = new Set<IndicatorCategory>()
-
-    for (const event of cluster.events) {
-      perIndicatorCounts.set(event.indicatorId, (perIndicatorCounts.get(event.indicatorId) ?? 0) + 1)
-      categoryTotalHits.set(event.category, (categoryTotalHits.get(event.category) ?? 0) + 1)
-      activeCategories.add(event.category)
-    }
-
-    for (const category of activeCategories) {
-      categoryActiveBars.set(category, (categoryActiveBars.get(category) ?? 0) + 1)
-    }
-
+  for (const barState of snapshot.barStates) {
+    const activeIndicators = new Set(barState.activeIndicatorIds)
     for (const row of rows) {
-      const count = perIndicatorCounts.get(row.id) ?? 0
-      if (count > 0) {
-        row.totalHits += count
+      if (activeIndicators.has(row.id)) {
+        row.totalHits += 1
         row.activeBars += 1
         row.currentStreak += 1
         row.maxStreak = Math.max(row.maxStreak, row.currentStreak)
-        row.lastHitTime = cluster.time
-        row.recentHitTimes.push(cluster.time)
+        row.lastHitTime = barState.time
+        row.recentHitTimes.push(barState.time)
       } else {
         row.currentStreak = 0
       }
     }
+
+    for (const category of CATEGORY_ORDER) {
+      const laneCount = barState.laneCounts[category] ?? 0
+      categoryTotalHits.set(category, (categoryTotalHits.get(category) ?? 0) + laneCount)
+      if (laneCount > 0) {
+        categoryActiveBars.set(category, (categoryActiveBars.get(category) ?? 0) + 1)
+      }
+    }
   }
 
-  const timelineCount = Math.max(snapshot.timeline.length, 1)
+  const timelineCount = Math.max(snapshot.barStates.length, 1)
   for (const row of rows) {
     row.activeRate = row.activeBars / timelineCount
   }
@@ -307,13 +302,14 @@ function buildAnalytics(snapshot: ObservatorySnapshot) {
 
 function compareRows(a: IndicatorAnalyticsRow, b: IndicatorAnalyticsRow, sortKey: AnalyticsSortKey) {
   switch (sortKey) {
+    case 'activeBars':
+      return b.totalHits - a.totalHits || b.activeRate - a.activeRate
     case 'activeRate':
       return b.activeRate - a.activeRate || b.totalHits - a.totalHits
     case 'currentStreak':
       return b.currentStreak - a.currentStreak || b.totalHits - a.totalHits
     case 'maxStreak':
       return b.maxStreak - a.maxStreak || b.totalHits - a.totalHits
-    case 'hits':
     default:
       return b.totalHits - a.totalHits || b.activeRate - a.activeRate
   }
@@ -321,15 +317,16 @@ function compareRows(a: IndicatorAnalyticsRow, b: IndicatorAnalyticsRow, sortKey
 
 function sortLabel(value: AnalyticsSortKey) {
   switch (value) {
+    case 'activeBars':
+      return 'Active bars'
     case 'activeRate':
       return 'Active rate'
     case 'currentStreak':
       return 'Live streak'
     case 'maxStreak':
       return 'Max streak'
-    case 'hits':
     default:
-      return 'Hits'
+      return 'Active bars'
   }
 }
 

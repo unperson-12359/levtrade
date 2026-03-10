@@ -24,7 +24,10 @@ interface CanonicalResponse {
 }
 
 function normalizeSnapshot(snapshot: ObservatorySnapshot): ObservatorySnapshot {
-  const anySnapshot = snapshot as ObservatorySnapshot & { health?: ObservatorySnapshot['health'] }
+  const anySnapshot = snapshot as ObservatorySnapshot & {
+    health?: ObservatorySnapshot['health']
+    barStates?: ObservatorySnapshot['barStates']
+  }
   const snapshotWithHealth: ObservatorySnapshot = anySnapshot.health
     ? snapshot
     : {
@@ -43,61 +46,69 @@ function normalizeSnapshot(snapshot: ObservatorySnapshot): ObservatorySnapshot {
       ? 24 * 60 * 60 * 1000
       : 60 * 60 * 1000
 
+  const timeline = snapshotWithHealth.timeline.map((cluster) => {
+    const anyCluster = cluster as typeof cluster & {
+      events?: typeof cluster.topHits
+      price?: typeof cluster.price
+    }
+    const events = Array.isArray(anyCluster.events) ? anyCluster.events : cluster.topHits
+    const normalizedEvents = events.map((event) => {
+      const durationBars = Number.isFinite(event.durationBars) && event.durationBars > 0 ? event.durationBars : 1
+      const durationMs = Number.isFinite(event.durationMs) && event.durationMs > 0
+        ? event.durationMs
+        : durationBars * intervalMs
+      return {
+        ...event,
+        durationBars,
+        durationMs,
+      }
+    })
+
+    const laneCounts = { ...cluster.laneCounts }
+    if (Object.keys(laneCounts).length === 0 && normalizedEvents.length > 0) {
+      for (const event of normalizedEvents) {
+        laneCounts[event.category] = (laneCounts[event.category] ?? 0) + 1
+      }
+    }
+
+    const topHits = cluster.topHits.length > 0 ? cluster.topHits : normalizedEvents.slice(0, 3)
+    const totalHits = Math.max(cluster.totalHits, normalizedEvents.length)
+
+    return {
+      ...cluster,
+      price: anyCluster.price ?? {
+        open: 0,
+        high: 0,
+        low: 0,
+        close: 0,
+        changePct: 0,
+        rangePct: 0,
+      },
+      totalHits,
+      events: normalizedEvents,
+      topHits,
+      overflowCount: Math.max(0, totalHits - topHits.length),
+      laneCounts,
+    }
+  })
+
   return {
     ...snapshotWithHealth,
-    timeline: snapshotWithHealth.timeline.map((cluster) => {
-      const anyCluster = cluster as typeof cluster & {
-        events?: typeof cluster.topHits
-        price?: typeof cluster.price
-      }
-      const events = Array.isArray(anyCluster.events) ? anyCluster.events : cluster.topHits
-      const normalizedEvents = events.map((event) => {
-        const durationBars = Number.isFinite(event.durationBars) && event.durationBars > 0 ? event.durationBars : 1
-        const durationMs = Number.isFinite(event.durationMs) && event.durationMs > 0
-          ? event.durationMs
-          : durationBars * intervalMs
-        return {
-          ...event,
-          durationBars,
-          durationMs,
-        }
-      })
-
-      const laneCounts = { ...cluster.laneCounts }
-      if (Object.keys(laneCounts).length === 0 && normalizedEvents.length > 0) {
-        for (const event of normalizedEvents) {
-          laneCounts[event.category] = (laneCounts[event.category] ?? 0) + 1
-        }
-      }
-
-      const topHits = cluster.topHits.length > 0 ? cluster.topHits : normalizedEvents.slice(0, 3)
-      const totalHits = Math.max(cluster.totalHits, normalizedEvents.length)
-
-      return {
-        ...cluster,
-        price: anyCluster.price ?? {
-          open: 0,
-          high: 0,
-          low: 0,
-          close: 0,
-          changePct: 0,
-          rangePct: 0,
-        },
-        totalHits,
-        events: normalizedEvents,
-        topHits,
-        overflowCount: Math.max(0, totalHits - topHits.length),
-        laneCounts,
-      }
-    }),
+    barStates: Array.isArray(anySnapshot.barStates) && anySnapshot.barStates.length > 0
+      ? anySnapshot.barStates
+      : timeline.map((cluster) => ({
+          time: cluster.time,
+          activeCount: cluster.totalHits,
+          laneCounts: cluster.laneCounts,
+          activeIndicatorIds: cluster.events.map((event) => event.indicatorId),
+        })),
+    timeline,
   }
 }
 
 export function useIndicatorObservatory(coin: TrackedCoin) {
   const interval = useStore((state) => state.selectedInterval)
   const candles = useStore((state) => state.candles[coin])
-  const fundingHistory = useStore((state) => state.fundingHistory[coin])
-  const oiHistory = useStore((state) => state.oiHistory[coin])
   const livePrice = useStore((state) => state.prices[coin])
 
   const canonicalInterval = interval === '1d' ? '1d' : '4h'
@@ -109,10 +120,10 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
         coin,
         interval: canonicalInterval,
         candles,
-        fundingHistory,
-        oiHistory,
+        fundingHistory: [],
+        oiHistory: [],
       }),
-    [candles, coin, fundingHistory, canonicalInterval, oiHistory],
+    [candles, coin, canonicalInterval],
   )
 
   const localPriceContext = useMemo(() => {

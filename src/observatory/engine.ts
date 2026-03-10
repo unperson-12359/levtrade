@@ -2,12 +2,14 @@ import type { Candle, FundingSnapshot, OISnapshot, TrackedCoin } from '../types/
 import type {
   CandleHitCluster,
   CorrelationEdge,
+  IndicatorBarState,
   IndicatorHealth,
   IndicatorHealthWarning,
   IndicatorHitEvent,
   IndicatorCategory,
   IndicatorMetric,
   IndicatorSeriesPoint,
+  IndicatorStateRecord,
   IndicatorState,
   ObservatorySnapshot,
   QuantileBucket,
@@ -63,6 +65,7 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
       indicators: [],
       edges: [],
       timeline: [],
+      barStates: [],
       health: {
         status: 'healthy',
         total: 0,
@@ -113,13 +116,6 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
   const adx = adxSeries(candles, 14)
   const priceChange1Bar = pctChangeSeries(closes, 1)
   const priceChange24h = pctChangeSeries(closes, Math.max(1, Math.round(24 / intervalHours)))
-
-  const fundingAligned = alignSnapshots(times, input.fundingHistory, (snapshot) => snapshot.rate * 10_000)
-  const fundingZ20 = zScoreSeries(fundingAligned, 20)
-  const oiAligned = alignSnapshots(times, input.oiHistory, (snapshot) => snapshot.oi)
-  const oiShortLagBars = Math.max(1, Math.round(6 / intervalHours))
-  const oiChangeShort = pctChangeSeries(oiAligned, oiShortLagBars)
-  const oiZ20 = zScoreSeries(oiAligned, 20)
 
   const seeds: MetricSeed[] = [
     makeMetric(
@@ -429,42 +425,6 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
       signedState(1),
     ),
     makeMetric(
-      'flow_funding_rate',
-      'Funding Rate',
-      'Flow',
-      'bp',
-      'Aligned funding rate from derivatives basis market.',
-      fundingAligned,
-      signedState(2),
-    ),
-    makeMetric(
-      'flow_funding_z20',
-      'Funding Z 20',
-      'Flow',
-      'z',
-      'Relative crowding in funding versus recent history.',
-      fundingZ20,
-      signedState(1),
-    ),
-    makeMetric(
-      'flow_oi_change_6h',
-      `Open Interest Change ${oiShortLagBars} Bars`,
-      'Flow',
-      '%',
-      `Open-interest expansion or contraction over ${oiShortLagBars} bars.`,
-      oiChangeShort,
-      signedState(2),
-    ),
-    makeMetric(
-      'flow_oi_z20',
-      'Open Interest Z 20',
-      'Flow',
-      'z',
-      'Open-interest deviation from 20-bar baseline.',
-      oiZ20,
-      signedState(1),
-    ),
-    makeMetric(
       'momentum_price_change_1h',
       'Price Change 1 Bar',
       'Momentum',
@@ -491,6 +451,7 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
   const indicators = hydrated.map((entry) => entry.metric)
   const edges = computeCorrelationEdges(indicators, 12)
   const timeline = buildHitTimeline(hydrated, candles, input.interval, 3)
+  const barStates = buildIndicatorBarStates(hydrated, times)
   const health = computeIndicatorHealth(indicators)
 
   return {
@@ -501,8 +462,48 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
     indicators,
     edges,
     timeline,
+    barStates,
     health,
   }
+}
+
+function buildIndicatorBarStates(hydratedMetrics: HydratedMetric[], times: number[]): IndicatorBarState[] {
+  return times.map((time, index) => {
+    const laneCounts: Partial<Record<IndicatorCategory, number>> = {}
+    const activeIndicatorIds: string[] = []
+
+    for (const entry of hydratedMetrics) {
+      const state = entry.stateSeries[index]
+      if (!state || state === 'neutral') continue
+
+      activeIndicatorIds.push(entry.metric.id)
+      laneCounts[entry.metric.category] = (laneCounts[entry.metric.category] ?? 0) + 1
+    }
+
+    return {
+      time,
+      activeCount: activeIndicatorIds.length,
+      laneCounts,
+      activeIndicatorIds,
+    }
+  })
+}
+
+export function buildIndicatorStateRecords(snapshot: ObservatorySnapshot): IndicatorStateRecord[] {
+  const categories = new Map(snapshot.indicators.map((indicator) => [indicator.id, indicator.category]))
+
+  return snapshot.barStates.flatMap((barState) => {
+    const activeIndicators = new Set(barState.activeIndicatorIds)
+    return snapshot.indicators.map<IndicatorStateRecord>((indicator) => ({
+      id: `${snapshot.coin}:${snapshot.interval}:${barState.time}:${indicator.id}`,
+      coin: snapshot.coin,
+      interval: snapshot.interval,
+      candleTime: barState.time,
+      indicatorId: indicator.id,
+      category: categories.get(indicator.id) ?? indicator.category,
+      isOn: activeIndicators.has(indicator.id),
+    }))
+  })
 }
 
 function hydrateMetric(seed: MetricSeed, times: number[]): HydratedMetric {
@@ -1222,35 +1223,6 @@ function wilderSmoothing(values: number[], period: number): Series {
   return output
 }
 
-function alignSnapshots<T extends { time: number }>(
-  targetTimes: number[],
-  snapshots: T[],
-  readValue: (snapshot: T) => number,
-): Series {
-  const output: Series = Array(targetTimes.length).fill(null)
-  if (targetTimes.length === 0 || snapshots.length === 0) return output
-
-  const ordered = [...snapshots].sort((left, right) => left.time - right.time)
-  let cursor = 0
-  let latestValue: number | null = null
-
-  for (let index = 0; index < targetTimes.length; index += 1) {
-    const time = targetTimes[index]
-    if (!isFiniteNumber(time)) continue
-    while (cursor < ordered.length && (ordered[cursor]?.time ?? 0) <= time) {
-      const snapshot = ordered[cursor]
-      if (snapshot) {
-        const value = readValue(snapshot)
-        latestValue = isFiniteNumber(value) ? value : latestValue
-      }
-      cursor += 1
-    }
-    output[index] = latestValue
-  }
-
-  return output
-}
-
 function computeFrequency(values: Series, thresholds: QuantileThresholds, classify: (value: number) => IndicatorState) {
   const stateCounts: Record<IndicatorState, number> = { high: 0, low: 0, neutral: 0 }
   const quantileCounts: Record<QuantileBucket, number> = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, Q5: 0 }
@@ -1365,76 +1337,53 @@ function buildHitTimeline(
   interval: Interval,
   maxHitsPerCandle: number,
 ): CandleHitCluster[] {
-  const candleTimes = candles.map((candle) => candle.time)
-  const candleByTime = new Map<number, Candle>()
-  for (const candle of candles) {
-    if (isFiniteNumber(candle.time)) {
-      candleByTime.set(candle.time, candle)
-    }
-  }
   const durationMsPerBar = intervalToMs(interval)
-  const eventsByTime = new Map<number, IndicatorHitEvent[]>()
+  const metricsWithScale = hydratedMetrics.map((entry) => ({
+    entry,
+    scale: computeSeriesScale(entry.metric.rawValues ?? []),
+  }))
 
-  for (const entry of hydratedMetrics) {
-    const indicator = entry.metric
-    const rawValues = indicator.rawValues ?? []
-    if (rawValues.length < 2) continue
+  const timeline: CandleHitCluster[] = candles.map((candle, index) => {
+    const ordered: IndicatorHitEvent[] = []
+    const laneCounts: Partial<Record<IndicatorCategory, number>> = {}
 
-    const stateSeries = entry.stateSeries
-    const upperBound = Math.min(Math.min(rawValues.length, stateSeries.length), candleTimes.length)
-    if (upperBound < 2) continue
-
-    const scale = computeSeriesScale(rawValues)
-    for (let index = 1; index < upperBound; index += 1) {
-      const fromState = stateSeries[index - 1]
+    for (const { entry, scale } of metricsWithScale) {
+      const stateSeries = entry.stateSeries
       const toState = stateSeries[index]
-      if (!fromState || !toState) continue
-      if (fromState === toState) continue
+      if (!toState || toState === 'neutral') continue
 
-      const kind = transitionKind(fromState, toState)
-      const time = candleTimes[index]
-      if (!isFiniteNumber(time)) continue
+      const fromState = index > 0 ? stateSeries[index - 1] ?? 'neutral' : 'neutral'
+      const kind = activeStateKind(fromState, toState)
+      const rawValues = entry.metric.rawValues ?? []
       const current = rawValues[index]
-      const previous = rawValues[index - 1]
+      const previous = index > 0 ? rawValues[index - 1] : current
+      const durationBars = activeStateDurationBars(stateSeries, index, toState)
       const magnitude = computeTransitionMagnitude(current, previous, scale)
-      const durationBars = transitionDurationBars(stateSeries, index, kind, fromState)
 
-      const event: IndicatorHitEvent = {
-        id: `${indicator.id}:${time}:${kind}`,
-        time,
-        indicatorId: indicator.id,
-        indicatorLabel: indicator.label,
-        category: indicator.category,
+      ordered.push({
+        id: `${entry.metric.id}:${candle.time}:${toState}`,
+        time: candle.time,
+        indicatorId: entry.metric.id,
+        indicatorLabel: entry.metric.label,
+        category: entry.metric.category,
         kind,
         fromState,
         toState,
         durationBars,
         durationMs: durationBars * durationMsPerBar,
-        priority: eventPriority(kind, magnitude),
-        message: buildEventMessage(indicator.label, kind, fromState, toState),
-      }
-
-      const bucket = eventsByTime.get(time) ?? []
-      bucket.push(event)
-      eventsByTime.set(time, bucket)
+        priority: eventPriority(kind, magnitude) + Math.min(0.4, Math.max(0, durationBars - 1) * 0.08),
+        message: buildEventMessage(entry.metric.label, fromState, toState, durationBars),
+      })
+      laneCounts[entry.metric.category] = (laneCounts[entry.metric.category] ?? 0) + 1
     }
-  }
 
-  const timeline: CandleHitCluster[] = []
-  for (const [time, events] of eventsByTime) {
-    const candle = candleByTime.get(time)
-    if (!candle) continue
-    const ordered = [...events].sort((left, right) => right.priority - left.priority)
+    ordered.sort((left, right) => right.priority - left.priority)
     const topHits = ordered.slice(0, maxHitsPerCandle)
-    const laneCounts: Partial<Record<IndicatorCategory, number>> = {}
-    for (const event of ordered) {
-      laneCounts[event.category] = (laneCounts[event.category] ?? 0) + 1
-    }
     const base = candle.open === 0 ? Math.abs(candle.close) || 1 : Math.abs(candle.open)
     const changePct = ((candle.close - candle.open) / base) * 100
     const rangePct = ((candle.high - candle.low) / base) * 100
-    timeline.push({
-      time,
+    return {
+      time: candle.time,
       price: {
         open: candle.open,
         high: candle.high,
@@ -1448,33 +1397,31 @@ function buildHitTimeline(
       topHits,
       overflowCount: Math.max(0, ordered.length - topHits.length),
       laneCounts,
-    })
-  }
+    }
+  })
 
-  return timeline.sort((left, right) => left.time - right.time)
+  return timeline
 }
 
-function transitionDurationBars(
+function activeStateDurationBars(
   stateSeries: Array<IndicatorState | null>,
   index: number,
-  kind: IndicatorHitEvent['kind'],
-  fromState: IndicatorState,
+  state: Extract<IndicatorState, 'high' | 'low'>,
 ): number {
-  if (kind === 'enter_high' || kind === 'enter_low') return 1
-  if (fromState === 'neutral') return 1
-
-  let start = index - 1
-  while (start > 0 && stateSeries[start - 1] === fromState) {
-    start -= 1
+  let cursor = index
+  while (cursor > 0 && stateSeries[cursor - 1] === state) {
+    cursor -= 1
   }
-  return Math.max(1, index - start)
+  return Math.max(1, index - cursor + 1)
 }
 
-function transitionKind(fromState: IndicatorState, toState: IndicatorState): IndicatorHitEvent['kind'] {
-  if (fromState === 'neutral' && toState === 'high') return 'enter_high'
-  if (fromState === 'neutral' && toState === 'low') return 'enter_low'
-  if ((fromState === 'high' || fromState === 'low') && toState === 'neutral') return 'exit_to_neutral'
-  return 'flip'
+function activeStateKind(
+  fromState: IndicatorState,
+  toState: Extract<IndicatorState, 'high' | 'low'>,
+): IndicatorHitEvent['kind'] {
+  if (fromState === 'high' && toState === 'low') return 'flip'
+  if (fromState === 'low' && toState === 'high') return 'flip'
+  return toState === 'high' ? 'enter_high' : 'enter_low'
 }
 
 function computeSeriesScale(values: Series): number {
@@ -1514,13 +1461,12 @@ function eventPriority(kind: IndicatorHitEvent['kind'], magnitude: number): numb
 
 function buildEventMessage(
   label: string,
-  kind: IndicatorHitEvent['kind'],
   fromState: IndicatorState,
-  toState: IndicatorState,
+  toState: Extract<IndicatorState, 'high' | 'low'>,
+  durationBars: number,
 ): string {
-  if (kind === 'enter_high') return `${label} entered high from ${fromState}.`
-  if (kind === 'enter_low') return `${label} entered low from ${fromState}.`
-  if (kind === 'exit_to_neutral') return `${label} returned to neutral behavior.`
+  if (fromState === toState) return `${label} stayed ${toState} for ${durationBars} bars.`
+  if (fromState === 'neutral') return `${label} turned ${toState}.`
   return `${label} flipped from ${fromState} to ${toState}.`
 }
 

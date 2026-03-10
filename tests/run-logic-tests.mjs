@@ -14,6 +14,7 @@ const {
   computeSuggestedPositionComposition,
   deriveCompositionRiskStatus,
   computeSetupMetrics,
+  buildIndicatorStateRecords,
   buildObservatorySnapshot,
 } = signals
 
@@ -24,7 +25,7 @@ runBuildSetupIdExportTest()
 runProvisionalSetupGateTest()
 runPositionPolicyTest()
 runSuggestedPositionCompositionTest()
-runIncrementalRefreshSourceCheck()
+runObservatoryRuntimeSourceCheck()
 runObservatoryApiBundlingSourceCheck()
 runWorkflowTerminologyCheck()
 runWorkflowStateSourceCheck()
@@ -34,12 +35,12 @@ runStep2KpiLayoutCheck()
 runSuggestedSetupKpiLayoutCheck()
 runStep1CompactDensityCheck()
 runMarketMomentsSourceCheck()
-runLiveTickerTapeCheck()
 runStep3CompactDensityCheck()
 runHeroPairCompressionCheck()
 runTrackerRiskSourceCheck()
 runRuntimeStabilitySourceCheck()
 runObservatoryIndicatorHealthTest()
+runObservatoryBooleanStateTest()
 runDeterministicReplayCheck()
 runContractInterfaceSourceCheck()
 runObservatoryRemoteResetSourceCheck()
@@ -293,17 +294,37 @@ function runSuggestedPositionCompositionTest() {
   assert.equal(deriveCompositionRiskStatus(noCapitalComposition), 'unknown')
 }
 
-function runIncrementalRefreshSourceCheck() {
-  const apiSource = readFileSync(join(__dirname, '../src/services/api.ts'), 'utf8')
+function runObservatoryRuntimeSourceCheck() {
   const managerSource = readFileSync(join(__dirname, '../src/services/dataManager.ts'), 'utf8')
-  const serverApiSource = readFileSync(join(__dirname, '../api/server-setups.ts'), 'utf8')
-  const repairScriptSource = readFileSync(join(__dirname, '../scripts/recompute-server-outcomes.ts'), 'utf8')
+  const dataHookSource = readFileSync(join(__dirname, '../src/hooks/useDataManager.ts'), 'utf8')
+  const engineeringMapSource = readFileSync(join(__dirname, '../docs/engineering-map.md'), 'utf8')
+  const parityChecklistSource = readFileSync(join(__dirname, '../docs/production-parity-checklist.md'), 'utf8')
 
-  assert.match(apiSource, /updatedSince\?: string/)
-  assert.match(managerSource, /lastServerSetupFetchAt/)
-  assert.match(managerSource, /updatedSince: this\.lastServerSetupFetchAt/)
-  assert.match(serverApiSource, /resolveUpdatedSince/)
-  assert.match(repairScriptSource, /MAX_FETCH_ROWS = 10_000/)
+  assert.match(managerSource, /fetchAllMids/)
+  assert.match(managerSource, /fetchCandles/)
+  assert.match(managerSource, /HyperliquidWS/)
+  assert.match(managerSource, /scheduleNextPoll/)
+  assert.match(managerSource, /runPollingCycle/)
+  assert.match(managerSource, /executePollingCycle/)
+  assert.doesNotMatch(managerSource, /fetchServerSetups/)
+  assert.doesNotMatch(managerSource, /fetchCollectorHeartbeatStatus/)
+  assert.doesNotMatch(managerSource, /fetchExecutionEvents/)
+  assert.doesNotMatch(managerSource, /uploadLocalSetups/)
+  assert.doesNotMatch(managerSource, /fetchFundingHistory/)
+  assert.doesNotMatch(managerSource, /fetchFearGreed/)
+  assert.doesNotMatch(managerSource, /fetchCoinGeckoGlobal/)
+  assert.doesNotMatch(managerSource, /fetchBinanceFundingRate/)
+  assert.doesNotMatch(managerSource, /fetchBinanceOpenInterest/)
+  assert.doesNotMatch(dataHookSource, /computeAllSignals/)
+  assert.doesNotMatch(dataHookSource, /trackAllDecisionSnapshots/)
+  assert.doesNotMatch(dataHookSource, /resolveSetupOutcomes/)
+  assert.doesNotMatch(dataHookSource, /resolveTrackedOutcomes/)
+  assert.doesNotMatch(dataHookSource, /pruneTrackerHistory/)
+  assert.match(engineeringMapSource, /mounted product: the live observatory shell/i)
+  assert.match(engineeringMapSource, /Legacy architecture still present/i)
+  assert.match(parityChecklistSource, /api\/observatory-snapshot\.ts/)
+  assert.doesNotMatch(parityChecklistSource, /Required Supabase tables/)
+  assert.doesNotMatch(parityChecklistSource, /tracked_signals/)
 }
 
 function runObservatoryApiBundlingSourceCheck() {
@@ -351,7 +372,6 @@ function runObservatoryShellSourceCheck() {
   const methodologyContentSource = readFileSync(join(__dirname, '../src/components/observatory/methodologyContent.ts'), 'utf8')
   const observatoryHookSource = readFileSync(join(__dirname, '../src/hooks/useIndicatorObservatory.ts'), 'utf8')
   const routerSource = readFileSync(join(__dirname, '../src/hooks/useHashRouter.ts'), 'utf8')
-  const liveRailSource = readFileSync(join(__dirname, '../src/components/predictions/LiveSetupsBanner.tsx'), 'utf8')
   const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
 
   assert.match(layoutSource, /data-testid="obs-shell"/)
@@ -385,6 +405,8 @@ function runObservatoryShellSourceCheck() {
   assert.doesNotMatch(methodologySource, /How to know what you can trust/)
   assert.doesNotMatch(methodologyContentSource, /Canonical vs local/)
   assert.doesNotMatch(methodologyContentSource, /How recent the canonical snapshot is/)
+  assert.doesNotMatch(methodologyContentSource, /category: 'Flow'/)
+  assert.doesNotMatch(methodologySource, /What the six lanes mean/)
   assert.match(reportSource, /data-testid="obs-candle-report-page"/)
   assert.match(reportSource, /data-testid="obs-candle-report-back"/)
   assert.match(reportSource, /data-testid="obs-candle-report-prev"/)
@@ -397,13 +419,14 @@ function runObservatoryShellSourceCheck() {
   assert.match(clusterSource, /data-testid="obs-cluster-cell"/)
   assert.match(guideStripSource, /data-testid="obs-guide-strip"/)
   assert.match(observatoryHookSource, /export type ObservatoryLiveStatus = 'live' \| 'updating' \| 'delayed' \| 'disconnected'/)
+  assert.match(observatoryHookSource, /fundingHistory: \[\]/)
+  assert.match(observatoryHookSource, /oiHistory: \[\]/)
+  assert.doesNotMatch(observatoryHookSource, /const fundingHistory = useStore/)
+  assert.doesNotMatch(observatoryHookSource, /const oiHistory = useStore/)
   assert.match(routerSource, /#\/observatory/)
   assert.match(routerSource, /#\/observatory\/report/)
   assert.match(routerSource, /#\/analytics/)
   assert.match(routerSource, /#\/methodology/)
-  assert.match(liveRailSource, /className="live-rail-shell"/)
-  assert.match(liveRailSource, /className="live-rail-track scrollbar-hide"/)
-  assert.match(cssSource, /\.live-rail-shell \{/)
   assert.match(cssSource, /\.obs-command-bar \{/)
   assert.match(cssSource, /\.obs-guide \{/)
   assert.match(cssSource, /\.obs-methodology \{/)
@@ -567,20 +590,6 @@ function runMarketMomentsSourceCheck() {
   assert.match(cssSource, /\.context-panels__subnote \{/)
 }
 
-function runLiveTickerTapeCheck() {
-  const liveRailSource = readFileSync(join(__dirname, '../src/components/predictions/LiveSetupsBanner.tsx'), 'utf8')
-  const cssSource = readFileSync(join(__dirname, '../src/index.css'), 'utf8')
-
-  assert.match(liveRailSource, /className=\{\`live-rail-item/)
-  assert.match(liveRailSource, /live-rail-item__coin/)
-  assert.match(liveRailSource, /live-rail-item__direction/)
-  assert.match(liveRailSource, /live-rail-item__status/)
-  assert.doesNotMatch(liveRailSource, /live-rail-card__/)
-  assert.match(cssSource, /\.live-rail-item \{/)
-  assert.match(cssSource, /\.live-rail-item__coin \{/)
-  assert.match(cssSource, /\.live-rail-item__status \{/)
-}
-
 function runStep3CompactDensityCheck() {
   const riskSectionSource = readFileSync(join(__dirname, '../src/components/risk/RiskSection.tsx'), 'utf8')
   const riskFormSource = readFileSync(join(__dirname, '../src/components/risk/RiskForm.tsx'), 'utf8')
@@ -650,7 +659,9 @@ function runRuntimeStabilitySourceCheck() {
   assert.match(mainSource, /__levtradeRuntimeHooksInstalled/)
   assert.match(uiSliceSource, /runtimeDiagnostics/)
   assert.match(uiSliceSource, /pushRuntimeDiagnostic/)
+  assert.match(uiSliceSource, /selectedInterval: '4h'/)
   assert.match(storeSource, /delete merged\.expandedSections\['menu'\]/)
+  assert.match(storeSource, /merged\.selectedInterval = '4h'/)
   assert.match(storeSource, /merged\.runtimeDiagnostics = \[\]/)
   assert.match(managerSource, /pollInFlight/)
   assert.match(managerSource, /scheduleNextPoll/)
@@ -668,32 +679,28 @@ function runRuntimeStabilitySourceCheck() {
 
 function runObservatoryIndicatorHealthTest() {
   const candles = buildObservatoryCandles(280, 100)
-  const fundingHistory = candles.map((candle, index) => ({
-    time: candle.time,
-    rate: Math.sin(index / 17) * 0.00014 + Math.cos(index / 33) * 0.00006,
-  }))
-  const oiHistory = candles.map((candle, index) => ({
-    time: candle.time,
-    oi: 900_000 + index * 1200 + Math.sin(index / 13) * 2200,
-  }))
 
   const snapshot = buildObservatorySnapshot({
     coin: 'BTC',
     interval: '4h',
     candles,
-    fundingHistory,
-    oiHistory,
+    fundingHistory: [],
+    oiHistory: [],
   })
 
-  assert.ok(snapshot.indicators.length >= 35)
+  assert.ok(snapshot.indicators.length >= 30)
   assert.equal(snapshot.health.total, snapshot.indicators.length)
   assert.ok(snapshot.health.valid >= Math.floor(snapshot.indicators.length * 0.8))
+  assert.equal(snapshot.timeline.length, candles.length)
+  assert.equal(snapshot.barStates.length, candles.length)
   assert.ok(snapshot.timeline.every((cluster) => cluster.topHits.length <= 3))
   assert.ok(snapshot.timeline.every((cluster) => cluster.events.length === cluster.totalHits))
   assert.ok(snapshot.timeline.every((cluster) => Number.isFinite(cluster.price.open) && Number.isFinite(cluster.price.close)))
   assert.ok(snapshot.timeline.every((cluster) => cluster.events.every((event) => event.durationBars >= 1)))
   assert.ok(snapshot.timeline.every((cluster) => cluster.events.every((event) => event.durationMs === event.durationBars * 4 * 3_600_000)))
   assert.ok(snapshot.timeline.every((cluster) => cluster.events.every((event) => event.category && event.indicatorLabel)))
+  assert.ok(snapshot.indicators.every((indicator) => indicator.category !== 'Flow'))
+  assert.ok(snapshot.barStates.every((bar) => bar.activeIndicatorIds.length === bar.activeCount))
 
   const priceChangeOneBar = snapshot.indicators.find((indicator) => indicator.id === 'momentum_price_change_1h')
   assert.ok(priceChangeOneBar)
@@ -709,6 +716,30 @@ function runObservatoryIndicatorHealthTest() {
   assert.ok(donchian)
   assertIndicatorRange(rsi.series.map((point) => point.value), 0, 100, 1e-3)
   assertIndicatorRange(donchian.series.map((point) => point.value), 0, 1, 1e-3)
+}
+
+function runObservatoryBooleanStateTest() {
+  const candles = buildObservatoryCandles(180, 140)
+  const snapshot = buildObservatorySnapshot({
+    coin: 'BTC',
+    interval: '4h',
+    candles,
+    fundingHistory: [],
+    oiHistory: [],
+  })
+
+  const records = buildIndicatorStateRecords(snapshot)
+  assert.equal(records.length, snapshot.barStates.length * snapshot.indicators.length)
+  assert.ok(records.every((record) => record.category !== 'Flow'))
+
+  const sampleBar = snapshot.barStates[Math.floor(snapshot.barStates.length / 2)]
+  const sampleIndicator = snapshot.indicators[Math.floor(snapshot.indicators.length / 3)]
+  assert.ok(sampleBar)
+  assert.ok(sampleIndicator)
+
+  const sampleRecord = records.find((record) => record.candleTime === sampleBar.time && record.indicatorId === sampleIndicator.id)
+  assert.ok(sampleRecord)
+  assert.equal(sampleRecord.isOn, sampleBar.activeIndicatorIds.includes(sampleIndicator.id))
 }
 
 function runDeterministicReplayCheck() {

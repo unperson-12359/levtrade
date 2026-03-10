@@ -1,91 +1,57 @@
 # Production Parity Checklist
 
-This checklist is the release contract for keeping LevTrade's canonical analytics consistent across the browser, Vercel, Supabase, and the Oracle collector.
+This checklist is the release contract for the live observatory product.
 
-## Canonical ownership model
-- Setup history is canonical when `server_setups` is available.
-- Signal accuracy is canonical when `tracked_signals` is available and the collector is resolving outcomes.
-- Browser-local tracker/setup state is fallback only when canonical endpoints are unavailable or empty.
+## Product truth
+- The active product is the observatory shell mounted from `src/App.tsx`.
+- Production parity means the live observatory behaves the same in browser, Vercel, and the generated API bundle.
+- Legacy setup/tracker/collector infrastructure is not part of the observatory release gate unless the current mounted app depends on it.
 
-## Required Supabase tables
-- `server_setups`
-- `tracked_signals`
-- `collector_heartbeat`
-- `oi_snapshots`
-
-Required `server_setups` fields:
-- `id`
-- `scope`
-- `coin`
-- `direction`
-- `setup_json`
-- `outcomes_json`
-- `generated_at`
-- `updated_at`
-
-Required `tracked_signals` fields:
-- `id`
-- `scope`
-- `coin`
-- `kind`
-- `direction`
-- `signal_json`
-- `outcomes_json`
-- `recorded_at`
-- `updated_at`
-
-## Required Vercel env vars
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `CRON_SECRET`
-- `SETUP_UPLOAD_SECRET`
-
-## Required browser env vars
-- `VITE_SETUP_UPLOAD_SECRET`
-
-This must match `SETUP_UPLOAD_SECRET` exactly for browser-to-server setup sync to work.
-
-## Required Oracle collector env vars
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `COINALYZE_API_KEY` optional
-
-## Deploy-sensitive build artifacts
-These bundled files must reflect the current source tree before release:
+## Required release surfaces
+- `src/components/observatory/*`
+- `src/hooks/useDataManager.ts`
+- `src/hooks/useIndicatorObservatory.ts`
+- `src/services/dataManager.ts`
+- `api/observatory-snapshot.ts`
+- `src/observatory/engine.ts`
 - `api/_signals.mjs`
-- `api/_collector.mjs`
+
+## Required runtime inputs
+- Hyperliquid websocket mids
+- Hyperliquid candle snapshots
+- Browser candle store
+- Server observatory snapshot hydration
+
+## Optional or deferred infrastructure
+- `observatory_indicator_states`
+  - planned persistence layer for per-bar indicator booleans
+  - not required for the current live shell to render
+- legacy setup/tracker/collector tables and APIs
+  - not required for the observatory release gate
+  - review separately before any deletion or migration
 
 ## Release build steps
-Run from the repo root:
 
 ```powershell
-npm.cmd run test:logic
 npm.cmd run build
-npm.cmd run build:collector
+npm.cmd run test:logic
+npm.cmd run test:e2e:critical
 ```
 
 ## Browser verification
-After deploy:
-- open the observatory shell and confirm the default timeline view loads with the price chart and indicator heatmap
-- confirm heatmap cell selection opens the candle report route and browser back returns to the heatmap
-- confirm network view still renders indicator drilldown correctly after the cleanup pass
-- confirm health/runtime/freshness states remain visible and fallback copy appears only when canonical endpoints are unavailable or empty
+- the observatory shell loads on the default route
+- websocket connection status updates without hiding the shell
+- coin and interval changes refresh the live chart and heatmap
+- heatmap cell selection opens the candle report and browser back returns to the heatmap
+- analytics and methodology routes still load from the observatory nav
+- runtime diagnostics remain secondary and do not replace the market-reading surface
 
-## Vercel verification
-- `/api/observatory-snapshot?coin=BTC&interval=4h` returns `200` with `ok: true` and freshness metadata
-- `/api/server-setups` returns canonical setup rows
-- `/api/signal-accuracy` returns canonical stats or a clear unavailable state
-- `/api/collector-heartbeat` reports a live or stale heartbeat instead of failing
-- `/api/upload-setups` rejects requests without the shared secret
+## API verification
+- `/api/observatory-snapshot?coin=BTC&interval=4h` returns `200`
+- the payload returns `ok: true`
+- the snapshot includes the observatory model needed by the shell
+- the generated bundle `api/_signals.mjs` matches the current observatory source tree
 
-## Oracle collector verification
-- the service is running continuously
-- heartbeat is updating
-- new setups are written to `server_setups`
-- setup outcomes are being resolved and patching `updated_at`
-- tracked signals are being written and resolved
-
-## Known parity dependencies
-- If `tracked_signals.sql` is not applied, canonical signal accuracy will remain incomplete
-- If the Oracle collector is down, canonical analytics will freeze
-- If Vercel and Oracle are on different revisions, frontend expectations can drift from collector writes
+## Known deferred work
+- bar-close writes into `observatory_indicator_states` are not implemented yet
+- the legacy setup/tracker/collector stack still exists in the repo and should not be treated as the live observatory contract

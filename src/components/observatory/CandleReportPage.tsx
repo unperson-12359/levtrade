@@ -3,7 +3,7 @@ import { PriceChart } from '../chart/PriceChart'
 import type { CandleHitCluster, IndicatorCategory, IndicatorHitEvent, IndicatorMetric } from '../../observatory/types'
 import type { TrackedCoin } from '../../types/market'
 
-const LANE_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Flow', 'Structure']
+const LANE_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
 
 interface CandleReportPageProps {
   coin: TrackedCoin
@@ -240,7 +240,7 @@ export function CandleReportPage({
 
       <div className="obs-report__metrics" data-testid="obs-report-metrics">
         <div className="obs-report__metric-card">
-          <span className="obs-report__metric-label">Total hits</span>
+          <span className="obs-report__metric-label">Active states</span>
           <strong className="obs-report__metric-value">{cluster.totalHits}</strong>
           <span className="obs-report__metric-meta">
             {reportStats ? `${cluster.totalHits >= reportStats.trailingAverage ? '+' : ''}${(cluster.totalHits - reportStats.trailingAverage).toFixed(1)} vs trailing avg` : '--'}
@@ -259,7 +259,7 @@ export function CandleReportPage({
         <div className="obs-report__metric-card">
           <span className="obs-report__metric-label">Dominance</span>
           <strong className="obs-report__metric-value">{reportStats ? formatPct(reportStats.dominance) : '--'}</strong>
-          <span className="obs-report__metric-meta">{reportStats ? `${reportStats.strongestCount} hits in top lane` : '--'}</span>
+          <span className="obs-report__metric-meta">{reportStats ? `${reportStats.strongestCount} active states in top lane` : '--'}</span>
         </div>
         <div className="obs-report__metric-card">
           <span className="obs-report__metric-label">Recurring</span>
@@ -304,7 +304,7 @@ export function CandleReportPage({
         <section className="obs-report__detail-panel" data-testid="obs-report-category-share">
           <div className="obs-report__detail-head">
             <span className="obs-report__detail-label">Category share</span>
-            <span className="obs-report__detail-count">{cluster.totalHits} hits</span>
+            <span className="obs-report__detail-count">{cluster.totalHits} active states</span>
           </div>
           <div className="obs-report__share-list">
             {reportGroups.map((group) => (
@@ -415,7 +415,7 @@ function formatSignedPct(value: number) {
 }
 
 function formatRecurrence(gapBars: number | null, timeframe: '4h' | '1d', active = false) {
-  if (gapBars === null) return active ? 'New trigger' : 'No recent hits'
+  if (gapBars === null) return active ? 'New active state' : 'No recent active bars'
   if (gapBars === 0) return 'Active now'
   const durationHours = gapBars * (timeframe === '4h' ? 4 : 24)
   return `${gapBars} bars / ${durationHours >= 24 ? `${durationHours / 24}d` : `${durationHours}h`} ago`
