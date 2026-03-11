@@ -4398,6 +4398,22 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - Changes are local only; they have not been committed or pushed in this pass.
 - Date: 2026-03-11
 - Agent: Codex (GPT-5)
+- Goal: Finalize production release verification and signoff for the chart heat-circle marker candidate `5ab291f`.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `docs/release-signoff.md`
+- Verification:
+  - `git push origin master` PASS
+  - `npx vercel ls` PASS
+  - Production deployment ready: `https://levtrade-ogwn9o6ng-unperson12359s-projects.vercel.app`
+  - `npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180` PASS
+- Follow-up risks / next steps:
+  - The runtime candidate is live and production smoke is green, but a visual pass on the new near-candle marker density at phone and desktop widths is still the fastest way to tune aesthetics if you want another polish round.
+  - The follow-up docs commit exists only to record the verified production candidate in-repo after deployment.
+- Remaining incomplete work:
+  - Commit and push the signoff/log finalization commit, then verify the signoff contract on the finalized docs state.
+- Date: 2026-03-11
+- Agent: Codex (GPT-5)
 - Goal: Refactor the observatory chart markers from rectangular label cards into compact near-candle circles sized by active-indicator count and colored by the existing heatmap intensity scale.
 - Files changed:
   - `COLLAB_LOG.md`
