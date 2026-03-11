@@ -12,6 +12,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.locator('.price-chart')).toBeVisible()
     await expect(page.getByTestId('obs-chart-cluster-overlay')).toBeVisible()
     await expect(page.getByTestId('obs-chart-cluster-bubble').first()).toBeVisible()
+    await expect(page.getByTestId('obs-chart-cluster-bubble').first()).toContainText(/\d+/)
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
     await expect(page.getByTestId('obs-guide-strip')).toBeVisible()
     await expect(page.getByTestId('obs-guide-strip')).toHaveAttribute('data-guide-state', 'collapsed')

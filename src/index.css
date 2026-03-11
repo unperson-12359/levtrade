@@ -2685,42 +2685,35 @@ button {
 
 .chart-cluster-overlay {
   position: absolute;
-  inset: 0.7rem 0 auto;
-  min-height: 182px;
+  inset: 0;
   pointer-events: none;
   z-index: 2;
 }
 
 .chart-cluster-bubble {
   position: absolute;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   display: grid;
-  gap: 0.28rem;
-  width: 144px;
-  max-width: calc(100% - 1rem);
-  padding: 0.5rem 0.58rem;
-  border: 1px solid color-mix(in srgb, var(--color-signal-blue) 24%, var(--color-border-subtle));
-  border-radius: 0.72rem;
-  background:
-    linear-gradient(180deg, rgba(255, 250, 240, 0.96), rgba(245, 237, 220, 0.96)),
-    var(--color-bg-card);
+  place-items: center;
+  border: 1px solid rgba(186, 122, 26, 0.45);
+  border-radius: 999px;
+  background: rgba(186, 122, 26, 0.2);
   box-shadow:
-    0 10px 24px rgba(17, 12, 8, 0.16),
-    0 1px 0 rgba(255, 255, 255, 0.55) inset;
-  text-align: left;
+    0 10px 22px rgba(17, 12, 8, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.28) inset;
   pointer-events: auto;
   transition:
     transform 140ms ease,
+    background 140ms ease,
     border-color 140ms ease,
     box-shadow 140ms ease;
 }
 
 .chart-cluster-bubble:hover {
-  transform: translateX(-50%) translateY(-1px);
-  border-color: color-mix(in srgb, var(--color-signal-blue) 42%, var(--color-border-subtle));
+  transform: translate(-50%, -50%) scale(1.04);
   box-shadow:
-    0 12px 28px rgba(17, 12, 8, 0.18),
-    0 1px 0 rgba(255, 255, 255, 0.58) inset;
+    0 12px 24px rgba(17, 12, 8, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.32) inset;
 }
 
 .chart-cluster-bubble:focus-visible {
@@ -2728,36 +2721,39 @@ button {
   outline-offset: 2px;
 }
 
+.chart-cluster-bubble--l1 {
+  background: rgba(186, 122, 26, 0.2);
+  border-color: rgba(186, 122, 26, 0.45);
+}
+
+.chart-cluster-bubble--l2 {
+  background: rgba(186, 122, 26, 0.38);
+  border-color: rgba(186, 122, 26, 0.62);
+}
+
+.chart-cluster-bubble--l3 {
+  background: rgba(206, 75, 43, 0.42);
+  border-color: rgba(206, 75, 43, 0.68);
+}
+
+.chart-cluster-bubble--l4 {
+  background: rgba(206, 75, 43, 0.72);
+  border-color: rgba(21, 17, 12, 0.92);
+}
+
 .chart-cluster-bubble--selected {
   border-color: color-mix(in srgb, var(--color-signal-blue) 58%, var(--color-border-subtle));
   box-shadow:
-    0 14px 30px rgba(17, 12, 8, 0.2),
+    0 14px 28px rgba(17, 12, 8, 0.22),
     0 0 0 1px color-mix(in srgb, var(--color-signal-blue) 14%, transparent) inset;
 }
 
 .chart-cluster-bubble__count {
-  font-size: 0.62rem;
+  font-size: clamp(0.52rem, 0.34rem + 0.28vw, 0.82rem);
   line-height: 1;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-  pointer-events: none;
-}
-
-.chart-cluster-bubble__hits {
-  display: grid;
-  gap: 0.18rem;
-  pointer-events: none;
-}
-
-.chart-cluster-bubble__hit {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.72rem;
-  line-height: 1.15;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
   pointer-events: none;
 }
@@ -5320,16 +5316,32 @@ button {
 }
 
 .obs-app .chart-cluster-bubble {
-  border-radius: 0;
-  border: 2px solid var(--obs-rule);
-  background:
-    linear-gradient(180deg, rgba(255, 251, 244, 0.98), rgba(244, 235, 220, 0.98)),
-    var(--obs-paper);
+  border-width: 2px;
   box-shadow: var(--obs-shadow-soft);
 }
 
 .obs-app .chart-cluster-bubble:hover {
   box-shadow: var(--obs-shadow-soft);
+}
+
+.obs-app .chart-cluster-bubble--l1 {
+  background: rgba(186, 122, 26, 0.2);
+  border-color: rgba(186, 122, 26, 0.45);
+}
+
+.obs-app .chart-cluster-bubble--l2 {
+  background: rgba(186, 122, 26, 0.38);
+  border-color: rgba(186, 122, 26, 0.62);
+}
+
+.obs-app .chart-cluster-bubble--l3 {
+  background: rgba(206, 75, 43, 0.42);
+  border-color: rgba(206, 75, 43, 0.68);
+}
+
+.obs-app .chart-cluster-bubble--l4 {
+  background: rgba(206, 75, 43, 0.72);
+  border-color: rgba(21, 17, 12, 0.92);
 }
 
 .obs-app .chart-cluster-bubble--selected {
@@ -5341,11 +5353,6 @@ button {
 
 .obs-app .chart-cluster-bubble__count {
   font-family: var(--font-mono);
-  font-size: 0.54rem;
-  color: var(--obs-muted-2);
-}
-
-.obs-app .chart-cluster-bubble__hit {
   color: var(--obs-ink);
 }
 
@@ -6859,21 +6866,8 @@ button {
 }
 
 @media (max-width: 760px) {
-  .chart-cluster-overlay {
-    min-height: 134px;
-  }
-
-  .chart-cluster-bubble {
-    width: 124px;
-    padding: 0.38rem 0.42rem;
-  }
-
   .chart-cluster-bubble__count {
-    font-size: 0.54rem;
-  }
-
-  .chart-cluster-bubble__hit {
-    font-size: 0.64rem;
+    font-size: 0.52rem;
   }
 
   .obs-cluster__heatmap {

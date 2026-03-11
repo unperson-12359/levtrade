@@ -4396,6 +4396,24 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - The guide expansion preference now persists in local storage through the Zustand store.
 - Remaining incomplete work:
   - Changes are local only; they have not been committed or pushed in this pass.
+- Date: 2026-03-11
+- Agent: Codex (GPT-5)
+- Goal: Refactor the observatory chart markers from rectangular label cards into compact near-candle circles sized by active-indicator count and colored by the existing heatmap intensity scale.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `src/components/chart/PriceChart.tsx`
+  - `src/index.css`
+  - `tests/e2e/critical-flows.spec.ts`
+  - `tests/run-logic-tests.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - The markers now sit near candle highs/lows and stay clickable under the current pruning rules, but if you want denser marker coverage later the next pass should add true clustering/aggregation rather than relaxing overlap checks.
+  - The report-route click behavior and heatmap rail were intentionally left unchanged in this pass.
+- Remaining incomplete work:
+  - Changes are local only; they have not been committed or pushed in this pass.
 - Date: 2026-03-10
 - Agent: Codex (GPT-5)
 - Goal: Add in-chart indicator bubbles to the observatory timeline while keeping the existing heatmap/report workflow intact.

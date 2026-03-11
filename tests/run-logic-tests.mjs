@@ -89,6 +89,9 @@ function runChartSimplificationSourceCheck() {
   assert.match(chartSource, /data-testid="obs-chart-cluster-overlay"/)
   assert.match(chartSource, /data-testid="obs-chart-cluster-bubble"/)
   assert.match(chartSource, /subscribeVisibleTimeRangeChange/)
+  assert.match(chartSource, /priceToCoordinate/)
+  assert.match(chartSource, /displayCount/)
+  assert.doesNotMatch(chartSource, /chart-cluster-bubble__hits|chart-cluster-bubble__hit/)
   assert.match(chartModelSource, /BOLLINGER_PERIOD = 20/)
   assert.match(chartModelSource, /state\.candles\[coin\]\[selectedInterval\]/)
   assert.match(reportSource, /<PriceChart coin=\{coin\} embedded showHeader=\{false\} \/>/)
@@ -177,6 +180,9 @@ function runObservatoryShellSourceCheck() {
   assert.match(cssSource, /\.obs-diagnostics-panel \{/)
   assert.match(cssSource, /\.chart-cluster-overlay \{/)
   assert.match(cssSource, /\.chart-cluster-bubble \{/)
+  assert.match(cssSource, /\.chart-cluster-bubble--l1 \{/)
+  assert.match(cssSource, /\.chart-cluster-bubble__count \{/)
+  assert.doesNotMatch(cssSource, /\.chart-cluster-bubble__hits \{|\.chart-cluster-bubble__hit \{/)
 }
 
 function runObservatoryCleanupSourceCheck() {

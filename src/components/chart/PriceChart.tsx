@@ -229,19 +229,22 @@ export function PriceChart({
   }, [model, resetView, viewportKey])
 
   useEffect(() => {
-    if (!showClusterOverlay || !chartRef.current || !containerRef.current) {
+    if (!showClusterOverlay || !chartRef.current || !containerRef.current || !candleSeriesRef.current) {
       setClusterBubbleLayouts([])
       syncClusterBubblesRef.current = null
       return
     }
 
     const chart = chartRef.current
+    const candleSeries = candleSeriesRef.current
     const container = containerRef.current
     const syncBubbleLayout = () => {
       setClusterBubbleLayouts(
         buildChartClusterBubbleLayouts({
           chart,
+          candleSeries,
           clusterMode,
+          containerHeight: container.clientHeight,
           containerWidth: container.clientWidth,
           selectedTime,
           timeline,
@@ -298,19 +301,20 @@ export function PriceChart({
               <button
                 key={bubble.time}
                 type="button"
-                className={`chart-cluster-bubble ${bubble.selected ? 'chart-cluster-bubble--selected' : ''}`}
-                style={{ left: `${bubble.left}px`, top: `${bubble.top}px` }}
+                className={`chart-cluster-bubble chart-cluster-bubble--${bubble.level} ${bubble.selected ? 'chart-cluster-bubble--selected' : ''}`}
+                style={{
+                  left: `${bubble.left}px`,
+                  top: `${bubble.top}px`,
+                  width: `${bubble.diameter}px`,
+                  height: `${bubble.diameter}px`,
+                  zIndex: bubble.zIndex,
+                }}
                 onClick={() => handleClusterBubbleClick(bubble.time)}
                 title={bubble.title}
                 aria-label={bubble.ariaLabel}
                 data-testid="obs-chart-cluster-bubble"
               >
-                <span className="chart-cluster-bubble__count">{bubble.totalHits} active</span>
-                <span className="chart-cluster-bubble__hits">
-                  {bubble.labels.map((label) => (
-                    <span key={`${bubble.time}:${label}`} className="chart-cluster-bubble__hit">{label}</span>
-                  ))}
-                </span>
+                <span className="chart-cluster-bubble__count">{bubble.displayCount}</span>
               </button>
             ))}
           </div>
@@ -354,27 +358,33 @@ interface ChartClusterBubbleLayout {
   time: number
   left: number
   top: number
+  diameter: number
+  displayCount: string
+  level: 'l1' | 'l2' | 'l3' | 'l4'
   selected: boolean
-  totalHits: number
-  labels: string[]
   title: string
   ariaLabel: string
+  zIndex: number
 }
 
 function buildChartClusterBubbleLayouts({
   chart,
+  candleSeries,
   clusterMode,
+  containerHeight,
   containerWidth,
   selectedTime,
   timeline,
 }: {
   chart: IChartApi
+  candleSeries: ISeriesApi<'Candlestick'>
   clusterMode: 'simple' | 'pro'
+  containerHeight: number
   containerWidth: number
   selectedTime: number | null
   timeline: CandleHitCluster[]
 }): ChartClusterBubbleLayout[] {
-  if (containerWidth <= 0 || timeline.length === 0) return []
+  if (containerWidth <= 0 || containerHeight <= 0 || timeline.length === 0) return []
 
   const visibleRange = chart.timeScale().getVisibleRange()
   if (!visibleRange) return []
@@ -391,74 +401,62 @@ function buildChartClusterBubbleLayouts({
   if (visibleClusters.length === 0) return []
 
   const narrow = containerWidth <= 760
-  const bubbleWidth = narrow ? 124 : clusterMode === 'pro' ? 156 : 144
-  const rowCount = narrow ? 2 : 3
-  const rowGap = narrow ? 10 : 12
-  const rowHeight = narrow ? 56 : 64
-  const edgePadding = narrow ? 12 : 18
-  const positionedVisibleClusters: Array<{ cluster: CandleHitCluster; x: number }> = []
+  const maxVisibleHits = visibleClusters.reduce((maxHits, cluster) => Math.max(maxHits, cluster.totalHits), 0)
+  const edgePadding = narrow ? 10 : 14
+  const positionedVisibleClusters: PositionedVisibleCluster[] = []
 
   for (const cluster of visibleClusters) {
     const x = chart.timeScale().timeToCoordinate(Math.floor(cluster.time / 1000) as UTCTimestamp)
-    if (x === null || !Number.isFinite(x)) continue
-    positionedVisibleClusters.push({ cluster, x })
+    const highY = candleSeries.priceToCoordinate(cluster.price.high)
+    const lowY = candleSeries.priceToCoordinate(cluster.price.low)
+    if (x === null || highY === null || lowY === null || !Number.isFinite(x) || !Number.isFinite(highY) || !Number.isFinite(lowY)) continue
+
+    positionedVisibleClusters.push({
+      cluster,
+      x,
+      highY,
+      lowY,
+      diameter: resolveClusterCircleDiameter(cluster.totalHits, maxVisibleHits, narrow),
+      level: intensityLevel(cluster.totalHits, maxVisibleHits),
+    })
   }
   if (positionedVisibleClusters.length === 0) return []
 
   const maxBubbles = resolveClusterBubbleLimit(containerWidth, clusterMode)
-  const shortlisted = selectStrongestVisibleClusters(positionedVisibleClusters, maxBubbles, selectedTime, bubbleWidth * 0.74)
+  const shortlisted = selectStrongestVisibleClusters(positionedVisibleClusters, maxBubbles, selectedTime)
   if (shortlisted.length === 0) return []
 
-  const rowRightEdges = new Array(rowCount).fill(Number.NEGATIVE_INFINITY)
-  return shortlisted
-    .sort((a, b) => a.cluster.time - b.cluster.time)
-    .map(({ cluster, x }) => {
-      const clampedLeft = clamp(x, bubbleWidth / 2 + edgePadding, containerWidth - bubbleWidth / 2 - edgePadding)
-      const row = pickBubbleRow(rowRightEdges, clampedLeft, bubbleWidth, narrow ? 8 : 12)
-      rowRightEdges[row] = clampedLeft + bubbleWidth / 2
-      const labels = cluster.topHits.slice(0, 3).map((hit) => hit.indicatorLabel)
+  const layouts = placeClusterCircles({
+    candidates: shortlisted,
+    containerHeight,
+    containerWidth,
+    edgePadding,
+    selectedTime,
+  })
 
-      return {
-        time: cluster.time,
-        left: clampedLeft,
-        top: 12 + row * (rowHeight + rowGap),
-        selected: cluster.time === selectedTime,
-        totalHits: cluster.totalHits,
-        labels,
-        title: `${formatUtcDateTime(cluster.time)} | ${cluster.topHits.slice(0, 3).map((hit) => hit.message).join(' | ')}`,
-        ariaLabel: `${cluster.totalHits} active states at ${formatUtcDateTime(cluster.time)}. ${labels.join(', ')}`,
-      }
-    })
+  return layouts.sort((a, b) => a.time - b.time)
 }
 
 function selectStrongestVisibleClusters(
-  visibleClusters: Array<{ cluster: CandleHitCluster; x: number }>,
+  visibleClusters: PositionedVisibleCluster[],
   maxBubbles: number,
   selectedTime: number | null,
-  minDistance: number,
-): Array<{ cluster: CandleHitCluster; x: number }> {
-  const selectedCluster = selectedTime === null ? null : visibleClusters.find((entry) => entry.cluster.time === selectedTime) ?? null
-  const latestCluster = visibleClusters[visibleClusters.length - 1] ?? null
-  const kept = new Map<number, { cluster: CandleHitCluster; x: number }>()
+): PositionedVisibleCluster[] {
+  const latestTime = visibleClusters[visibleClusters.length - 1]?.cluster.time ?? null
+  const ranked = [...visibleClusters].sort((a, b) => {
+    const aPriority = resolveClusterPriority(a, selectedTime, latestTime)
+    const bPriority = resolveClusterPriority(b, selectedTime, latestTime)
+    return bPriority - aPriority || b.cluster.time - a.cluster.time
+  })
 
-  if (selectedCluster) kept.set(selectedCluster.cluster.time, selectedCluster)
-  if (latestCluster && canKeepCluster(latestCluster, kept, minDistance * 0.5)) {
-    kept.set(latestCluster.cluster.time, latestCluster)
-  }
-
-  const ranked = [...visibleClusters].sort(
-    (a, b) =>
-      b.cluster.totalHits - a.cluster.totalHits ||
-      b.cluster.topHits.length - a.cluster.topHits.length ||
-      b.cluster.time - a.cluster.time,
-  )
+  const kept: PositionedVisibleCluster[] = []
   for (const cluster of ranked) {
-    if (!canKeepCluster(cluster, kept, minDistance)) continue
-    kept.set(cluster.cluster.time, cluster)
-    if (kept.size >= maxBubbles) break
+    if (!canKeepCluster(cluster, kept)) continue
+    kept.push(cluster)
+    if (kept.length >= maxBubbles) break
   }
 
-  return [...kept.values()].sort((a, b) => a.cluster.time - b.cluster.time)
+  return kept
 }
 
 function resolveClusterBubbleLimit(containerWidth: number, clusterMode: 'simple' | 'pro'): number {
@@ -466,40 +464,135 @@ function resolveClusterBubbleLimit(containerWidth: number, clusterMode: 'simple'
   return clusterMode === 'pro' ? 14 : 10
 }
 
-function pickBubbleRow(rowRightEdges: number[], centerX: number, bubbleWidth: number, minGap: number): number {
-  const leftEdge = centerX - bubbleWidth / 2
+function placeClusterCircles({
+  candidates,
+  containerHeight,
+  containerWidth,
+  edgePadding,
+  selectedTime,
+}: {
+  candidates: PositionedVisibleCluster[]
+  containerHeight: number
+  containerWidth: number
+  edgePadding: number
+  selectedTime: number | null
+}): ChartClusterBubbleLayout[] {
+  const placed: ChartClusterBubbleLayout[] = []
 
-  for (let index = 0; index < rowRightEdges.length; index += 1) {
-    const rowRightEdge = rowRightEdges[index] ?? Number.NEGATIVE_INFINITY
-    if (leftEdge - rowRightEdge >= minGap) {
-      return index
+  for (const candidate of candidates) {
+    const left = clamp(candidate.x, candidate.diameter / 2 + edgePadding, containerWidth - candidate.diameter / 2 - edgePadding)
+    const centers = buildCandidateCenters(candidate, containerHeight)
+    let chosenTop = centers.find((centerY) => !hasCircleCollision(left, centerY, candidate.diameter, placed)) ?? null
+
+    if (chosenTop === null && candidate.cluster.time === selectedTime) {
+      chosenTop = centers[0] ?? null
     }
+    if (chosenTop === null) continue
+
+    const labels = candidate.cluster.topHits.slice(0, 3).map((hit) => hit.indicatorLabel)
+    placed.push({
+      time: candidate.cluster.time,
+      left,
+      top: chosenTop,
+      diameter: candidate.diameter,
+      displayCount: formatClusterDisplayCount(candidate.cluster.totalHits),
+      level: candidate.level,
+      selected: candidate.cluster.time === selectedTime,
+      title: `${formatUtcDateTime(candidate.cluster.time)} | ${candidate.cluster.topHits.slice(0, 3).map((hit) => hit.message).join(' | ')}`,
+      ariaLabel: `${candidate.cluster.totalHits} active states at ${formatUtcDateTime(candidate.cluster.time)}. ${labels.join(', ')}`,
+      zIndex: candidate.cluster.time === selectedTime ? 4 : candidate.cluster.totalHits >= 20 ? 3 : 2,
+    })
   }
 
-  let bestRow = 0
-  let smallestRightEdge = rowRightEdges[0] ?? Number.POSITIVE_INFINITY
-  for (let index = 1; index < rowRightEdges.length; index += 1) {
-    const rowRightEdge = rowRightEdges[index] ?? Number.POSITIVE_INFINITY
-    if (rowRightEdge < smallestRightEdge) {
-      smallestRightEdge = rowRightEdge
-      bestRow = index
-    }
-  }
-  return bestRow
+  return placed
 }
 
 function canKeepCluster(
-  candidate: { cluster: CandleHitCluster; x: number },
-  kept: Map<number, { cluster: CandleHitCluster; x: number }>,
-  minDistance: number,
+  candidate: PositionedVisibleCluster,
+  kept: PositionedVisibleCluster[],
 ): boolean {
-  if (kept.has(candidate.cluster.time)) return true
-  for (const existing of kept.values()) {
+  if (kept.some((entry) => entry.cluster.time === candidate.cluster.time)) return true
+  for (const existing of kept) {
+    const minDistance = (candidate.diameter + existing.diameter) * 0.46
     if (Math.abs(existing.x - candidate.x) < minDistance) {
       return false
     }
   }
   return true
+}
+
+function buildCandidateCenters(candidate: PositionedVisibleCluster, containerHeight: number): number[] {
+  const radius = candidate.diameter / 2
+  const preferredAbove = candidate.highY - radius - 12
+  const preferredBelow = candidate.lowY + radius + 12
+  const minCenter = radius + 8
+  const maxCenter = containerHeight - radius - 8
+  const preferAbove = preferredAbove >= minCenter
+
+  const primaryBase = clamp(preferAbove ? preferredAbove : preferredBelow, minCenter, maxCenter)
+  const secondaryBase = clamp(preferAbove ? preferredBelow : preferredAbove, minCenter, maxCenter)
+  const offsets = [0, -16, 16, -30, 30]
+  const centers: number[] = []
+
+  for (const offset of offsets) {
+    centers.push(clamp(primaryBase + offset, minCenter, maxCenter))
+  }
+  for (const offset of offsets) {
+    centers.push(clamp(secondaryBase + offset, minCenter, maxCenter))
+  }
+
+  return [...new Set(centers)]
+}
+
+function hasCircleCollision(left: number, top: number, diameter: number, placed: ChartClusterBubbleLayout[]): boolean {
+  for (const existing of placed) {
+    const minDistance = (diameter + existing.diameter) / 2 + 6
+    if (Math.hypot(left - existing.left, top - existing.top) < minDistance) {
+      return true
+    }
+  }
+  return false
+}
+
+function resolveClusterPriority(
+  cluster: PositionedVisibleCluster,
+  selectedTime: number | null,
+  latestTime: number | null,
+): number {
+  if (cluster.cluster.time === selectedTime) return 10_000 + cluster.cluster.totalHits
+  if (cluster.cluster.time === latestTime) return 5_000 + cluster.cluster.totalHits
+  return cluster.cluster.totalHits * 100 + cluster.cluster.topHits.length
+}
+
+function resolveClusterCircleDiameter(totalHits: number, maxVisibleHits: number, narrow: boolean): number {
+  const minDiameter = narrow ? 22 : 24
+  const maxDiameter = narrow ? 34 : 42
+  if (maxVisibleHits <= 0) return minDiameter
+  const ratio = totalHits / maxVisibleHits
+  return Math.round(minDiameter + (maxDiameter - minDiameter) * ratio)
+}
+
+function formatClusterDisplayCount(totalHits: number): string {
+  if (totalHits > 99) return '99+'
+  return String(totalHits)
+}
+
+function intensityLevel(count: number, maxCount: number): 'l1' | 'l2' | 'l3' | 'l4' {
+  if (maxCount <= 0) return 'l1'
+  const ratio = count / maxCount
+  if (ratio < 0.25) return 'l1'
+  if (ratio < 0.5) return 'l2'
+  if (ratio < 0.75) return 'l3'
+  return 'l4'
+}
+
+interface PositionedVisibleCluster {
+  cluster: CandleHitCluster
+  x: number
+  highY: number
+  lowY: number
+  diameter: number
+  level: 'l1' | 'l2' | 'l3' | 'l4'
 }
 
 function normalizeChartTime(time: Time | null): number | null {
