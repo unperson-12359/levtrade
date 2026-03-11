@@ -4417,6 +4417,23 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - Commit, push, production deployment verification, and release-signoff finalization still remain after this entry.
 - Date: 2026-03-10
 - Agent: Codex (GPT-5)
+- Goal: Finalize the production release for candidate `be35fba` after shipping the observatory chart-bubble overlay.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `docs/release-signoff.md`
+- Verification:
+  - `git push origin master` PASS
+  - `npx vercel ls` PASS
+  - Production deployment ready: `https://levtrade-oqru0g12d-unperson12359s-projects.vercel.app`
+  - `npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180` PASS
+  - `npm.cmd run gate:release` PASS (outside sandbox)
+- Follow-up risks / next steps:
+  - The live alias is healthy after deploy, but a real visual browser pass on the bubble density at `360`, `390`, `412`, `960`, and desktop widths is still the fastest way to tune aesthetics if you want a second polish pass.
+  - The signoff metadata now reflects candidate `be35fba`; the follow-up docs commit only exists so that release evidence is recorded in-repo after production verification.
+- Remaining incomplete work:
+  - Commit and push the signoff/log finalization commit.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
 - Goal: Run a fresh full-codebase observatory audit against `HEAD 235331f`, validate the current tree, and produce a new ranked findings set before the next cleanup pass.
 - Files changed:
   - `COLLAB_LOG.md`
