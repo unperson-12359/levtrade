@@ -538,7 +538,16 @@ export function ObservatoryLayout() {
 
                     {!chartCollapsed && (
                       <div id="obs-live-chart-panel" className="obs-chart-compact">
-                        <PriceChart coin={selectedCoin} embedded showHeader={false} />
+                        <PriceChart
+                          coin={selectedCoin}
+                          embedded
+                          showHeader={false}
+                          timeline={snapshot.timeline}
+                          selectedTime={selectedClusterTime}
+                          clusterMode={clusterMode}
+                          onSelectClusterTime={setSelectedClusterTime}
+                          onOpenClusterReport={openCandleReport}
+                        />
                       </div>
                     )}
                   </div>

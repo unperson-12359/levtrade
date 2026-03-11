@@ -4398,6 +4398,25 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - Changes are local only; they have not been committed or pushed in this pass.
 - Date: 2026-03-10
 - Agent: Codex (GPT-5)
+- Goal: Add in-chart indicator bubbles to the observatory timeline while keeping the existing heatmap/report workflow intact.
+- Files changed:
+  - `COLLAB_LOG.md`
+  - `src/components/chart/PriceChart.tsx`
+  - `src/components/observatory/ObservatoryLayout.tsx`
+  - `src/index.css`
+  - `tests/e2e/critical-flows.spec.ts`
+  - `tests/run-logic-tests.mjs`
+- Verification:
+  - `npm.cmd run build` PASS
+  - `npm.cmd run test:logic` PASS
+  - `npm.cmd run test:e2e:critical` PASS
+- Follow-up risks / next steps:
+  - The chart overlay now prunes bubbles by visible-range distance so they stay clickable, but if you want denser in-chart annotation later the next step should be a smarter collision/aggregation model rather than simply raising the bubble cap.
+  - Only the main observatory timeline chart gets bubbles in this pass; the report chart intentionally stays unchanged.
+- Remaining incomplete work:
+  - Commit, push, production deployment verification, and release-signoff finalization still remain after this entry.
+- Date: 2026-03-10
+- Agent: Codex (GPT-5)
 - Goal: Run a fresh full-codebase observatory audit against `HEAD 235331f`, validate the current tree, and produce a new ranked findings set before the next cleanup pass.
 - Files changed:
   - `COLLAB_LOG.md`

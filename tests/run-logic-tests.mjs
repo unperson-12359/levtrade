@@ -85,6 +85,10 @@ function runChartSimplificationSourceCheck() {
   assert.doesNotMatch(chartModelSource, /usePositionRisk|signals\[coin\]|verificationSetup|SuggestedSetup/)
   assert.match(chartSource, /Building the initial band context from recent candles/)
   assert.match(chartSource, /Live chart context is delayed/)
+  assert.match(chartSource, /timeline\?: CandleHitCluster\[]/)
+  assert.match(chartSource, /data-testid="obs-chart-cluster-overlay"/)
+  assert.match(chartSource, /data-testid="obs-chart-cluster-bubble"/)
+  assert.match(chartSource, /subscribeVisibleTimeRangeChange/)
   assert.match(chartModelSource, /BOLLINGER_PERIOD = 20/)
   assert.match(chartModelSource, /state\.candles\[coin\]\[selectedInterval\]/)
   assert.match(reportSource, /<PriceChart coin=\{coin\} embedded showHeader=\{false\} \/>/)
@@ -126,6 +130,10 @@ function runObservatoryShellSourceCheck() {
   assert.match(layoutSource, /data-testid="obs-nav-methodology"/)
   assert.match(layoutSource, /data-testid="obs-view-network"/)
   assert.match(layoutSource, /data-testid="obs-selected-cluster-open-report"/)
+  assert.match(layoutSource, /timeline=\{snapshot\.timeline\}/)
+  assert.match(layoutSource, /selectedTime=\{selectedClusterTime\}/)
+  assert.match(layoutSource, /clusterMode=\{clusterMode\}/)
+  assert.match(layoutSource, /onOpenClusterReport=\{openCandleReport\}/)
   assert.match(analyticsSource, /data-testid="obs-analytics-page"/)
   assert.match(analyticsSource, /data-testid="obs-analytics-table"/)
   assert.match(analyticsSource, /data-testid="obs-analytics-inspector"/)
@@ -167,6 +175,8 @@ function runObservatoryShellSourceCheck() {
   assert.match(cssSource, /\.obs-methodology \{/)
   assert.match(cssSource, /\.obs-live-status \{/)
   assert.match(cssSource, /\.obs-diagnostics-panel \{/)
+  assert.match(cssSource, /\.chart-cluster-overlay \{/)
+  assert.match(cssSource, /\.chart-cluster-bubble \{/)
 }
 
 function runObservatoryCleanupSourceCheck() {
