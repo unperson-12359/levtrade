@@ -546,7 +546,7 @@ function buildCandidateCenters(candidate: PositionedVisibleCluster, containerHei
 
 function hasCircleCollision(left: number, top: number, diameter: number, placed: ChartClusterBubbleLayout[]): boolean {
   for (const existing of placed) {
-    const minDistance = (diameter + existing.diameter) / 2 + 6
+    const minDistance = (diameter + existing.diameter) / 2 + 4
     if (Math.hypot(left - existing.left, top - existing.top) < minDistance) {
       return true
     }
@@ -565,8 +565,8 @@ function resolveClusterPriority(
 }
 
 function resolveClusterCircleDiameter(totalHits: number, maxVisibleHits: number, narrow: boolean): number {
-  const minDiameter = narrow ? 22 : 24
-  const maxDiameter = narrow ? 34 : 42
+  const minDiameter = narrow ? 16 : 18
+  const maxDiameter = narrow ? 26 : 30
   if (maxVisibleHits <= 0) return minDiameter
   const ratio = totalHits / maxVisibleHits
   return Math.round(minDiameter + (maxDiameter - minDiameter) * ratio)

@@ -2657,10 +2657,11 @@ button {
   place-items: center;
   border: 1px solid rgba(186, 122, 26, 0.45);
   border-radius: 999px;
-  background: rgba(186, 122, 26, 0.2);
+  background: rgba(186, 122, 26, 0.32);
+  backdrop-filter: blur(4px);
   box-shadow:
-    0 10px 22px rgba(17, 12, 8, 0.14),
-    0 1px 0 rgba(255, 255, 255, 0.28) inset;
+    0 4px 10px rgba(17, 12, 8, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.18) inset;
   pointer-events: auto;
   transition:
     transform 140ms ease,
@@ -2682,22 +2683,22 @@ button {
 }
 
 .chart-cluster-bubble--l1 {
-  background: rgba(186, 122, 26, 0.2);
+  background: rgba(186, 122, 26, 0.32);
   border-color: rgba(186, 122, 26, 0.45);
 }
 
 .chart-cluster-bubble--l2 {
-  background: rgba(186, 122, 26, 0.38);
+  background: rgba(186, 122, 26, 0.52);
   border-color: rgba(186, 122, 26, 0.62);
 }
 
 .chart-cluster-bubble--l3 {
-  background: rgba(206, 75, 43, 0.42);
+  background: rgba(206, 75, 43, 0.58);
   border-color: rgba(206, 75, 43, 0.68);
 }
 
 .chart-cluster-bubble--l4 {
-  background: rgba(206, 75, 43, 0.72);
+  background: rgba(206, 75, 43, 0.82);
   border-color: rgba(21, 17, 12, 0.92);
 }
 
@@ -2709,12 +2710,13 @@ button {
 }
 
 .chart-cluster-bubble__count {
-  font-size: clamp(0.52rem, 0.34rem + 0.28vw, 0.82rem);
+  font-size: clamp(0.48rem, 0.32rem + 0.24vw, 0.72rem);
   line-height: 1;
   font-weight: 700;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-primary);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   pointer-events: none;
 }
 
