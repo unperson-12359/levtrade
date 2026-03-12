@@ -1,7 +1,6 @@
 import {
   formatConnectionStatus,
   formatLiveStatus,
-  formatObservedAt,
   formatPrice,
   formatPct,
   formatSignedPct,
@@ -152,8 +151,8 @@ export function ObservatoryLayout() {
             </nav>
           )}
 
-          <div className="obs-command-bar__masthead">
-            <div className="obs-command-bar__view-switch">
+          <div className="obs-command-bar__utility">
+            <div className="obs-command-bar__utility-group obs-command-bar__utility-group--view">
               {!isAnalyticsPage ? (
                 <div className="obs-toggle-group">
                   <span className="obs-toggle-group__label">View</span>
@@ -183,21 +182,6 @@ export function ObservatoryLayout() {
               )}
             </div>
 
-            <div className="obs-command-bar__hero" data-testid="obs-price-strip">
-              <div className="obs-command-bar__hero-label">{selectedCoin} / {timeframe}</div>
-              <div className="obs-command-bar__hero-main">
-                <span className="obs-price-hero__value">{formatPrice(priceContext.lastPrice)}</span>
-                <span className={`obs-price-hero__change obs-price-hero__change--${toneFromNumber(priceContext.change24hPct)}`}>
-                  {formatSignedPct(priceContext.change24hPct)}
-                </span>
-              </div>
-              <div className="obs-command-bar__hero-meta">
-                <span>{formatObservedAt(priceContext.observedAt)}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="obs-command-bar__utility">
             <div className="obs-command-bar__utility-group obs-command-bar__utility-group--coins">
               {TRACKED_COINS.map((coin) => (
                 <button
@@ -249,6 +233,16 @@ export function ObservatoryLayout() {
                   </div>
                 </div>
               )}
+            </div>
+
+            <div className="obs-command-bar__hero obs-command-bar__hero--inline" data-testid="obs-price-strip">
+              <div className="obs-command-bar__hero-main">
+                <span className="obs-command-bar__hero-label">{selectedCoin} / {timeframe}</span>
+                <span className="obs-price-hero__value">{formatPrice(priceContext.lastPrice)}</span>
+                <span className={`obs-price-hero__change obs-price-hero__change--${toneFromNumber(priceContext.change24hPct)}`}>
+                  {formatSignedPct(priceContext.change24hPct)}
+                </span>
+              </div>
             </div>
 
             <div className="obs-command-bar__utility-group obs-command-bar__utility-group--status">

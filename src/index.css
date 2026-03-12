@@ -5064,6 +5064,32 @@ button {
   letter-spacing: -0.04em;
 }
 
+.obs-command-bar__hero--inline {
+  margin-left: auto;
+}
+
+.obs-command-bar__hero--inline .obs-command-bar__hero-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.42rem;
+}
+
+.obs-command-bar__hero--inline .obs-price-hero__value {
+  font-size: 0.92rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.obs-command-bar__hero--inline .obs-command-bar__hero-label {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--obs-muted);
+}
+
 .obs-command-bar__hero {
   display: grid;
   gap: 0.14rem;
@@ -6061,11 +6087,6 @@ button {
     padding: 0.36rem;
   }
 
-  .obs-command-bar__masthead {
-    grid-template-columns: 1fr;
-    justify-items: start;
-  }
-
   .obs-command-bar__utility {
     justify-content: flex-start;
   }
@@ -6073,6 +6094,11 @@ button {
   .obs-command-bar__utility-group--coins {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .obs-command-bar__hero--inline {
+    margin-left: 0;
+    width: 100%;
   }
 
   .obs-command-bar__view-switch,
@@ -7389,10 +7415,6 @@ button {
     background: rgba(255, 252, 245, 0.96);
   }
 
-  .obs-command-bar__masthead {
-    grid-template-columns: 1fr;
-  }
-
   .obs-command-bar__utility {
     justify-content: flex-start;
   }
@@ -7402,8 +7424,9 @@ button {
     flex-wrap: wrap;
   }
 
-  .obs-command-bar__hero {
-    justify-items: start;
+  .obs-command-bar__hero--inline {
+    margin-left: 0;
+    width: 100%;
   }
 
   .obs-analytics__summary,

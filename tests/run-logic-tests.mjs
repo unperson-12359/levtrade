@@ -162,7 +162,6 @@ function runObservatoryShellSourceCheck() {
   assert.match(routerSource, /buildObservatoryHash/)
   assert.match(routerSource, /buildAnalyticsHash/)
   assert.match(routerSource, /buildMethodologyHash/)
-  assert.match(layoutSource, /formatObservedAt/)
   assert.match(layoutSource, /reportDrawerOpen/)
   assert.match(layoutSource, /closeReportDrawer/)
   assert.match(layoutSource, /methodologyModalOpen/)
