@@ -4667,3 +4667,23 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - E2E tests referencing `obs-mode-basic`/`obs-mode-advanced` were removed; full E2E suite should be run to confirm no other references
   - CSS design tokens defined but not yet applied to all existing rules — future pass can migrate remaining hardcoded values
   - The `--obs-accent-gold` variable replaces some but not all stray gold colors; remaining rgba(210, 170, 93, ...) usages could be consolidated
+
+---
+
+## 2026-03-12 - Opus — Replace persistent indicators with event-driven signals
+
+- Agent: Claude (Opus)
+- Goal: Replace 17 persistent indicators that stayed high/low for days (inflating heatmap counts) with 8 event-driven signals that only fire on state changes
+- Files changed:
+  - `src/observatory/engine.ts` — Removed MA spreads, ATR, realized vol, BB width, range position, ADX/DI, OBV slope, CMF, MACD line/signal. Added crossover detectors (EMA 8/21, SMA 20/50, MACD zero-line, Stoch K/D), BB squeeze breakout, candle body anomaly, volume spike, and Donchian breakout. Final count: 29 indicators, all event-driven. Removed ADX from BOUNDED_RANGES.
+  - `src/observatory/version.ts` — Bumped ruleset version to `2026-03-12.1`
+  - `tests/run-logic-tests.mjs` — Updated indicator count assertion from 40 to 29
+  - `tests/e2e/critical-flows.spec.ts` — Updated indicator count assertion from 40 to 29
+- Verification:
+  - `npm run build` PASS
+  - `npm run test:logic` PASS
+  - `npm run test:e2e:critical` PASS
+  - End-to-end audit: three parallel agents verified engine, UI, tests, and API layer — all checks pass
+- Follow-up risks / next steps:
+  - Analytics page frequency/transition stats will reset since historical data was computed under old ruleset (40 indicators)
+  - Supabase `observatory_indicator_states` rows tagged with old `rule_version` will not match new indicator set
