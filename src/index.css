@@ -7145,8 +7145,9 @@ button {
 
 .obs-toggle-group {
   display: flex;
-  flex-direction: column;
-  gap: 0.14rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.42rem;
 }
 
 .obs-toggle-group__label {
