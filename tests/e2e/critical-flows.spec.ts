@@ -14,10 +14,6 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-chart-cluster-bubble').first()).toBeVisible()
     await expect(page.getByTestId('obs-chart-cluster-bubble').first()).toContainText(/\d+/)
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
-    await expect(page.getByTestId('obs-guide-strip')).toBeVisible()
-    await expect(page.getByTestId('obs-guide-strip')).toHaveAttribute('data-guide-state', 'collapsed')
-    await expect(page.getByTestId('obs-guide-expanded')).toBeHidden()
-    await expect(page.getByTestId('obs-guide-toggle')).toContainText('Methodology')
     await expect(page.getByTestId('obs-cluster-mode-simple')).toHaveClass(/obs-chip--active/)
     await expect(page.getByTestId('obs-nav-observatory')).toBeVisible()
     await expect(page.getByTestId('obs-nav-analytics')).toBeVisible()
@@ -28,12 +24,6 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-methodology-modal')).toBeVisible()
     await expect(page.getByTestId('obs-methodology-page')).toBeVisible()
     await page.getByTestId('obs-methodology-modal').locator('.obs-methodology-modal__close').click()
-    await expect(page.getByTestId('obs-methodology-modal')).toBeHidden()
-
-    // Guide strip methodology button opens modal
-    await page.getByTestId('obs-guide-toggle').click()
-    await expect(page.getByTestId('obs-methodology-modal')).toBeVisible()
-    await page.keyboard.press('Escape')
     await expect(page.getByTestId('obs-methodology-modal')).toBeHidden()
 
     // Bubble click opens report drawer inline

@@ -18,7 +18,6 @@ import { AnalyticsPage } from './AnalyticsPage'
 import { IndicatorClusterLanes } from './IndicatorClusterLanes'
 import { CandleReportPage } from './CandleReportPage'
 import { MethodologyPage } from './MethodologyPage'
-import { ObservatoryGuideStrip } from './ObservatoryGuideStrip'
 import { PoolMap } from './PoolMap'
 
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
@@ -282,13 +281,6 @@ export function ObservatoryLayout() {
           <AnalyticsPage coin={selectedCoin} timeframe={timeframe} snapshot={snapshot} />
         ) : (
           <>
-            <ObservatoryGuideStrip
-              primaryView={primaryView}
-              liveStatus={liveDisplayStatus}
-              selectedClusterHits={selectedTimelineCluster?.totalHits ?? null}
-              onOpenMethodology={openMethodology}
-            />
-
             <div className={`obs-workspace ${isTimelineView ? 'obs-workspace--timeline' : ''}`}>
             <main className={`obs-main ${isTimelineView ? 'obs-main--timeline' : ''}`}>
               {isTimelineView ? (
