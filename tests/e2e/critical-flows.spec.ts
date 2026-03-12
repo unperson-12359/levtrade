@@ -121,8 +121,8 @@ test.describe('Observatory critical flows', () => {
     await page.getByTestId('obs-indicator-row-momentum_rsi14').click()
     await expect(page.getByTestId('obs-detail-title')).toContainText('RSI 14')
 
-    await page.getByTestId('obs-indicator-row-trend_sma_20_50_spread').click()
-    await expect(page.getByTestId('obs-detail-title')).toContainText('SMA 20/50 Spread')
+    await page.getByTestId('obs-indicator-row-event_ema_8_21_cross').click()
+    await expect(page.getByTestId('obs-detail-title')).toContainText('EMA 8/21 Cross')
   })
 
   test('@critical live status is visible from the command bar', async ({ page }) => {
