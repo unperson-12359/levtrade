@@ -10,6 +10,28 @@ Protocol:
 
 ---
 
+## 2026-03-12 - Opus — Page Consolidation (4 pages → 2)
+
+**Goal:** Consolidate Observatory from 4 separate pages to 2 by making CandleReportPage an inline drawer and MethodologyPage a modal overlay. Remove pulse summary card and streak leaders panel as redundant.
+
+**Changes:**
+
+- `src/hooks/useObservatoryState.ts` — Added `reportDrawerOpen`/`methodologyModalOpen` state. Rewired `openCandleReport` to set drawer state instead of navigating. Rewired `openMethodology` to set modal state. `onPrev`/`onNext` now update `selectedClusterTime` directly. Added deep-link support for backward compat with report/methodology URLs. Removed `pulseSummary` from interface/return.
+- `src/components/observatory/CandleReportPage.tsx` — Replaced breadcrumb nav with close button header for drawer context.
+- `src/components/observatory/MethodologyPage.tsx` — Wrapped in modal shell with backdrop click and Escape key to close. Added `open`/`onClose` props.
+- `src/components/observatory/ObservatoryGuideStrip.tsx` — Stripped to hint-only bar. Removed expanded view, removed `expanded`/`onToggleExpanded` props. Guide toggle now opens methodology modal.
+- `src/components/observatory/AnalyticsPage.tsx` — Removed "Streak leaders" panel (redundant with sortable leaderboard table).
+- `src/components/observatory/ObservatoryLayout.tsx` — Removed methodology/report page branches. Report renders as drawer inside timeline rail. Methodology renders as modal at bottom of component tree. Removed pulse summary card.
+- `src/index.css` — Added `.obs-report-drawer` (slide animation), `.obs-methodology-modal` (fixed overlay with backdrop blur), `.obs-report__bar-head`, `.obs-report__close-btn` styles.
+- `tests/run-logic-tests.mjs` — Updated assertions for layout (drawer/modal instead of guide expanded), removed guideStrip `formatUtcTime` check.
+- `tests/e2e/critical-flows.spec.ts` — Rewrote navigation flows for drawer/modal behavior. Report drawer opens inline (no URL change), methodology opens as modal (Escape to close).
+
+**Verification:** `npm run build` ✓, `npm run test:logic` ✓, `npm run test:e2e:critical` (5/5) ✓
+
+**Follow-up:** Deep-link URLs still parse for backward compat but auto-redirect to drawer/modal state.
+
+---
+
 ## 2026-03-01 - Codex — Mobile Layout Fixes
 
 ### Goal

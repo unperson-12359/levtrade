@@ -55,6 +55,12 @@ export interface ObservatoryState {
   menuOpen: boolean
   setMenuOpen: (open: boolean) => void
 
+  // Drawer & modal
+  reportDrawerOpen: boolean
+  closeReportDrawer: () => void
+  methodologyModalOpen: boolean
+  closeMethodologyModal: () => void
+
   // Indicator selection + derived
   selectedIndicatorId: string | null
   setSelectedIndicatorId: (id: string | null) => void
@@ -71,7 +77,6 @@ export interface ObservatoryState {
   latestTimelineCluster: CandleHitCluster | null
   selectedClusterCategory: IndicatorCategory | null
   reportCluster: CandleHitCluster | null
-  pulseSummary: Array<{ category: IndicatorCategory; count: number }>
 
   // Navigation
   openCandleReport: (time: number) => void
@@ -121,8 +126,6 @@ export function useObservatoryState(): ObservatoryState {
     navigateToHeatmap,
     navigateToObservatory,
     navigateToAnalytics,
-    navigateToMethodology,
-    navigateToReport,
   } = useHashRouter()
 
   const { snapshot, priceContext, liveStatus, loading } = useIndicatorObservatory(selectedCoin)
@@ -134,6 +137,8 @@ export function useObservatoryState(): ObservatoryState {
   const [chartCollapsed, setChartCollapsed] = useState(false)
   const [catalogOpen, setCatalogOpen] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [reportDrawerOpen, setReportDrawerOpen] = useState(false)
+  const [methodologyModalOpen, setMethodologyModalOpen] = useState(false)
 
   useEffect(() => {
     if (selectedInterval !== '4h' && selectedInterval !== '1d') {
@@ -173,7 +178,7 @@ export function useObservatoryState(): ObservatoryState {
   const timelineTimeKey = useMemo(() => [...timelineTimeSet].join(','), [timelineTimeSet])
 
   useEffect(() => {
-    if (route.page === 'report') return
+    if (reportDrawerOpen) return
     if (timelineTimeSet.size === 0) {
       setSelectedClusterTime(null)
       return
@@ -181,7 +186,7 @@ export function useObservatoryState(): ObservatoryState {
     if (selectedClusterTime && timelineTimeSet.has(selectedClusterTime)) return
     setSelectedClusterTime(snapshot.timeline[snapshot.timeline.length - 1]?.time ?? null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timelineTimeKey, route.page])
+  }, [timelineTimeKey, reportDrawerOpen])
 
   useEffect(() => {
     setMenuOpen(false)
@@ -233,13 +238,30 @@ export function useObservatoryState(): ObservatoryState {
   }, [clusterMode, selectedIndicator, snapshot.edges])
 
   const timeframe = (selectedInterval === '1d' ? '1d' : '4h') as AllowedInterval
-  const isReportPage = route.page === 'report'
+
+  // Deep-link support: open drawer/modal from URL, then clean URL
+  useEffect(() => {
+    if (route.page === 'report' && route.time !== null) {
+      setSelectedClusterTime(route.time)
+      setReportDrawerOpen(true)
+      navigateToObservatory(selectedCoin, timeframe, { replace: true })
+    }
+  }, [route.page, route.time, navigateToObservatory, selectedCoin, timeframe])
+
+  useEffect(() => {
+    if (route.page === 'methodology') {
+      setMethodologyModalOpen(true)
+      navigateToObservatory(selectedCoin, timeframe, { replace: true })
+    }
+  }, [route.page, navigateToObservatory, selectedCoin, timeframe])
+
+  const isReportPage = reportDrawerOpen
   const isAnalyticsPage = route.page === 'analytics'
-  const isMethodologyPage = route.page === 'methodology'
+  const isMethodologyPage = methodologyModalOpen
   const reportCluster = useMemo(() => {
-    if (!isReportPage || route.time === null) return null
-    return snapshot.timeline.find((cluster) => cluster.time === route.time) ?? null
-  }, [isReportPage, route.time, snapshot.timeline])
+    if (!reportDrawerOpen || selectedClusterTime === null) return null
+    return snapshot.timeline.find((cluster) => cluster.time === selectedClusterTime) ?? null
+  }, [reportDrawerOpen, selectedClusterTime, snapshot.timeline])
 
   const selectedTimelineCluster = useMemo(() => {
     if (snapshot.timeline.length === 0) return null
@@ -251,18 +273,15 @@ export function useObservatoryState(): ObservatoryState {
     [snapshot.timeline],
   )
 
-  const pulseSummary = useMemo(
-    () =>
-      CATEGORY_ORDER.map((category) => ({
-        category,
-        count: latestTimelineCluster?.laneCounts[category] ?? 0,
-      })),
-    [latestTimelineCluster],
-  )
+  const closeReportDrawer = useCallback(() => setReportDrawerOpen(false), [])
+  const closeMethodologyModal = useCallback(() => setMethodologyModalOpen(false), [])
 
   const openCandleReport = useCallback(
-    (time: number) => navigateToReport(selectedCoin, timeframe, time),
-    [navigateToReport, selectedCoin, timeframe],
+    (time: number) => {
+      setSelectedClusterTime(time)
+      setReportDrawerOpen(true)
+    },
+    [],
   )
   const openObservatory = useCallback(
     () => navigateToObservatory(selectedCoin, timeframe),
@@ -273,8 +292,8 @@ export function useObservatoryState(): ObservatoryState {
     [navigateToAnalytics, selectedCoin, timeframe],
   )
   const openMethodology = useCallback(
-    () => navigateToMethodology(selectedCoin, timeframe),
-    [navigateToMethodology, selectedCoin, timeframe],
+    () => setMethodologyModalOpen(true),
+    [],
   )
   const openHeatmap = useCallback(
     () => navigateToHeatmap(selectedCoin, timeframe),
@@ -289,17 +308,10 @@ export function useObservatoryState(): ObservatoryState {
       return
     }
 
-    if (isMethodologyPage) {
-      navigateToMethodology(nextCoin, nextInterval)
-      return
-    }
-
     navigateToObservatory(nextCoin, nextInterval)
   }, [
     isAnalyticsPage,
-    isMethodologyPage,
     navigateToAnalytics,
-    navigateToMethodology,
     navigateToObservatory,
     selectCoin,
     setInterval,
@@ -314,18 +326,18 @@ export function useObservatoryState(): ObservatoryState {
   )
 
   const { onPrev, onNext } = useMemo(() => {
-    if (!isReportPage || route.time === null || snapshot.timeline.length === 0) {
+    if (!reportDrawerOpen || selectedClusterTime === null || snapshot.timeline.length === 0) {
       return { onPrev: null, onNext: null }
     }
-    const idx = snapshot.timeline.findIndex((cluster) => cluster.time === route.time)
+    const idx = snapshot.timeline.findIndex((cluster) => cluster.time === selectedClusterTime)
     if (idx === -1) return { onPrev: null, onNext: null }
     const prevTime = idx > 0 ? snapshot.timeline[idx - 1]!.time : null
     const nextTime = idx < snapshot.timeline.length - 1 ? snapshot.timeline[idx + 1]!.time : null
     return {
-      onPrev: prevTime !== null ? () => navigateToReport(selectedCoin, timeframe, prevTime, { replace: true }) : null,
-      onNext: nextTime !== null ? () => navigateToReport(selectedCoin, timeframe, nextTime, { replace: true }) : null,
+      onPrev: prevTime !== null ? () => setSelectedClusterTime(prevTime) : null,
+      onNext: nextTime !== null ? () => setSelectedClusterTime(nextTime) : null,
     }
-  }, [isReportPage, route.time, snapshot.timeline, navigateToReport, selectedCoin, timeframe])
+  }, [reportDrawerOpen, selectedClusterTime, snapshot.timeline])
 
   const healthStatus = snapshot.health.status
   const healthTone = toneFromHealthStatus(healthStatus)
@@ -365,6 +377,10 @@ export function useObservatoryState(): ObservatoryState {
     setCatalogOpen,
     menuOpen,
     setMenuOpen,
+    reportDrawerOpen,
+    closeReportDrawer,
+    methodologyModalOpen,
+    closeMethodologyModal,
     selectedIndicatorId,
     setSelectedIndicatorId,
     selectedIndicator,
@@ -378,7 +394,6 @@ export function useObservatoryState(): ObservatoryState {
     latestTimelineCluster,
     selectedClusterCategory,
     reportCluster,
-    pulseSummary,
     openCandleReport,
     openObservatory,
     openAnalytics,

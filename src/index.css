@@ -4962,8 +4962,7 @@ button {
 .obs-shell-frame,
 .obs-command-bar,
 .obs-market-strip,
-.obs-workspace,
-.obs-report-shell {
+.obs-workspace {
   position: relative;
   z-index: 1;
 }
@@ -5777,8 +5776,95 @@ button {
   color: var(--obs-ink);
 }
 
-.obs-report-shell {
-  margin-top: 0.72rem;
+.obs-report-drawer {
+  margin-top: 0.5rem;
+  border-top: 1px solid rgba(255 255 255 / 0.06);
+  padding-top: 0.5rem;
+  animation: obs-drawer-open 0.25s ease-out;
+}
+
+@keyframes obs-drawer-open {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.obs-report__bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.obs-report__close-btn {
+  font-size: var(--text-sm, 0.72rem);
+  color: rgba(255 255 255 / 0.5);
+  background: rgba(255 255 255 / 0.04);
+  border: 1px solid rgba(255 255 255 / 0.08);
+  border-radius: var(--radius-sm, 0.25rem);
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.obs-report__close-btn:hover {
+  color: rgba(255 255 255 / 0.8);
+  background: rgba(255 255 255 / 0.08);
+}
+
+.obs-methodology-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: obs-modal-fade 0.2s ease-out;
+}
+
+@keyframes obs-modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.obs-methodology-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0 0 0 / 0.6);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+
+.obs-methodology-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 960px);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: #0e0f14;
+  border: 1px solid rgba(255 255 255 / 0.08);
+  border-radius: var(--radius-md, 0.55rem);
+  padding: 1.2rem;
+  box-shadow: 0 8px 32px rgba(0 0 0 / 0.5);
+}
+
+.obs-methodology-modal__close {
+  position: sticky;
+  top: 0;
+  float: right;
+  font-size: var(--text-sm, 0.72rem);
+  color: rgba(255 255 255 / 0.5);
+  background: rgba(255 255 255 / 0.04);
+  border: 1px solid rgba(255 255 255 / 0.08);
+  border-radius: var(--radius-sm, 0.25rem);
+  padding: 0.2rem 0.8rem;
+  cursor: pointer;
+  z-index: 2;
+  transition: color 0.15s, background 0.15s;
+}
+
+.obs-methodology-modal__close:hover {
+  color: rgba(255 255 255 / 0.8);
+  background: rgba(255 255 255 / 0.08);
 }
 
 .obs-report {

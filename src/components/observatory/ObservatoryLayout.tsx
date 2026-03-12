@@ -43,6 +43,10 @@ export function ObservatoryLayout() {
     setCatalogOpen,
     menuOpen,
     setMenuOpen,
+    reportDrawerOpen,
+    closeReportDrawer,
+    methodologyModalOpen,
+    closeMethodologyModal,
     selectedIndicatorId,
     setSelectedIndicatorId,
     selectedIndicator,
@@ -53,22 +57,17 @@ export function ObservatoryLayout() {
     selectedClusterTime,
     setSelectedClusterTime,
     selectedTimelineCluster,
-    latestTimelineCluster,
     selectedClusterCategory,
     reportCluster,
-    pulseSummary,
     openCandleReport,
     openObservatory,
     openAnalytics,
     openMethodology,
-    openHeatmap,
     handleSelectCoin,
     handleSelectInterval,
     onPrev,
     onNext,
-    isReportPage,
     isAnalyticsPage,
-    isMethodologyPage,
     isTimelineView,
     healthTone,
     diagnosticsCount,
@@ -76,8 +75,6 @@ export function ObservatoryLayout() {
     liveDisplayStatus,
     latestRuntimeMessage,
     connectionStatus,
-    observatoryGuideExpanded,
-    toggleObservatoryGuideExpanded,
   } = useObservatoryState()
 
   return (
@@ -110,7 +107,7 @@ export function ObservatoryLayout() {
               </button>
               <button
                 type="button"
-                className={`obs-chip obs-chip--nav ${isMethodologyPage ? 'obs-chip--active' : ''}`}
+                className="obs-chip obs-chip--nav"
                 onClick={openMethodology}
                 data-testid="obs-nav-methodology"
               >
@@ -148,7 +145,7 @@ export function ObservatoryLayout() {
               </button>
               <button
                 type="button"
-                className={`obs-chip obs-chip--nav ${isMethodologyPage ? 'obs-chip--active' : ''}`}
+                className="obs-chip obs-chip--nav"
                 onClick={openMethodology}
               >
                 Methodology
@@ -158,7 +155,7 @@ export function ObservatoryLayout() {
 
           <div className="obs-command-bar__masthead">
             <div className="obs-command-bar__view-switch">
-              {!isReportPage && !isAnalyticsPage && !isMethodologyPage ? (
+              {!isAnalyticsPage ? (
                 <div className="obs-toggle-group">
                   <span className="obs-toggle-group__label">View</span>
                   <div className="obs-toggle-group__chips">
@@ -182,11 +179,7 @@ export function ObservatoryLayout() {
                 </div>
               ) : (
                 <div className="obs-command-bar__page-tag">
-                  {isAnalyticsPage
-                    ? 'Deep dive / Analytics and persistence'
-                    : isMethodologyPage
-                      ? 'Methodology / How to read LevTrade'
-                      : 'Deep dive / Candle report'}
+                  Deep dive / Analytics and persistence
                 </div>
               )}
             </div>
@@ -219,7 +212,7 @@ export function ObservatoryLayout() {
                 </button>
               ))}
 
-              {!isReportPage && !isAnalyticsPage && !isMethodologyPage && primaryView === 'timeline' && (
+              {!isAnalyticsPage && primaryView === 'timeline' && (
                 <div className="obs-toggle-group">
                   <span className="obs-toggle-group__label">Detail</span>
                   <div className="obs-toggle-group__chips">
@@ -285,42 +278,15 @@ export function ObservatoryLayout() {
           </div>
         </section>
 
-        {isMethodologyPage ? (
-            <MethodologyPage
-              coin={selectedCoin}
-              timeframe={timeframe}
-              onOpenObservatory={openObservatory}
-              onOpenAnalytics={openAnalytics}
-            />
-        ) : isReportPage ? (
-          <section className="obs-report-shell">
-            <CandleReportPage
-              coin={selectedCoin}
-              timeframe={timeframe}
-              cluster={reportCluster}
-              timeline={snapshot.timeline}
-              allIndicators={snapshot.indicators}
-              loading={loading}
-              onBack={openHeatmap}
-              onPrev={onPrev}
-              onNext={onNext}
-            />
-          </section>
-        ) : isAnalyticsPage ? (
+        {isAnalyticsPage ? (
           <AnalyticsPage coin={selectedCoin} timeframe={timeframe} snapshot={snapshot} />
         ) : (
           <>
             <ObservatoryGuideStrip
-              coin={selectedCoin}
-              timeframe={timeframe}
               primaryView={primaryView}
               liveStatus={liveDisplayStatus}
-              observedAt={priceContext.observedAt}
-              expanded={observatoryGuideExpanded}
-              selectedClusterLabel={selectedTimelineCluster ? formatUtcDateTime(selectedTimelineCluster.time) : 'No selection yet'}
               selectedClusterHits={selectedTimelineCluster?.totalHits ?? null}
               onOpenMethodology={openMethodology}
-              onToggleExpanded={toggleObservatoryGuideExpanded}
             />
 
             <div className={`obs-workspace ${isTimelineView ? 'obs-workspace--timeline' : ''}`}>
@@ -388,24 +354,6 @@ export function ObservatoryLayout() {
             <aside className={`obs-rail ${isTimelineView ? 'obs-rail--timeline' : ''}`}>
               {isTimelineView ? (
                 <>
-                  <section className="obs-panel obs-panel--rail">
-                    <div className="obs-panel__eyebrow">Step 2 · What is active now</div>
-                    <div className="obs-rail-card__headline">
-                      {latestTimelineCluster ? formatUtcDateTime(latestTimelineCluster.time) : 'No live cluster'}
-                    </div>
-                    <p className="obs-panel__copy">
-                      This is the quick read of live pressure. Broad counts across categories matter more than a single isolated indicator state.
-                    </p>
-                    <div className="obs-pulse-list">
-                      {pulseSummary.map((item) => (
-                        <div key={item.category} className="obs-pulse-row">
-                          <span>{item.category}</span>
-                          <span>{item.count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-
                   <section className="obs-panel obs-panel--rail obs-panel--heatmap-rail">
                     <IndicatorClusterLanes
                       layout="side-rail"
@@ -418,7 +366,7 @@ export function ObservatoryLayout() {
                   </section>
 
                   <section className="obs-panel obs-panel--rail obs-panel--selected-cluster" data-testid="obs-selected-cluster-card">
-                    <div className="obs-panel__eyebrow">Step 3 · Explain the selected candle</div>
+                    <div className="obs-panel__eyebrow">Explain the selected candle</div>
                     <div className="obs-rail-card__headline">
                       {selectedTimelineCluster ? formatUtcDateTime(selectedTimelineCluster.time) : 'No selected cluster'}
                     </div>
@@ -462,6 +410,22 @@ export function ObservatoryLayout() {
                       <div className="obs-empty">{loading && snapshot.timeline.length === 0 ? 'Loading indicators\u2026' : 'Select a heatmap cell to explain why that candle mattered, then open the report only if you need deeper context.'}</div>
                     )}
                   </section>
+
+                  {reportDrawerOpen && reportCluster && (
+                    <section className="obs-report-drawer" data-testid="obs-report-drawer">
+                      <CandleReportPage
+                        coin={selectedCoin}
+                        timeframe={timeframe}
+                        cluster={reportCluster}
+                        timeline={snapshot.timeline}
+                        allIndicators={snapshot.indicators}
+                        loading={loading}
+                        onBack={closeReportDrawer}
+                        onPrev={onPrev}
+                        onNext={onNext}
+                      />
+                    </section>
+                  )}
                 </>
               ) : (
                 <>
@@ -608,6 +572,15 @@ export function ObservatoryLayout() {
             </div>
           </>
         )}
+
+        <MethodologyPage
+          coin={selectedCoin}
+          timeframe={timeframe}
+          open={methodologyModalOpen}
+          onClose={closeMethodologyModal}
+          onOpenObservatory={openObservatory}
+          onOpenAnalytics={openAnalytics}
+        />
       </div>
     </div>
   )
@@ -623,4 +596,3 @@ function MapLegend() {
     </div>
   )
 }
-

@@ -184,13 +184,12 @@ export function CandleReportPage({
   return (
     <section className="obs-report" data-testid="obs-candle-report-page">
       <header className="obs-report__bar">
-        <nav className="obs-report__breadcrumb">
-          <button type="button" className="obs-report__breadcrumb-link" onClick={onBack} data-testid="obs-candle-report-back">Observatory</button>
-          <span className="obs-report__breadcrumb-sep">/</span>
-          <button type="button" className="obs-report__breadcrumb-link" onClick={onBack}>Heatmap</button>
-          <span className="obs-report__breadcrumb-sep">/</span>
-          <span className="obs-report__breadcrumb-current">Report: {formatUtcDateTime(cluster.time)}</span>
-        </nav>
+        <div className="obs-report__bar-head">
+          <time className="obs-report__bar-time">{formatUtcDateTime(cluster.time)}</time>
+          <button type="button" className="obs-report__close-btn" onClick={onBack} data-testid="obs-candle-report-back">
+            Close
+          </button>
+        </div>
         <nav className="obs-report__bar-nav">
           <button
             type="button"
@@ -213,7 +212,6 @@ export function CandleReportPage({
             &rarr;
           </button>
         </nav>
-        <time className="obs-report__bar-time">{formatUtcDateTime(cluster.time)}</time>
         <span className="obs-report__bar-hits">{activeCount}/{totalCount}</span>
 
         <div className="obs-report__bar-price" data-testid="obs-cluster-candle-price">

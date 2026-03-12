@@ -298,22 +298,6 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
             </div>
           </section>
 
-          <section className="obs-panel">
-            <div className="obs-panel__eyebrow">Streak leaders</div>
-            <h2 className="obs-panel__title">Persistent signals</h2>
-            <div className="obs-pulse-list">
-              {analyticsRows
-                .slice()
-                .sort((a, b) => b.currentStreak - a.currentStreak || b.maxStreak - a.maxStreak || b.totalHits - a.totalHits)
-                .slice(0, 6)
-                .map((row) => (
-                  <div key={row.id} className="obs-pulse-row obs-pulse-row--stacked">
-                    <span>{row.label}</span>
-                    <span>{row.currentStreak} live / {row.maxStreak} max</span>
-                  </div>
-                ))}
-            </div>
-          </section>
         </aside>
       </div>
     </section>

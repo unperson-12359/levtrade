@@ -17,24 +17,35 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-guide-strip')).toBeVisible()
     await expect(page.getByTestId('obs-guide-strip')).toHaveAttribute('data-guide-state', 'collapsed')
     await expect(page.getByTestId('obs-guide-expanded')).toBeHidden()
-    await expect(page.getByTestId('obs-guide-toggle')).toContainText('Show guide')
+    await expect(page.getByTestId('obs-guide-toggle')).toContainText('Methodology')
     await expect(page.getByTestId('obs-cluster-mode-simple')).toHaveClass(/obs-chip--active/)
     await expect(page.getByTestId('obs-nav-observatory')).toBeVisible()
     await expect(page.getByTestId('obs-nav-analytics')).toBeVisible()
     await expect(page.getByTestId('obs-nav-methodology')).toBeVisible()
 
-    await page.getByTestId('obs-guide-toggle').click()
-    await expect(page.getByTestId('obs-guide-strip')).toHaveAttribute('data-guide-state', 'expanded')
-    await expect(page.getByTestId('obs-guide-expanded')).toBeVisible()
-    await page.getByTestId('obs-guide-toggle').click()
-    await expect(page.getByTestId('obs-guide-strip')).toHaveAttribute('data-guide-state', 'collapsed')
+    // Methodology modal opens and closes
+    await page.getByTestId('obs-nav-methodology').click()
+    await expect(page.getByTestId('obs-methodology-modal')).toBeVisible()
+    await expect(page.getByTestId('obs-methodology-page')).toBeVisible()
+    await page.getByTestId('obs-methodology-modal').locator('.obs-methodology-modal__close').click()
+    await expect(page.getByTestId('obs-methodology-modal')).toBeHidden()
 
+    // Guide strip methodology button opens modal
+    await page.getByTestId('obs-guide-toggle').click()
+    await expect(page.getByTestId('obs-methodology-modal')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('obs-methodology-modal')).toBeHidden()
+
+    // Bubble click opens report drawer inline
     await page.getByTestId('obs-chart-cluster-bubble').first().click()
+    await expect(page.getByTestId('obs-report-drawer')).toBeVisible()
     await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
-    await expect(page).toHaveURL(/#\/observatory\/report/)
+    // Close the drawer
     await page.getByTestId('obs-candle-report-back').click()
+    await expect(page.getByTestId('obs-report-drawer')).toBeHidden()
     await expect(page.getByTestId('obs-chart-cluster-overlay')).toBeVisible()
 
+    // Select a cluster cell and open report drawer
     const firstClusterCell = page.getByTestId('obs-cluster-cell').first()
     await expect(firstClusterCell).toBeVisible()
     await firstClusterCell.click()
@@ -43,6 +54,7 @@ test.describe('Observatory critical flows', () => {
     await expect(openReportButton).toBeVisible()
     await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
     await openReportButton.evaluate((button: HTMLButtonElement) => button.click())
+    await expect(page.getByTestId('obs-report-drawer')).toBeVisible()
     await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
     await expect(page.getByTestId('obs-candle-report-chart')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-candle-price')).toBeVisible()
@@ -52,9 +64,11 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-cluster-report')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-report-row').first()).toBeVisible()
     await expect(page.locator('.obs-report__bar-time')).toContainText('UTC')
-    await expect(page).toHaveURL(/#\/observatory\/report/)
-    await page.getByTestId('obs-candle-report-back').click()
+    // URL should NOT change — report is inline
     await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
+    // Close the drawer
+    await page.getByTestId('obs-candle-report-back').click()
+    await expect(page.getByTestId('obs-report-drawer')).toBeHidden()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 
     await page.getByTestId('obs-cluster-mode-pro').click()
@@ -98,11 +112,15 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-map-legend')).toBeVisible()
     await expect(page.getByTestId('obs-pool-map')).toBeVisible()
 
+    // Methodology modal from nav
     await page.getByTestId('obs-nav-methodology').click()
+    await expect(page.getByTestId('obs-methodology-modal')).toBeVisible()
     await expect(page.getByTestId('obs-methodology-page')).toBeVisible()
     await expect(page.getByTestId('obs-methodology-flow')).toBeVisible()
     await expect(page.getByTestId('obs-methodology-pages')).toBeVisible()
     await expect(page.getByTestId('obs-methodology-live')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('obs-methodology-modal')).toBeHidden()
   })
 
   test('@critical indicator selection updates drilldown', async ({ page }) => {
@@ -123,7 +141,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-live-status')).toContainText('Live')
   })
 
-  test('@critical prev/next candle navigation and browser back returns to heatmap', async ({ page }) => {
+  test('@critical prev/next candle navigation in report drawer', async ({ page }) => {
     await page.goto('/')
     await seedObservatoryState(page)
 
@@ -131,7 +149,7 @@ test.describe('Observatory critical flows', () => {
     await page.getByTestId('obs-cluster-cell').first().click()
     await page.getByTestId('obs-selected-cluster-open-report').click()
     await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
-    const initialUrl = page.url()
+    await expect(page.getByTestId('obs-report-drawer')).toBeVisible()
 
     // Step to next candle (if available)
     const nextBtn = page.getByTestId('obs-candle-report-next')
@@ -139,8 +157,6 @@ test.describe('Observatory critical flows', () => {
     if (await nextBtn.isEnabled()) {
       await nextBtn.click()
       await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
-      // URL should change (replaceState, so same history entry)
-      expect(page.url()).not.toBe(initialUrl)
     }
 
     // Step to prev candle (if available)
@@ -151,8 +167,9 @@ test.describe('Observatory critical flows', () => {
       await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
     }
 
-    // Browser back should return to heatmap (prev/next used replaceState)
-    await page.goBack()
+    // Close drawer
+    await page.getByTestId('obs-candle-report-back').click()
+    await expect(page.getByTestId('obs-report-drawer')).toBeHidden()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
     await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
   })
