@@ -4983,8 +4983,7 @@ button {
   box-shadow: var(--obs-shadow);
 }
 
-.obs-command-bar__masthead,
-.obs-command-bar__utility {
+.obs-command-bar__masthead {
   display: grid;
   grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) minmax(220px, 300px);
   gap: 0.75rem;
@@ -4993,8 +4992,12 @@ button {
 }
 
 .obs-command-bar__utility {
-  padding-top: 0.55rem;
-  padding-bottom: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.9rem;
+  justify-content: space-between;
+  padding: 0.55rem 0.92rem;
   border-top: 2px solid var(--obs-rule);
 }
 
@@ -5034,6 +5037,31 @@ button {
 
 .obs-command-bar__utility-group--status {
   justify-content: flex-end;
+}
+
+.obs-command-bar__utility-group--coins {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+}
+
+.obs-chip--coin {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.32rem;
+  padding: 0.36rem 0.58rem;
+}
+
+.obs-chip__coin-symbol {
+  font-size: 0.62rem;
+  color: var(--obs-muted);
+}
+
+.obs-chip__coin-price {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
 }
 
 .obs-command-bar__hero {
@@ -5994,8 +6022,7 @@ button {
 }
 
 @media (max-width: 1280px) {
-  .obs-command-bar__masthead,
-  .obs-command-bar__utility {
+  .obs-command-bar__masthead {
     grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
   }
 
@@ -6034,10 +6061,18 @@ button {
     padding: 0.36rem;
   }
 
-  .obs-command-bar__masthead,
-  .obs-command-bar__utility {
+  .obs-command-bar__masthead {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  .obs-command-bar__utility {
+    justify-content: flex-start;
+  }
+
+  .obs-command-bar__utility-group--coins {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .obs-command-bar__view-switch,
@@ -6194,10 +6229,14 @@ button {
   pointer-events: none;
 }
 
-.obs-command-bar__masthead,
-.obs-command-bar__utility {
+.obs-command-bar__masthead {
   gap: 0.8rem 0.9rem;
   padding: 0.68rem 0.92rem;
+}
+
+.obs-command-bar__utility {
+  gap: 0.55rem 0.9rem;
+  padding: 0.55rem 0.92rem;
 }
 
 .obs-brand-lockup {
@@ -7061,8 +7100,7 @@ button {
   display: none;
 }
 
-.obs-command-bar__masthead,
-.obs-command-bar__utility {
+.obs-command-bar__masthead {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
@@ -7351,9 +7389,17 @@ button {
     background: rgba(255, 252, 245, 0.96);
   }
 
-  .obs-command-bar__masthead,
-  .obs-command-bar__utility {
+  .obs-command-bar__masthead {
     grid-template-columns: 1fr;
+  }
+
+  .obs-command-bar__utility {
+    justify-content: flex-start;
+  }
+
+  .obs-command-bar__utility-group--coins {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .obs-command-bar__hero {

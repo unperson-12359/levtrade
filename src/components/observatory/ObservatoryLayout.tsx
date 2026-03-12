@@ -198,6 +198,21 @@ export function ObservatoryLayout() {
           </div>
 
           <div className="obs-command-bar__utility">
+            <div className="obs-command-bar__utility-group obs-command-bar__utility-group--coins">
+              {TRACKED_COINS.map((coin) => (
+                <button
+                  key={coin}
+                  type="button"
+                  className={`obs-chip obs-chip--coin ${coin === selectedCoin ? 'obs-chip--active' : ''}`}
+                  onClick={() => handleSelectCoin(coin)}
+                  data-testid={`obs-coin-${coin}`}
+                >
+                  <span className="obs-chip__coin-symbol">{coin}</span>
+                  <span className="obs-chip__coin-price">{formatTickerPrice(prices[coin], coin === selectedCoin ? priceContext.lastPrice : null)}</span>
+                </button>
+              ))}
+            </div>
+
             <div className="obs-command-bar__utility-group">
               {ALLOWED_INTERVALS.map((interval) => (
                 <button
@@ -256,26 +271,6 @@ export function ObservatoryLayout() {
             </div>
           </div>
         </header>
-
-        <section className="obs-market-strip">
-          <div className="obs-market-strip__track-wrap">
-            <div className="obs-strip-label">Tracked markets</div>
-            <div className="obs-market-strip__track">
-              {TRACKED_COINS.map((coin) => (
-                <button
-                  key={coin}
-                  type="button"
-                  className={`obs-market-tile ${coin === selectedCoin ? 'obs-market-tile--active obs-chip--active' : ''}`}
-                  onClick={() => handleSelectCoin(coin)}
-                  data-testid={`obs-coin-${coin}`}
-                >
-                  <span className="obs-market-tile__symbol">{coin}</span>
-                  <span className="obs-market-tile__price">{formatTickerPrice(prices[coin], coin === selectedCoin ? priceContext.lastPrice : null)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
 
         {isAnalyticsPage ? (
           <AnalyticsPage coin={selectedCoin} timeframe={timeframe} snapshot={snapshot} />
