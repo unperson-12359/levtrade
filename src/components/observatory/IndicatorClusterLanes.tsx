@@ -35,6 +35,7 @@ export function IndicatorClusterLanes({
 
   const isNarrowViewport = viewportWidth <= 760
   const isDesktopSideRail = layout === 'side-rail' && !isNarrowViewport
+  const isProMode = mode === 'pro'
   const isFullDailySequence = mode === 'simple' && timeframe === '1d'
   const windowSize = isNarrowViewport
     ? mode === 'pro'
@@ -95,12 +96,12 @@ export function IndicatorClusterLanes({
       </div>
 
       <div
-        className={`obs-cluster__heatmap obs-cluster__heatmap--compact ${isFullDailySequence ? 'obs-cluster__heatmap--daily-full' : ''}`}
+        className={`obs-cluster__heatmap obs-cluster__heatmap--compact ${isFullDailySequence ? 'obs-cluster__heatmap--daily-full' : ''} ${isProMode ? 'obs-cluster__heatmap--pro' : ''}`}
       >
         {LANE_ORDER.map((lane) => (
           <div
             key={lane}
-            className={`obs-cluster__lane obs-cluster__lane--compact ${isFullDailySequence ? 'obs-cluster__lane--daily-full' : ''}`}
+            className={`obs-cluster__lane obs-cluster__lane--compact ${isFullDailySequence ? 'obs-cluster__lane--daily-full' : ''} ${isProMode ? 'obs-cluster__lane--pro' : ''}`}
           >
             {(() => {
               const latest = clusters[clusters.length - 1]
@@ -116,7 +117,7 @@ export function IndicatorClusterLanes({
               )
             })()}
             <div
-              className={`obs-cluster__cells obs-cluster__cells--compact ${isFullDailySequence ? 'obs-cluster__cells--daily-full' : ''}`}
+              className={`obs-cluster__cells obs-cluster__cells--compact ${isFullDailySequence ? 'obs-cluster__cells--daily-full' : ''} ${isProMode ? 'obs-cluster__cells--pro' : ''}`}
             >
               {clusters.map((cluster) => {
                 const count = cluster.laneCounts[lane] ?? 0

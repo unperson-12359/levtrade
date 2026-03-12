@@ -168,47 +168,7 @@ button {
   background: var(--color-border-focus);
 }
 
-/* Observatory revamp */
-.obs-app {
-  min-height: 100vh;
-  position: relative;
-  padding: 0 0.55rem 0.8rem;
-  color: #e8e4df;
-  font-family: var(--font-body);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background:
-    radial-gradient(ellipse 80% 45% at 50% 0%, rgba(212, 168, 83, 0.05), transparent),
-    radial-gradient(ellipse 50% 80% at 50% 100%, rgba(6, 6, 10, 0.5), transparent),
-    #06060a;
-}
-
-.obs-app::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 256px 256px;
-  mix-blend-mode: overlay;
-}
-
-.obs-backdrop-grid {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(to right, rgba(212, 168, 83, 0.025) 1px, transparent 1px) 0 0 / 48px 48px,
-    linear-gradient(to bottom, rgba(212, 168, 83, 0.025) 1px, transparent 1px) 0 0 / 48px 48px,
-    linear-gradient(to right, rgba(212, 168, 83, 0.012) 1px, transparent 1px) 0 0 / 12px 12px,
-    linear-gradient(to bottom, rgba(212, 168, 83, 0.012) 1px, transparent 1px) 0 0 / 12px 12px;
-  mask-image: radial-gradient(ellipse 70% 55% at 50% 35%, black 10%, transparent 70%);
-  z-index: 0;
-}
-
+/* Base z-index for observatory panels */
 .obs-command-bar,
 .obs-grid,
 .obs-panel--table,
@@ -6582,7 +6542,9 @@ button {
 .obs-indicator-row:focus-visible,
 .obs-correlation-row:focus-visible,
 .obs-cluster__cell:focus-visible,
-.obs-report__chart-toggle:focus-visible {
+.obs-report__chart-toggle:focus-visible,
+.obs-pool-map__node:focus-visible,
+.obs-command-metric:focus-visible {
   outline: 2px solid #d2aa5d;
   outline-offset: 2px;
 }
@@ -6829,6 +6791,20 @@ button {
   grid-auto-columns: 11px;
 }
 
+.obs-cluster__heatmap--pro {
+  overflow-x: auto;
+  padding-bottom: 0.64rem;
+  scrollbar-gutter: stable both-edges;
+}
+
+.obs-cluster__lane--pro {
+  min-width: 34rem;
+}
+
+.obs-cluster__cells--pro {
+  grid-auto-columns: 8px;
+}
+
 .obs-cluster__cell {
   min-height: 18px;
 }
@@ -6849,6 +6825,14 @@ button {
 
   .obs-panel--heatmap-rail .obs-cluster__cells--daily-full {
     grid-auto-columns: 12px;
+  }
+
+  .obs-panel--heatmap-rail .obs-cluster__lane--pro {
+    min-width: 38rem;
+  }
+
+  .obs-panel--heatmap-rail .obs-cluster__cells--pro {
+    grid-auto-columns: 10px;
   }
 
 .obs-panel--heatmap-rail .obs-cluster__cell {
@@ -6885,6 +6869,19 @@ button {
   .obs-cluster__cells--daily-full {
     grid-auto-columns: 8px;
     gap: 2px;
+  }
+
+  .obs-cluster__heatmap--pro {
+    overflow-x: auto;
+  }
+
+  .obs-cluster__lane--pro {
+    min-width: 28rem;
+  }
+
+  .obs-cluster__cells--pro {
+    grid-auto-columns: 6px;
+    gap: 1px;
   }
 
   .obs-cluster__cells {

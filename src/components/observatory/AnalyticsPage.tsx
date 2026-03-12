@@ -5,6 +5,7 @@ import {
   type PersistedAnalyticsCategoryRow,
   type PersistedObservatoryAnalytics,
 } from '../../observatory/analytics'
+import { formatPct, formatValue } from '../../observatory/format'
 import { formatUtcDate } from '../../observatory/timeFormat'
 import type { IndicatorCategory, ObservatorySnapshot } from '../../observatory/types'
 import type { TrackedCoin } from '../../types/market'
@@ -403,11 +404,6 @@ function sortLabel(value: AnalyticsSortKey) {
   }
 }
 
-function formatPct(value: number) {
-  if (!Number.isFinite(value)) return '--'
-  return `${(value * 100).toFixed(0)}%`
-}
-
 function formatInteger(value: number) {
   if (!Number.isFinite(value)) return '--'
   return value.toLocaleString()
@@ -415,11 +411,4 @@ function formatInteger(value: number) {
 
 function formatCompactTime(value: number) {
   return formatUtcDate(value)
-}
-
-function formatValue(value: number | null, unit: string) {
-  if (value === null || !Number.isFinite(value)) return '--'
-  if (unit === '%') return `${value.toFixed(1)}%`
-  if (unit === 'bp') return `${value.toFixed(1)}bp`
-  return value.toFixed(2)
 }

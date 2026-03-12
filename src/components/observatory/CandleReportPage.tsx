@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { PriceChart } from '../chart/PriceChart'
+import { formatPct, formatSignedPct } from '../../observatory/format'
 import { formatUtcDateTime } from '../../observatory/timeFormat'
 import type { CandleHitCluster, IndicatorCategory, IndicatorHitEvent, IndicatorMetric } from '../../observatory/types'
 import type { TrackedCoin } from '../../types/market'
@@ -213,7 +214,7 @@ export function CandleReportPage({
           <span className={cluster.price.changePct >= 0 ? 'obs-report__bar-up' : 'obs-report__bar-down'}>
             {formatSignedPct(cluster.price.changePct)}
           </span>
-          <span className="obs-report__bar-close">{formatPrice(cluster.price.close)}</span>
+          <span className="obs-report__bar-close">{formatReportPrice(cluster.price.close)}</span>
         </div>
       </header>
 
@@ -393,7 +394,7 @@ function formatDuration(hit: IndicatorHitEvent, timeframe: '4h' | '1d') {
   return `${bars} bar${bars === 1 ? '' : 's'} / ${human}`
 }
 
-function formatPrice(value: number) {
+function formatReportPrice(value: number) {
   if (!Number.isFinite(value)) return '--'
   return value.toLocaleString(undefined, { maximumFractionDigits: 4 })
 }
@@ -403,16 +404,6 @@ function formatCompactValue(value: number | null, unit: string) {
   if (unit === '%') return `${value.toFixed(1)}%`
   if (unit === 'bp') return `${value.toFixed(1)}bp`
   return value.toFixed(2)
-}
-
-function formatPct(value: number) {
-  if (!Number.isFinite(value)) return '--'
-  return `${(value * 100).toFixed(0)}%`
-}
-
-function formatSignedPct(value: number) {
-  if (!Number.isFinite(value)) return '--'
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
 }
 
 function formatRecurrence(gapBars: number | null, timeframe: '4h' | '1d', active = false) {

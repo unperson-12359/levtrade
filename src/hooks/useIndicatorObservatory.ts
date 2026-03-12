@@ -27,7 +27,7 @@ function normalizeSnapshot(snapshot: ObservatorySnapshot): ObservatorySnapshot {
     : {
         ...snapshot,
         health: {
-          status: snapshot.indicators.length > 0 ? 'warning' : 'healthy',
+          status: 'healthy',
           total: snapshot.indicators.length,
           valid: snapshot.indicators.length,
           warnings: [],
@@ -150,11 +150,12 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
     }
 
     let active = true
+    let hasLoaded = false
     let timer: ReturnType<typeof setTimeout> | null = null
     const controller = new AbortController()
 
     const pull = async () => {
-      setLoading(true)
+      if (!hasLoaded) setLoading(true)
       try {
         const response = await fetch(`/api/observatory-snapshot?coin=${coin}&interval=${observatoryInterval}`, {
           signal: controller.signal,
@@ -167,6 +168,7 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
         setRemotePriceContext(payload.priceContext ?? null)
         setRemoteKey(requestKey)
         setFreshness(payload.meta?.freshness ?? 'fresh')
+        hasLoaded = true
       } catch {
         if (!active) return
         setFreshness('error')

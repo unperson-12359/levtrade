@@ -1,256 +1,86 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useDataManager } from '../../hooks/useDataManager'
-import { useHashRouter } from '../../hooks/useHashRouter'
-import { useIndicatorObservatory } from '../../hooks/useIndicatorObservatory'
-import { formatUtcDateTime, formatUtcTime } from '../../observatory/timeFormat'
-import type { IndicatorCategory, IndicatorHealthStatus } from '../../observatory/types'
-import { useStore } from '../../store'
+import {
+  formatConnectionStatus,
+  formatLiveStatus,
+  formatObservedAt,
+  formatPrice,
+  formatPct,
+  formatSignedPct,
+  formatTickerPrice,
+  formatValue,
+  toneFromNumber,
+} from '../../observatory/format'
+import { formatUtcDateTime } from '../../observatory/timeFormat'
+import type { IndicatorCategory } from '../../observatory/types'
+import { useObservatoryState, ALLOWED_INTERVALS } from '../../hooks/useObservatoryState'
 import { TRACKED_COINS } from '../../types/market'
 import { PriceChart } from '../chart/PriceChart'
 import { AnalyticsPage } from './AnalyticsPage'
-import { IndicatorClusterLanes, type ClusterPresentationMode } from './IndicatorClusterLanes'
+import { IndicatorClusterLanes } from './IndicatorClusterLanes'
 import { CandleReportPage } from './CandleReportPage'
 import { MethodologyPage } from './MethodologyPage'
 import { ObservatoryGuideStrip } from './ObservatoryGuideStrip'
 import { PoolMap } from './PoolMap'
 
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
-const ALLOWED_INTERVALS = ['4h', '1d'] as const
-type AllowedInterval = (typeof ALLOWED_INTERVALS)[number]
-type ViewMode = 'basic' | 'advanced'
-type PrimaryView = 'timeline' | 'network'
 
 export function ObservatoryLayout() {
-  useDataManager()
-
-  const selectedCoin = useStore((state) => state.selectedCoin)
-  const selectCoin = useStore((state) => state.selectCoin)
-  const selectedInterval = useStore((state) => state.selectedInterval)
-  const setInterval = useStore((state) => state.setInterval)
-  const observatoryGuideExpanded = useStore((state) => state.observatoryGuideExpanded)
-  const toggleObservatoryGuideExpanded = useStore((state) => state.toggleObservatoryGuideExpanded)
-  const connectionStatus = useStore((state) => state.connectionStatus)
-  const runtimeDiagnostics = useStore((state) => state.runtimeDiagnostics)
-  const prices = useStore((state) => state.prices)
-
   const {
-    route,
-    navigateToHeatmap,
-    navigateToObservatory,
-    navigateToAnalytics,
-    navigateToMethodology,
-    navigateToReport,
-  } = useHashRouter()
-
-  const { snapshot, priceContext, liveStatus, loading } = useIndicatorObservatory(selectedCoin)
-  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null)
-  const [selectedClusterTime, setSelectedClusterTime] = useState<number | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('basic')
-  const [primaryView, setPrimaryView] = useState<PrimaryView>('timeline')
-  const [clusterMode, setClusterMode] = useState<ClusterPresentationMode>('simple')
-  const [showDiagnostics, setShowDiagnostics] = useState(false)
-  const [chartCollapsed, setChartCollapsed] = useState(false)
-  const [catalogOpen, setCatalogOpen] = useState(true)
-  const [menuOpen, setMenuOpen] = useState(false)
-
-  useEffect(() => {
-    if (selectedInterval !== '4h' && selectedInterval !== '1d') {
-      setInterval('4h')
-    }
-  }, [selectedInterval, setInterval])
-
-  useEffect(() => {
-    if (route.coin && route.coin !== selectedCoin) {
-      selectCoin(route.coin)
-    }
-    if (route.interval && route.interval !== selectedInterval) {
-      setInterval(route.interval)
-    }
-  }, [route.coin, route.interval, selectCoin, selectedCoin, selectedInterval, setInterval])
-
-  useEffect(() => {
-    if (snapshot.indicators.length === 0) {
-      setSelectedIndicatorId(null)
-      return
-    }
-    const exists = snapshot.indicators.some((indicator) => indicator.id === selectedIndicatorId)
-    if (!exists) {
-      setSelectedIndicatorId(snapshot.indicators[0]?.id ?? null)
-    }
-  }, [selectedIndicatorId, snapshot.indicators])
-
-  useEffect(() => {
-    if (route.page === 'report') return
-    if (snapshot.timeline.length === 0) {
-      setSelectedClusterTime(null)
-      return
-    }
-    const exists = snapshot.timeline.some((cluster) => cluster.time === selectedClusterTime)
-    if (!exists) {
-      setSelectedClusterTime(snapshot.timeline[snapshot.timeline.length - 1]?.time ?? null)
-    }
-  }, [selectedClusterTime, snapshot.timeline, route.page])
-
-  useEffect(() => {
-    setMenuOpen(false)
-  }, [route.page])
-
-  const selectedIndicator = useMemo(
-    () => snapshot.indicators.find((indicator) => indicator.id === selectedIndicatorId) ?? null,
-    [selectedIndicatorId, snapshot.indicators],
-  )
-
-  const indicatorsByCategory = useMemo(() => {
-    const grouped: Record<IndicatorCategory, typeof snapshot.indicators> = {
-      Trend: [],
-      Momentum: [],
-      Volatility: [],
-      Volume: [],
-      Structure: [],
-    }
-    for (const indicator of snapshot.indicators) {
-      grouped[indicator.category].push(indicator)
-    }
-    return grouped
-  }, [snapshot.indicators])
-
-  const mapIndicators = useMemo(() => {
-    if (viewMode === 'advanced') return snapshot.indicators
-    const keep = new Set<string>()
-    for (const category of CATEGORY_ORDER) {
-      for (const indicator of indicatorsByCategory[category].slice(0, 4)) {
-        keep.add(indicator.id)
-      }
-    }
-    if (selectedIndicatorId) keep.add(selectedIndicatorId)
-    return snapshot.indicators.filter((indicator) => keep.has(indicator.id))
-  }, [indicatorsByCategory, selectedIndicatorId, snapshot.indicators, viewMode])
-
-  const mapEdges = useMemo(() => {
-    const allowed = new Set(mapIndicators.map((indicator) => indicator.id))
-    const filtered = snapshot.edges.filter((edge) => allowed.has(edge.a) && allowed.has(edge.b))
-    if (viewMode === 'advanced') return filtered
-    return filtered.filter((edge) => edge.strength >= 0.45).slice(0, 48)
-  }, [mapIndicators, snapshot.edges, viewMode])
-
-  const selectedEdges = useMemo(() => {
-    if (!selectedIndicator) return []
-    return snapshot.edges
-      .filter((edge) => edge.a === selectedIndicator.id || edge.b === selectedIndicator.id)
-      .slice(0, viewMode === 'advanced' ? 10 : 6)
-  }, [selectedIndicator, snapshot.edges, viewMode])
-
-  const timeframe = (selectedInterval === '1d' ? '1d' : '4h') as AllowedInterval
-  const isReportPage = route.page === 'report'
-  const isAnalyticsPage = route.page === 'analytics'
-  const isMethodologyPage = route.page === 'methodology'
-  const reportCluster = useMemo(() => {
-    if (!isReportPage || route.time === null) return null
-    return snapshot.timeline.find((cluster) => cluster.time === route.time) ?? null
-  }, [isReportPage, route.time, snapshot.timeline])
-
-  const selectedTimelineCluster = useMemo(() => {
-    if (snapshot.timeline.length === 0) return null
-    return snapshot.timeline.find((cluster) => cluster.time === selectedClusterTime) ?? snapshot.timeline[snapshot.timeline.length - 1] ?? null
-  }, [selectedClusterTime, snapshot.timeline])
-
-  const latestTimelineCluster = useMemo(
-    () => snapshot.timeline[snapshot.timeline.length - 1] ?? null,
-    [snapshot.timeline],
-  )
-
-  const pulseSummary = useMemo(
-    () =>
-      CATEGORY_ORDER.map((category) => ({
-        category,
-        count: latestTimelineCluster?.laneCounts[category] ?? 0,
-      })),
-    [latestTimelineCluster],
-  )
-
-  const openCandleReport = useCallback(
-    (time: number) => navigateToReport(selectedCoin, timeframe, time),
-    [navigateToReport, selectedCoin, timeframe],
-  )
-  const openObservatory = useCallback(
-    () => navigateToObservatory(selectedCoin, timeframe),
-    [navigateToObservatory, selectedCoin, timeframe],
-  )
-  const openAnalytics = useCallback(
-    () => navigateToAnalytics(selectedCoin, timeframe),
-    [navigateToAnalytics, selectedCoin, timeframe],
-  )
-  const openMethodology = useCallback(
-    () => navigateToMethodology(selectedCoin, timeframe),
-    [navigateToMethodology, selectedCoin, timeframe],
-  )
-  const openHeatmap = useCallback(
-    () => navigateToHeatmap(selectedCoin, timeframe),
-    [navigateToHeatmap, selectedCoin, timeframe],
-  )
-  const applyMarketContext = useCallback((nextCoin: typeof selectedCoin, nextInterval: AllowedInterval) => {
-    selectCoin(nextCoin)
-    setInterval(nextInterval)
-
-    if (isAnalyticsPage) {
-      navigateToAnalytics(nextCoin, nextInterval)
-      return
-    }
-
-    if (isMethodologyPage) {
-      navigateToMethodology(nextCoin, nextInterval)
-      return
-    }
-
-    navigateToObservatory(nextCoin, nextInterval)
-  }, [
+    selectedCoin,
+    timeframe,
+    prices,
+    snapshot,
+    priceContext,
+    loading,
+    viewMode,
+    setViewMode,
+    primaryView,
+    setPrimaryView,
+    clusterMode,
+    setClusterMode,
+    showDiagnostics,
+    setShowDiagnostics,
+    chartCollapsed,
+    setChartCollapsed,
+    catalogOpen,
+    setCatalogOpen,
+    menuOpen,
+    setMenuOpen,
+    selectedIndicatorId,
+    setSelectedIndicatorId,
+    selectedIndicator,
+    indicatorsByCategory,
+    mapIndicators,
+    mapEdges,
+    selectedEdges,
+    selectedClusterTime,
+    setSelectedClusterTime,
+    selectedTimelineCluster,
+    latestTimelineCluster,
+    selectedClusterCategory,
+    reportCluster,
+    pulseSummary,
+    openCandleReport,
+    openObservatory,
+    openAnalytics,
+    openMethodology,
+    openHeatmap,
+    handleSelectCoin,
+    handleSelectInterval,
+    onPrev,
+    onNext,
+    isReportPage,
     isAnalyticsPage,
     isMethodologyPage,
-    navigateToAnalytics,
-    navigateToMethodology,
-    navigateToObservatory,
-    selectCoin,
-    setInterval,
-  ])
-  const handleSelectCoin = useCallback(
-    (coin: typeof selectedCoin) => applyMarketContext(coin, timeframe),
-    [applyMarketContext, timeframe],
-  )
-  const handleSelectInterval = useCallback(
-    (interval: AllowedInterval) => applyMarketContext(selectedCoin, interval),
-    [applyMarketContext, selectedCoin],
-  )
-
-  const { onPrev, onNext } = useMemo(() => {
-    if (!isReportPage || route.time === null || snapshot.timeline.length === 0) {
-      return { onPrev: null, onNext: null }
-    }
-    const idx = snapshot.timeline.findIndex((cluster) => cluster.time === route.time)
-    if (idx === -1) return { onPrev: null, onNext: null }
-    const prevTime = idx > 0 ? snapshot.timeline[idx - 1]!.time : null
-    const nextTime = idx < snapshot.timeline.length - 1 ? snapshot.timeline[idx + 1]!.time : null
-    return {
-      onPrev: prevTime !== null ? () => navigateToReport(selectedCoin, timeframe, prevTime, { replace: true }) : null,
-      onNext: nextTime !== null ? () => navigateToReport(selectedCoin, timeframe, nextTime, { replace: true }) : null,
-    }
-  }, [isReportPage, route.time, snapshot.timeline, navigateToReport, selectedCoin, timeframe])
-
-  const healthStatus = snapshot.health.status
-  const healthTone = toneFromHealthStatus(healthStatus)
-  const diagnosticsCount = runtimeDiagnostics.length + Math.max(snapshot.health.warnings.length, snapshot.health.status === 'healthy' ? 0 : 1)
-  const hasDiagnostics = runtimeDiagnostics.length > 0 || snapshot.health.status !== 'healthy'
-  const liveDisplayStatus = resolveDisplayLiveStatus(connectionStatus, liveStatus)
-  const latestRuntimeMessage = runtimeDiagnostics[runtimeDiagnostics.length - 1]?.message ?? null
-  const isTimelineView = primaryView === 'timeline'
-  const selectedClusterCategory = selectedTimelineCluster ? strongestCategory(selectedTimelineCluster) : null
-
-  useEffect(() => {
-    if (hasDiagnostics) {
-      setShowDiagnostics(true)
-      return
-    }
-    setShowDiagnostics(false)
-  }, [hasDiagnostics])
+    isTimelineView,
+    healthTone,
+    diagnosticsCount,
+    hasDiagnostics,
+    liveDisplayStatus,
+    latestRuntimeMessage,
+    connectionStatus,
+    observatoryGuideExpanded,
+    toggleObservatoryGuideExpanded,
+  } = useObservatoryState()
 
   return (
     <div className="obs-app" data-testid="obs-shell">
@@ -293,7 +123,7 @@ export function ObservatoryLayout() {
             <button
               type="button"
               className="obs-header-menu"
-              onClick={() => setMenuOpen((value) => !value)}
+              onClick={() => setMenuOpen(!menuOpen)}
               aria-expanded={menuOpen}
               aria-controls="obs-mobile-nav"
               data-testid="obs-header-menu-button"
@@ -441,7 +271,7 @@ export function ObservatoryLayout() {
                 <button
                   type="button"
                   className={`obs-chip obs-chip--toggle obs-chip--${healthTone}`}
-                  onClick={() => setShowDiagnostics((value) => !value)}
+                  onClick={() => setShowDiagnostics(!showDiagnostics)}
                   aria-expanded={showDiagnostics}
                   aria-controls="obs-diagnostics-detail"
                   data-testid="obs-diagnostics-toggle"
@@ -524,7 +354,7 @@ export function ObservatoryLayout() {
                       <button
                         type="button"
                         className="obs-panel__toggle"
-                        onClick={() => setChartCollapsed((value) => !value)}
+                        onClick={() => setChartCollapsed(!chartCollapsed)}
                         aria-expanded={!chartCollapsed}
                         aria-controls="obs-live-chart-panel"
                       >
@@ -647,7 +477,7 @@ export function ObservatoryLayout() {
                         </button>
                       </>
                     ) : (
-                      <div className="obs-empty">Select a heatmap cell to explain why that candle mattered, then open the report only if you need deeper context.</div>
+                      <div className="obs-empty">{loading && snapshot.timeline.length === 0 ? 'Loading indicators\u2026' : 'Select a heatmap cell to explain why that candle mattered, then open the report only if you need deeper context.'}</div>
                     )}
                   </section>
                 </>
@@ -657,7 +487,7 @@ export function ObservatoryLayout() {
                     <button
                       type="button"
                       className="obs-catalog-toggle"
-                      onClick={() => setCatalogOpen((value) => !value)}
+                      onClick={() => setCatalogOpen(!catalogOpen)}
                       aria-expanded={catalogOpen}
                       aria-controls="obs-catalog-panel"
                     >
@@ -812,90 +642,3 @@ function MapLegend() {
   )
 }
 
-function toneFromNumber(value: number | null): 'up' | 'down' | 'neutral' {
-  if (value === null || !Number.isFinite(value)) return 'neutral'
-  if (value > 0) return 'up'
-  if (value < 0) return 'down'
-  return 'neutral'
-}
-
-function toneFromHealthStatus(status: IndicatorHealthStatus): 'good' | 'warn' | 'critical' {
-  if (status === 'healthy') return 'good'
-  if (status === 'warning') return 'warn'
-  return 'critical'
-}
-
-function resolveDisplayLiveStatus(
-  connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error',
-  liveStatus: 'live' | 'updating' | 'delayed' | 'disconnected',
-): 'live' | 'updating' | 'delayed' | 'disconnected' {
-  if (connectionStatus === 'error' || connectionStatus === 'disconnected') return 'disconnected'
-  if (connectionStatus === 'connecting' && liveStatus === 'live') return 'updating'
-  return liveStatus
-}
-
-function formatLiveStatus(status: 'live' | 'updating' | 'delayed' | 'disconnected'): string {
-  if (status === 'live') return 'Live'
-  if (status === 'updating') return 'Updating'
-  if (status === 'delayed') return 'Delayed'
-  return 'Disconnected'
-}
-
-function formatConnectionStatus(status: 'connecting' | 'connected' | 'disconnected' | 'error'): string {
-  if (status === 'connected') return 'Feed connected'
-  if (status === 'connecting') return 'Feed connecting'
-  if (status === 'disconnected') return 'Feed offline'
-  return 'Feed error'
-}
-
-function formatObservedAt(observedAt: string | null): string {
-  return `Observed ${formatUtcTime(observedAt)}`
-}
-
-function formatPrice(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '--'
-  return `$${value.toLocaleString(undefined, { maximumFractionDigits: 4 })}`
-}
-
-function formatTickerPrice(value: string | number | null | undefined, fallback: number | null): string {
-  const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseFloat(value) : Number.NaN
-  if (Number.isFinite(numeric)) {
-    return `$${numeric.toLocaleString(undefined, { maximumFractionDigits: numeric >= 1000 ? 0 : 2 })}`
-  }
-  if (fallback !== null && Number.isFinite(fallback)) {
-    return `$${fallback.toLocaleString(undefined, { maximumFractionDigits: fallback >= 1000 ? 0 : 2 })}`
-  }
-  return '--'
-}
-
-function formatSignedPct(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '--'
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
-}
-
-function formatValue(value: number | null, unit: string): string {
-  if (value === null || !Number.isFinite(value)) return '--'
-  if (unit === '%') return `${value.toFixed(2)}%`
-  if (unit === 'bp') return `${value.toFixed(2)} bp`
-  if (unit === 'z') return value.toFixed(2)
-  if (unit === '0-1') return value.toFixed(3)
-  return value.toFixed(2)
-}
-
-function formatPct(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '--'
-  return `${(value * 100).toFixed(0)}%`
-}
-
-function strongestCategory(cluster: { laneCounts: Partial<Record<IndicatorCategory, number>> }) {
-  let best: IndicatorCategory | null = null
-  let bestCount = -1
-  for (const category of CATEGORY_ORDER) {
-    const count = cluster.laneCounts[category] ?? 0
-    if (count > bestCount) {
-      best = category
-      bestCount = count
-    }
-  }
-  return bestCount > 0 ? best : null
-}
