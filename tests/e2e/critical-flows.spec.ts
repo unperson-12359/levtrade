@@ -17,7 +17,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-guide-strip')).toBeVisible()
     await expect(page.getByTestId('obs-guide-strip')).toHaveAttribute('data-guide-state', 'collapsed')
     await expect(page.getByTestId('obs-guide-expanded')).toBeHidden()
-    await expect(page.getByTestId('obs-guide-toggle')).toContainText('Expand guide')
+    await expect(page.getByTestId('obs-guide-toggle')).toContainText('Show guide')
     await expect(page.getByTestId('obs-cluster-mode-simple')).toHaveClass(/obs-chip--active/)
     await expect(page.getByTestId('obs-nav-observatory')).toBeVisible()
     await expect(page.getByTestId('obs-nav-analytics')).toBeVisible()
@@ -83,11 +83,6 @@ test.describe('Observatory critical flows', () => {
     for (let index = 1; index < Math.min(dailyLaneTimes.length, 8); index += 1) {
       expect(dailyLaneTimes[index] - dailyLaneTimes[index - 1]).toBe(24 * 60 * 60 * 1000)
     }
-
-    await page.getByTestId('obs-mode-advanced').click()
-    await expect(page.getByTestId('obs-mode-advanced')).toHaveClass(/obs-chip--active/)
-    await page.getByTestId('obs-mode-basic').click()
-    await expect(page.getByTestId('obs-mode-basic')).toHaveClass(/obs-chip--active/)
 
     await page.getByTestId('obs-nav-analytics').click()
     await expect(page.getByTestId('obs-analytics-page')).toBeVisible()

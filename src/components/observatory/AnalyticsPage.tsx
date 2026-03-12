@@ -145,7 +145,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
         meta: `${analytics.windowBars} bars / ${coin} / ${timeframe}`,
       },
       {
-        label: 'Active states',
+        label: 'Active indicators',
         value: formatInteger(analytics.totalHits),
         meta: sourceMode === 'ledger' ? 'Persisted indicator-on bars' : 'Visible window indicator-on bars',
       },
@@ -227,10 +227,10 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
           <div className="obs-analytics__table" data-testid="obs-analytics-table">
             <div className="obs-analytics__row obs-analytics__row--head">
               <span>Indicator</span>
-              <span>Active bars</span>
-              <span>Active rate</span>
-              <span>Current</span>
-              <span>Max</span>
+              <span title="How many time periods this indicator was firing">Active bars</span>
+              <span title="Percentage of bars where this indicator was active">Active rate</span>
+              <span title="Consecutive bars currently active">Current streak</span>
+              <span title="Longest consecutive active streak observed">Max streak</span>
               <span>Last active</span>
             </div>
             {visibleRows.map((row) => (
@@ -292,7 +292,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
               {categoryRows.map((row) => (
                 <div key={row.category} className="obs-pulse-row">
                   <span>{row.category}</span>
-                  <span>{row.totalHits} active states / {formatPct(row.activeRate)}</span>
+                  <span>{row.totalHits} active indicators / {formatPct(row.activeRate)}</span>
                 </div>
               ))}
             </div>

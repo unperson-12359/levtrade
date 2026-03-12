@@ -303,7 +303,7 @@ button {
 }
 
 .obs-command-metric__label {
-  font-size: 0.42rem;
+  font-size: var(--text-xs, 0.625rem);
   color: rgba(212, 168, 83, 0.45);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -728,7 +728,7 @@ button {
 }
 
 .obs-catalog-badge__label {
-  font-size: 0.4rem;
+  font-size: var(--text-xs, 0.625rem);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: rgba(138, 133, 125, 0.5);
@@ -795,7 +795,7 @@ button {
 }
 
 .obs-cluster__summary-dot-label {
-  font-size: 0.4rem;
+  font-size: var(--text-xs, 0.625rem);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: rgba(138, 133, 125, 0.45);
@@ -1092,7 +1092,7 @@ button {
 }
 
 .obs-cluster__lane-label {
-  font-size: 0.46rem;
+  font-size: var(--text-xs, 0.625rem);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(138, 133, 125, 0.55);
@@ -1121,7 +1121,7 @@ button {
   border-radius: 0.15rem;
   background: rgba(10, 10, 16, 0.6);
   color: rgba(212, 200, 180, 0.95);
-  font-size: 0.42rem;
+  font-size: var(--text-xs, 0.625rem);
   line-height: 1;
   min-height: 10px;
   display: inline-flex;
@@ -1410,7 +1410,7 @@ button {
 
 .obs-report__ind-dur {
   flex-shrink: 0;
-  font-size: 0.44rem;
+  font-size: var(--text-xs, 0.625rem);
   color: rgba(138, 133, 125, 0.7);
   font-variant-numeric: tabular-nums;
 }
@@ -1465,7 +1465,7 @@ button {
 
 /* Inline value display */
 .obs-report__ind-val {
-  font-size: 0.46rem;
+  font-size: var(--text-xs, 0.625rem);
   color: rgba(212, 168, 83, 0.6);
   font-variant-numeric: tabular-nums;
   font-family: var(--font-mono);
@@ -1752,7 +1752,7 @@ button {
 .live-rail-item__direction {
   border-radius: 0.16rem;
   padding: 0.02rem 0.12rem;
-  font-size: 0.46rem;
+  font-size: var(--text-xs, 0.625rem);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -1774,14 +1774,14 @@ button {
 }
 
 .live-rail-item__status {
-  font-size: 0.46rem;
+  font-size: var(--text-xs, 0.625rem);
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
 .live-rail-item__age {
-  font-size: 0.46rem;
+  font-size: var(--text-xs, 0.625rem);
   color: var(--color-text-muted);
 }
 
@@ -2037,7 +2037,7 @@ button {
 }
 
 .density-ultra .setup-kpi-card__label {
-  font-size: 0.48rem;
+  font-size: var(--text-xs, 0.625rem);
 }
 
 .density-ultra .setup-kpi-card__value {
@@ -4404,7 +4404,7 @@ button {
   }
 
   .entry-readiness-rail__confidence-label {
-    font-size: 0.48rem;
+    font-size: var(--text-xs, 0.625rem);
   }
 
   .entry-readiness-rail__confidence-value {
@@ -4549,7 +4549,7 @@ button {
   .live-rail-item__status,
   .live-rail-item__age,
   .live-rail-item__direction {
-    font-size: 0.44rem;
+    font-size: var(--text-xs, 0.625rem);
   }
 
   .signal-drawer {
@@ -4647,7 +4647,7 @@ button {
   }
 
   .entry-readiness-light__index {
-    font-size: 0.46rem;
+    font-size: var(--text-xs, 0.625rem);
   }
 
   .entry-readiness-light__dot {
@@ -4660,7 +4660,7 @@ button {
   }
 
   .entry-readiness-rail__confidence-label {
-    font-size: 0.44rem;
+    font-size: var(--text-xs, 0.625rem);
   }
 
   .entry-readiness-rail__confidence-value {
@@ -4690,12 +4690,12 @@ button {
   }
 
   .live-rail-title {
-    font-size: 0.46rem;
+    font-size: var(--text-xs, 0.625rem);
     letter-spacing: 0.08em;
   }
 
   .live-rail-pill {
-    font-size: 0.46rem;
+    font-size: var(--text-xs, 0.625rem);
     padding: 0.02rem 0.16rem;
   }
 
@@ -4706,13 +4706,13 @@ button {
 
   .live-rail-item__coin,
   .live-rail-item__pnl {
-    font-size: 0.48rem;
+    font-size: var(--text-xs, 0.625rem);
   }
 
   .live-rail-item__status,
   .live-rail-item__age,
   .live-rail-item__direction {
-    font-size: 0.4rem;
+    font-size: var(--text-xs, 0.625rem);
   }
 
   .step2-kpi-card__label {
@@ -4867,18 +4867,57 @@ button {
 
 /* Observatory editorial redesign */
 .obs-app {
+  /* Core palette */
   --obs-paper: #fffaf0;
   --obs-paper-2: #f5eddc;
+  --obs-paper-3: #e7dbc8;
   --obs-ink: #15110c;
   --obs-rule: rgba(21, 17, 12, 0.92);
   --obs-rule-soft: rgba(21, 17, 12, 0.22);
+  --obs-rule-strong: rgba(21, 17, 12, 0.98);
   --obs-muted: #6e6253;
   --obs-muted-2: #978976;
   --obs-positive: #2d9d62;
   --obs-negative: #ce4b2b;
   --obs-warning: #ba7a1a;
   --obs-highlight: #ebe2d1;
+  --obs-accent-gold: #d2aa5d;
+
+  /* Shadows */
   --obs-shadow: 0 14px 34px rgba(37, 28, 18, 0.08);
+  --obs-shadow-soft: 0 10px 24px rgba(37, 28, 18, 0.07);
+  --obs-shadow-lift: 0 18px 36px rgba(37, 28, 18, 0.11);
+
+  /* Motion */
+  --obs-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --obs-ease-emphasis: cubic-bezier(0.22, 1, 0.36, 1);
+  --obs-duration-fast: 140ms;
+  --obs-duration-base: 220ms;
+  --obs-duration-slow: 320ms;
+
+  /* Type scale */
+  --text-xs: 0.625rem;
+  --text-sm: 0.72rem;
+  --text-base: 0.82rem;
+  --text-md: 0.92rem;
+  --text-lg: 1.1rem;
+  --text-xl: 1.38rem;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.38rem;
+  --space-3: 0.55rem;
+  --space-4: 0.72rem;
+  --space-5: 0.92rem;
+  --space-6: 1.2rem;
+  --space-7: 1.6rem;
+  --space-8: 2.2rem;
+
+  /* Border radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.55rem;
+  --radius-pill: 999px;
+
   min-height: 100vh;
   position: relative;
   padding: 0.7rem;
@@ -5640,7 +5679,7 @@ button {
   background: rgba(21, 17, 12, 0.05);
   color: var(--obs-ink);
   font-family: var(--font-mono);
-  font-size: 0.44rem;
+  font-size: var(--text-xs, 0.625rem);
   transition: transform 140ms ease, border-color 140ms ease;
 }
 
@@ -6014,16 +6053,8 @@ button {
   }
 }
 
+/* Second pass background refinement — merged variables into main .obs-app block above */
 .obs-app {
-  --obs-paper-3: #e7dbc8;
-  --obs-rule-strong: rgba(21, 17, 12, 0.98);
-  --obs-shadow-soft: 0 10px 24px rgba(37, 28, 18, 0.07);
-  --obs-shadow-lift: 0 18px 36px rgba(37, 28, 18, 0.11);
-  --obs-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --obs-ease-emphasis: cubic-bezier(0.22, 1, 0.36, 1);
-  --obs-duration-fast: 140ms;
-  --obs-duration-base: 220ms;
-  --obs-duration-slow: 320ms;
   background:
     radial-gradient(circle at top left, rgba(210, 170, 93, 0.16), transparent 30%),
     radial-gradient(circle at 85% 12%, rgba(21, 17, 12, 0.04), transparent 24%),
@@ -6073,7 +6104,7 @@ button {
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
-  background: linear-gradient(90deg, #d2aa5d 0%, rgba(210, 170, 93, 0.32) 48%, transparent 100%);
+  background: linear-gradient(90deg, var(--obs-accent-gold) 0%, rgba(210, 170, 93, 0.32) 48%, transparent 100%);
   pointer-events: none;
 }
 
@@ -6113,7 +6144,7 @@ button {
   border: 1px solid rgba(21, 17, 12, 0.18);
   background: rgba(255, 250, 240, 0.7);
   padding: 0.14rem 0.34rem;
-  font-size: 0.48rem;
+  font-size: var(--text-xs, 0.625rem);
   color: var(--obs-muted);
 }
 
@@ -6242,7 +6273,7 @@ button {
 }
 
 .obs-market-tile--active::after {
-  background: #d2aa5d;
+  background: var(--obs-accent-gold);
 }
 
 .obs-market-tile__symbol,
@@ -6396,7 +6427,7 @@ button {
   padding: 0.18rem 0.34rem;
   border: 1px solid rgba(21, 17, 12, 0.14);
   background: rgba(255, 250, 240, 0.7);
-  font-size: 0.48rem;
+  font-size: var(--text-xs, 0.625rem);
   color: var(--obs-muted);
 }
 
@@ -6420,16 +6451,28 @@ button {
 .obs-cluster__cell {
   min-height: 17px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  cursor: pointer;
 }
 
 .obs-cluster__cell:hover {
-  transform: translateY(-1px) scale(1.01);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 0 0 1.5px var(--obs-ink),
+    0 0 6px rgba(210, 170, 93, 0.25);
 }
 
 .obs-cluster__cell--selected {
   box-shadow:
     inset 0 0 0 2px var(--obs-ink),
-    0 0 0 1px rgba(21, 17, 12, 0.1);
+    0 0 0 1px rgba(21, 17, 12, 0.1),
+    0 0 8px rgba(210, 170, 93, 0.3);
+  animation: obs-cell-pulse 1.8s ease-in-out 1;
+}
+
+@keyframes obs-cell-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--obs-ink), 0 0 0 1px rgba(21, 17, 12, 0.1); }
+  50% { box-shadow: inset 0 0 0 2px var(--obs-ink), 0 0 0 1px rgba(21, 17, 12, 0.1), 0 0 10px rgba(210, 170, 93, 0.4); }
 }
 
 .obs-runtime,
@@ -6472,7 +6515,7 @@ button {
 }
 
 .obs-report__bar-kicker {
-  font-size: 0.48rem;
+  font-size: var(--text-xs, 0.625rem);
   color: var(--obs-muted);
 }
 
@@ -6545,7 +6588,7 @@ button {
 .obs-report__chart-toggle:focus-visible,
 .obs-pool-map__node:focus-visible,
 .obs-command-metric:focus-visible {
-  outline: 2px solid #d2aa5d;
+  outline: 2px solid var(--obs-accent-gold);
   outline-offset: 2px;
 }
 
@@ -6950,6 +6993,48 @@ button {
   justify-content: flex-start;
 }
 
+.obs-toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+}
+
+.obs-toggle-group__label {
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--obs-muted-2);
+  padding-left: 0.12rem;
+}
+
+.obs-toggle-group__chips {
+  display: flex;
+  gap: 0.24rem;
+}
+
+.obs-guide__hint-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.72rem;
+  flex-wrap: wrap;
+}
+
+.obs-guide__hint-text {
+  color: var(--obs-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.obs-guide__hint-actions {
+  display: flex;
+  gap: 0.42rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .obs-selected-cluster__metrics,
 .obs-selected-cluster__lanes {
   display: grid;
@@ -7223,6 +7308,40 @@ button {
   .obs-report__summary-card {
     min-height: auto;
   }
+}
+
+.obs-report__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+  font-size: 0.72rem;
+  color: var(--obs-muted);
+  flex-wrap: wrap;
+}
+
+.obs-report__breadcrumb-link {
+  background: none;
+  border: none;
+  color: var(--obs-muted);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.obs-report__breadcrumb-link:hover {
+  color: var(--obs-ink);
+}
+
+.obs-report__breadcrumb-sep {
+  color: var(--obs-muted-2);
+  opacity: 0.5;
+}
+
+.obs-report__breadcrumb-current {
+  color: var(--obs-ink);
+  font-weight: 600;
 }
 
 /* Report-first analytics upgrade */
@@ -7665,6 +7784,12 @@ button {
   color: var(--obs-ink);
   font-size: 0.72rem;
   line-height: 1.36;
+}
+
+.obs-methodology__try-cta {
+  margin-top: 0.48rem;
+  font-size: 0.72rem;
+  padding: 0.34rem 0.58rem;
 }
 
 .obs-guide--collapsed .obs-guide__grid {

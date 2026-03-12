@@ -91,7 +91,7 @@ export function IndicatorClusterLanes({
       <div className="obs-cluster__header">
         <div>
           <div className="obs-cluster__title">Step 2 · Read signal pressure</div>
-          <div className="obs-cluster__hint">Dense cells show where indicator states stack on the same bar. Select one candle, explain it below, then open the report if needed.</div>
+          <div className="obs-cluster__hint">Click any cell to inspect it. Brighter = more indicators active on that bar.</div>
         </div>
       </div>
 
@@ -132,7 +132,7 @@ export function IndicatorClusterLanes({
                     onClick={() => onSelectTime(cluster.time)}
                     aria-pressed={selected}
                     data-testid="obs-cluster-cell"
-                    title={`${formatUtcDateTime(cluster.time)} | ${lane}: ${count} active state${count === 1 ? '' : 's'}`}
+                    title={`${formatUtcDateTime(cluster.time)} | ${lane}: ${count} active indicator${count === 1 ? '' : 's'}`}
                   >
                     {showCount ? count : ''}
                   </button>

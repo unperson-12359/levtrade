@@ -26,7 +26,6 @@ import type { RuntimeDiagnostic } from '../store/uiSlice'
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
 export const ALLOWED_INTERVALS = ['4h', '1d'] as const
 export type AllowedInterval = (typeof ALLOWED_INTERVALS)[number]
-export type ViewMode = 'basic' | 'advanced'
 export type PrimaryView = 'timeline' | 'network'
 
 export interface ObservatoryState {
@@ -43,8 +42,6 @@ export interface ObservatoryState {
   loading: boolean
 
   // View controls
-  viewMode: ViewMode
-  setViewMode: (mode: ViewMode) => void
   primaryView: PrimaryView
   setPrimaryView: (view: PrimaryView) => void
   clusterMode: ClusterPresentationMode
@@ -131,7 +128,6 @@ export function useObservatoryState(): ObservatoryState {
   const { snapshot, priceContext, liveStatus, loading } = useIndicatorObservatory(selectedCoin)
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null)
   const [selectedClusterTime, setSelectedClusterTime] = useState<number | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('basic')
   const [primaryView, setPrimaryView] = useState<PrimaryView>('timeline')
   const [clusterMode, setClusterMode] = useState<ClusterPresentationMode>('simple')
   const [showDiagnostics, setShowDiagnostics] = useState(false)
@@ -211,7 +207,7 @@ export function useObservatoryState(): ObservatoryState {
   }, [snapshot.indicators])
 
   const mapIndicators = useMemo(() => {
-    if (viewMode === 'advanced') return snapshot.indicators
+    if (clusterMode === 'pro') return snapshot.indicators
     const keep = new Set<string>()
     for (const category of CATEGORY_ORDER) {
       for (const indicator of indicatorsByCategory[category].slice(0, 4)) {
@@ -220,21 +216,21 @@ export function useObservatoryState(): ObservatoryState {
     }
     if (selectedIndicatorId) keep.add(selectedIndicatorId)
     return snapshot.indicators.filter((indicator) => keep.has(indicator.id))
-  }, [indicatorsByCategory, selectedIndicatorId, snapshot.indicators, viewMode])
+  }, [clusterMode, indicatorsByCategory, selectedIndicatorId, snapshot.indicators])
 
   const mapEdges = useMemo(() => {
     const allowed = new Set(mapIndicators.map((indicator) => indicator.id))
     const filtered = snapshot.edges.filter((edge) => allowed.has(edge.a) && allowed.has(edge.b))
-    if (viewMode === 'advanced') return filtered
+    if (clusterMode === 'pro') return filtered
     return filtered.filter((edge) => edge.strength >= 0.45).slice(0, 48)
-  }, [mapIndicators, snapshot.edges, viewMode])
+  }, [clusterMode, mapIndicators, snapshot.edges])
 
   const selectedEdges = useMemo(() => {
     if (!selectedIndicator) return []
     return snapshot.edges
       .filter((edge) => edge.a === selectedIndicator.id || edge.b === selectedIndicator.id)
-      .slice(0, viewMode === 'advanced' ? 10 : 6)
-  }, [selectedIndicator, snapshot.edges, viewMode])
+      .slice(0, clusterMode === 'pro' ? 10 : 6)
+  }, [clusterMode, selectedIndicator, snapshot.edges])
 
   const timeframe = (selectedInterval === '1d' ? '1d' : '4h') as AllowedInterval
   const isReportPage = route.page === 'report'
@@ -357,8 +353,6 @@ export function useObservatoryState(): ObservatoryState {
     priceContext,
     liveStatus,
     loading,
-    viewMode,
-    setViewMode,
     primaryView,
     setPrimaryView,
     clusterMode,

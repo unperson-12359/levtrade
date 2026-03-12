@@ -184,6 +184,13 @@ export function CandleReportPage({
   return (
     <section className="obs-report" data-testid="obs-candle-report-page">
       <header className="obs-report__bar">
+        <nav className="obs-report__breadcrumb">
+          <button type="button" className="obs-report__breadcrumb-link" onClick={onBack} data-testid="obs-candle-report-back">Observatory</button>
+          <span className="obs-report__breadcrumb-sep">/</span>
+          <button type="button" className="obs-report__breadcrumb-link" onClick={onBack}>Heatmap</button>
+          <span className="obs-report__breadcrumb-sep">/</span>
+          <span className="obs-report__breadcrumb-current">Report: {formatUtcDateTime(cluster.time)}</span>
+        </nav>
         <nav className="obs-report__bar-nav">
           <button
             type="button"
@@ -195,7 +202,6 @@ export function CandleReportPage({
           >
             &larr;
           </button>
-          <button type="button" className="obs-report__bar-btn" onClick={onBack} data-testid="obs-candle-report-back">Heatmap</button>
           <button
             type="button"
             className="obs-report__bar-btn"
@@ -242,7 +248,7 @@ export function CandleReportPage({
 
       <div className="obs-report__metrics" data-testid="obs-report-metrics">
         <div className="obs-report__metric-card">
-          <span className="obs-report__metric-label">Active states</span>
+          <span className="obs-report__metric-label">Active indicators</span>
           <strong className="obs-report__metric-value">{cluster.totalHits}</strong>
           <span className="obs-report__metric-meta">
             {reportStats ? `${cluster.totalHits >= reportStats.trailingAverage ? '+' : ''}${(cluster.totalHits - reportStats.trailingAverage).toFixed(1)} vs trailing avg` : '--'}
@@ -254,14 +260,14 @@ export function CandleReportPage({
           <span className="obs-report__metric-meta">Within visible timeline window</span>
         </div>
         <div className="obs-report__metric-card">
-          <span className="obs-report__metric-label">Active lanes</span>
+          <span className="obs-report__metric-label">Active categories</span>
           <strong className="obs-report__metric-value">{reportStats ? `${reportStats.activeCategories}/${LANE_ORDER.length}` : '--'}</strong>
           <span className="obs-report__metric-meta">{strongestLane ?? '--'} leading</span>
         </div>
         <div className="obs-report__metric-card">
           <span className="obs-report__metric-label">Dominance</span>
           <strong className="obs-report__metric-value">{reportStats ? formatPct(reportStats.dominance) : '--'}</strong>
-          <span className="obs-report__metric-meta">{reportStats ? `${reportStats.strongestCount} active states in top lane` : '--'}</span>
+          <span className="obs-report__metric-meta">{reportStats ? `${reportStats.strongestCount} active indicators in top category` : '--'}</span>
         </div>
         <div className="obs-report__metric-card">
           <span className="obs-report__metric-label">Recurring</span>
@@ -306,7 +312,7 @@ export function CandleReportPage({
         <section className="obs-report__detail-panel" data-testid="obs-report-category-share">
           <div className="obs-report__detail-head">
             <span className="obs-report__detail-label">Category share</span>
-            <span className="obs-report__detail-count">{cluster.totalHits} active states</span>
+            <span className="obs-report__detail-count">{cluster.totalHits} active indicators</span>
           </div>
           <div className="obs-report__share-list">
             {reportGroups.map((group) => (

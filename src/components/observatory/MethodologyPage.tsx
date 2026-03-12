@@ -83,6 +83,13 @@ export function MethodologyPage({
               <h3>{step.title}</h3>
               <p>{step.question}</p>
               <div className="obs-methodology__flow-next">{step.readNext}</div>
+              <button
+                type="button"
+                className="obs-panel__action obs-methodology__try-cta"
+                onClick={onOpenObservatory}
+              >
+                Try it now &rarr;
+              </button>
             </article>
           ))}
         </div>
@@ -109,7 +116,7 @@ export function MethodologyPage({
         <div className="obs-panel__title-row">
           <div>
             <div className="obs-panel__eyebrow">Indicator categories</div>
-            <h2 className="obs-panel__title">What the five lanes mean</h2>
+            <h2 className="obs-panel__title">What the five categories mean</h2>
           </div>
         </div>
         <div className="obs-methodology__category-grid">

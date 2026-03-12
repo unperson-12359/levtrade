@@ -31,8 +31,6 @@ export function ObservatoryLayout() {
     snapshot,
     priceContext,
     loading,
-    viewMode,
-    setViewMode,
     primaryView,
     setPrimaryView,
     clusterMode,
@@ -161,24 +159,27 @@ export function ObservatoryLayout() {
           <div className="obs-command-bar__masthead">
             <div className="obs-command-bar__view-switch">
               {!isReportPage && !isAnalyticsPage && !isMethodologyPage ? (
-                <>
-                  <button
-                    type="button"
-                    className={`obs-chip obs-chip--nav ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
-                    onClick={() => setPrimaryView('timeline')}
-                    data-testid="obs-view-timeline"
-                  >
-                    Timeline
-                  </button>
-                  <button
-                    type="button"
-                    className={`obs-chip obs-chip--nav ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
-                    onClick={() => setPrimaryView('network')}
-                    data-testid="obs-view-network"
-                  >
-                    Network
-                  </button>
-                </>
+                <div className="obs-toggle-group">
+                  <span className="obs-toggle-group__label">View</span>
+                  <div className="obs-toggle-group__chips">
+                    <button
+                      type="button"
+                      className={`obs-chip obs-chip--nav ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
+                      onClick={() => setPrimaryView('timeline')}
+                      data-testid="obs-view-timeline"
+                    >
+                      Timeline
+                    </button>
+                    <button
+                      type="button"
+                      className={`obs-chip obs-chip--nav ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
+                      onClick={() => setPrimaryView('network')}
+                      data-testid="obs-view-network"
+                    >
+                      Network
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="obs-command-bar__page-tag">
                   {isAnalyticsPage
@@ -187,27 +188,6 @@ export function ObservatoryLayout() {
                       ? 'Methodology / How to read LevTrade'
                       : 'Deep dive / Candle report'}
                 </div>
-              )}
-
-              {!isReportPage && !isAnalyticsPage && !isMethodologyPage && (
-                <>
-                  <button
-                    type="button"
-                    className={`obs-chip obs-chip--nav ${viewMode === 'basic' ? 'obs-chip--active' : ''}`}
-                    onClick={() => setViewMode('basic')}
-                    data-testid="obs-mode-basic"
-                  >
-                    Basic
-                  </button>
-                  <button
-                    type="button"
-                    className={`obs-chip obs-chip--nav ${viewMode === 'advanced' ? 'obs-chip--active' : ''}`}
-                    onClick={() => setViewMode('advanced')}
-                    data-testid="obs-mode-advanced"
-                  >
-                    Advanced
-                  </button>
-                </>
               )}
             </div>
 
@@ -220,7 +200,6 @@ export function ObservatoryLayout() {
                 </span>
               </div>
               <div className="obs-command-bar__hero-meta">
-                <span>Status · {formatLiveStatus(liveDisplayStatus)}</span>
                 <span>{formatObservedAt(priceContext.observedAt)}</span>
               </div>
             </div>
@@ -241,24 +220,27 @@ export function ObservatoryLayout() {
               ))}
 
               {!isReportPage && !isAnalyticsPage && !isMethodologyPage && primaryView === 'timeline' && (
-                <>
-                  <button
-                    type="button"
-                    className={`obs-chip obs-chip--nav ${clusterMode === 'simple' ? 'obs-chip--active' : ''}`}
-                    onClick={() => setClusterMode('simple')}
-                    data-testid="obs-cluster-mode-simple"
-                  >
-                    Simple
-                  </button>
-                  <button
-                    type="button"
-                    className={`obs-chip obs-chip--nav ${clusterMode === 'pro' ? 'obs-chip--active' : ''}`}
-                    onClick={() => setClusterMode('pro')}
-                    data-testid="obs-cluster-mode-pro"
-                  >
-                    Pro
-                  </button>
-                </>
+                <div className="obs-toggle-group">
+                  <span className="obs-toggle-group__label">Detail</span>
+                  <div className="obs-toggle-group__chips">
+                    <button
+                      type="button"
+                      className={`obs-chip obs-chip--nav ${clusterMode === 'simple' ? 'obs-chip--active' : ''}`}
+                      onClick={() => setClusterMode('simple')}
+                      data-testid="obs-cluster-mode-simple"
+                    >
+                      Simple
+                    </button>
+                    <button
+                      type="button"
+                      className={`obs-chip obs-chip--nav ${clusterMode === 'pro' ? 'obs-chip--active' : ''}`}
+                      onClick={() => setClusterMode('pro')}
+                      data-testid="obs-cluster-mode-pro"
+                    >
+                      Pro
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -386,7 +368,7 @@ export function ObservatoryLayout() {
                 <section className="obs-panel obs-panel--network-surface">
                   <div className="obs-panel__title-row">
                     <div>
-                      <div className="obs-panel__eyebrow">Step 4 · Validate the read</div>
+                      <div className="obs-panel__eyebrow">Correlation explorer</div>
                       <h2 className="obs-panel__title">Indicator relationship map</h2>
                     </div>
                     <p className="obs-panel__hint">Use this after the live read. Color = sign, thickness = strength, dashed = lag.</p>
@@ -397,7 +379,7 @@ export function ObservatoryLayout() {
                     edges={mapEdges}
                     selectedId={selectedIndicatorId}
                     onSelect={setSelectedIndicatorId}
-                    viewMode={viewMode}
+                    viewMode={clusterMode === 'pro' ? 'advanced' : 'basic'}
                   />
                 </section>
               )}
@@ -446,9 +428,9 @@ export function ObservatoryLayout() {
                     {selectedTimelineCluster ? (
                       <>
                         <div className="obs-selected-cluster__metrics">
-                          <div className="obs-detail-kv"><span>Active states</span><span>{selectedTimelineCluster.totalHits}</span></div>
-                          <div className="obs-detail-kv"><span>Strongest lane</span><span>{selectedClusterCategory ?? '--'}</span></div>
-                          <div className="obs-detail-kv"><span>Move</span><span>{formatSignedPct(selectedTimelineCluster.price.changePct)}</span></div>
+                          <div className="obs-detail-kv"><span>Active indicators</span><span>{selectedTimelineCluster.totalHits}</span></div>
+                          <div className="obs-detail-kv"><span>Dominant category</span><span>{selectedClusterCategory ?? '--'}</span></div>
+                          <div className="obs-detail-kv"><span>Price change</span><span>{formatSignedPct(selectedTimelineCluster.price.changePct)}</span></div>
                           <div className="obs-detail-kv"><span>Close</span><span>{formatPrice(selectedTimelineCluster.price.close)}</span></div>
                         </div>
                         <div className="obs-selected-cluster__lanes">

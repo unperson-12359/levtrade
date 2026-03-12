@@ -4621,3 +4621,27 @@ Execute the approved multi-track audit program across the current LevTrade obser
   - The mock E2E seed helper now supports restoring a specific `coin + interval` so the daily continuity check is stable after route and market changes.
 - Remaining incomplete work:
   - Changes are local only; they have not been committed or pushed in this pass.
+
+---
+
+### 2026-03-12 — Observatory UI Polish (5 phases)
+- Agent: Claude (Opus)
+- Goal: Professional & intuitive UI overhaul — simplify command bar, fix terminology, enhance heatmap interactivity, establish CSS design tokens, streamline navigation
+- Files changed:
+  - `src/hooks/useObservatoryState.ts` — removed `viewMode`/`setViewMode`, mapped `mapIndicators`/`mapEdges`/`selectedEdges` to `clusterMode` instead
+  - `src/components/observatory/ObservatoryLayout.tsx` — removed Basic/Advanced toggle, grouped View and Detail toggles with labels, removed redundant status from price hero, renamed Network "Step 4" to "Correlation explorer"
+  - `src/components/observatory/ObservatoryGuideStrip.tsx` — collapsed into single dismissible hint line with expandable full guide
+  - `src/components/observatory/IndicatorClusterLanes.tsx` — simplified heatmap hint copy, fixed "active states" → "active indicators" in tooltip
+  - `src/components/observatory/CandleReportPage.tsx` — added breadcrumb nav, fixed terminology (Active states → Active indicators, Active lanes → Active categories, Strongest lane → Dominant category)
+  - `src/components/observatory/AnalyticsPage.tsx` — fixed terminology, added column header tooltips
+  - `src/components/observatory/MethodologyPage.tsx` — "lanes" → "categories", added "Try it now" CTAs to reading flow cards
+  - `src/index.css` — merged duplicate `.obs-app` blocks, added design tokens (type scale, spacing, radius, --obs-accent-gold), fixed font-size accessibility (all sub-0.5rem → --text-xs), added toggle group styles, enhanced heatmap cell hover/selected states, added breadcrumb styles
+  - `tests/e2e/critical-flows.spec.ts` — removed Basic/Advanced toggle assertions
+- Verification:
+  - `npx tsc --noEmit` PASS
+  - `npm run test:logic` PASS
+  - `npm run build` PASS
+- Follow-up risks / next steps:
+  - E2E tests referencing `obs-mode-basic`/`obs-mode-advanced` were removed; full E2E suite should be run to confirm no other references
+  - CSS design tokens defined but not yet applied to all existing rules — future pass can migrate remaining hardcoded values
+  - The `--obs-accent-gold` variable replaces some but not all stray gold colors; remaining rgba(210, 170, 93, ...) usages could be consolidated

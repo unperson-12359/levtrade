@@ -37,18 +37,23 @@ export function ObservatoryGuideStrip({
           : 'pressure'
   const currentStep = OBSERVATORY_READING_STEPS.find((step) => step.id === currentStepId) ?? OBSERVATORY_READING_STEPS[0]!
 
+  const hintText = currentStepId === 'pressure'
+    ? 'Click any heatmap cell to read what happened on that bar.'
+    : currentStepId === 'selected'
+      ? 'Cell selected — read the card below, then open the report if it looks important.'
+      : currentStepId === 'deep-dive'
+        ? 'Use the network to validate correlations between active indicators.'
+        : 'Check the price context above before reading indicator pressure.'
+
   return (
     <section
       className={`obs-guide ${expanded ? 'obs-guide--expanded' : 'obs-guide--collapsed'}`}
       data-testid="obs-guide-strip"
       data-guide-state={expanded ? 'expanded' : 'collapsed'}
     >
-      <div className="obs-guide__header">
-        <div className="obs-guide__header-copy">
-          <div className="obs-guide__eyebrow">Start here</div>
-          <h2 className="obs-guide__title">Market reading flow</h2>
-        </div>
-        <div className="obs-guide__actions">
+      <div className="obs-guide__hint-bar">
+        <span className="obs-guide__hint-text">{hintText}</span>
+        <div className="obs-guide__hint-actions">
           <button
             type="button"
             className="obs-guide__toggle"
@@ -57,7 +62,7 @@ export function ObservatoryGuideStrip({
             aria-controls="obs-guide-expanded"
             data-testid="obs-guide-toggle"
           >
-            {expanded ? 'Collapse guide' : 'Expand guide'}
+            {expanded ? 'Hide guide' : 'Show guide'}
           </button>
           <button type="button" className="obs-panel__action obs-panel__action--secondary" onClick={onOpenMethodology}>
             Methodology
@@ -65,35 +70,44 @@ export function ObservatoryGuideStrip({
         </div>
       </div>
 
-      <div className="obs-guide__summary-row">
-        <div className="obs-guide__meta">
-          <span>{coin} / {timeframe}</span>
-          <span>Status: {formatGuideStatus(liveStatus)}</span>
-          <span>Observed: {formatGuideObservedAt(observedAt)}</span>
-          <span>Selected: {selectedClusterLabel}</span>
-        </div>
-        <div className="obs-guide__summary-content">
-          <span className="obs-guide__focus-pill">Current focus: {currentStep.title}</span>
-          <span className="obs-guide__next">Next: {currentStep.readNext}</span>
-        </div>
-      </div>
-
       {expanded ? (
-        <div id="obs-guide-expanded" className="obs-guide__grid" data-testid="obs-guide-expanded">
-          {OBSERVATORY_READING_STEPS.map((step) => (
-            <article
-              key={step.id}
-              className={`obs-guide__card ${step.id === currentStepId ? 'obs-guide__card--current' : ''}`}
-            >
-              <div className="obs-guide__card-top">
-                <span className="obs-guide__card-step">Step {step.step}</span>
-                {step.id === currentStepId ? <span className="obs-guide__card-badge">Current</span> : null}
-              </div>
-              <h3>{step.title}</h3>
-              <p>{step.question}</p>
-              <div className="obs-guide__card-next">{step.readNext}</div>
-            </article>
-          ))}
+        <div id="obs-guide-expanded" data-testid="obs-guide-expanded">
+          <div className="obs-guide__header">
+            <div className="obs-guide__header-copy">
+              <div className="obs-guide__eyebrow">Reading flow</div>
+              <h2 className="obs-guide__title">Market reading flow</h2>
+            </div>
+          </div>
+
+          <div className="obs-guide__summary-row">
+            <div className="obs-guide__meta">
+              <span>{coin} / {timeframe}</span>
+              <span>Status: {formatGuideStatus(liveStatus)}</span>
+              <span>Observed: {formatGuideObservedAt(observedAt)}</span>
+              <span>Selected: {selectedClusterLabel}</span>
+            </div>
+            <div className="obs-guide__summary-content">
+              <span className="obs-guide__focus-pill">Current focus: {currentStep.title}</span>
+              <span className="obs-guide__next">Next: {currentStep.readNext}</span>
+            </div>
+          </div>
+
+          <div className="obs-guide__grid">
+            {OBSERVATORY_READING_STEPS.map((step) => (
+              <article
+                key={step.id}
+                className={`obs-guide__card ${step.id === currentStepId ? 'obs-guide__card--current' : ''}`}
+              >
+                <div className="obs-guide__card-top">
+                  <span className="obs-guide__card-step">Step {step.step}</span>
+                  {step.id === currentStepId ? <span className="obs-guide__card-badge">Current</span> : null}
+                </div>
+                <h3>{step.title}</h3>
+                <p>{step.question}</p>
+                <div className="obs-guide__card-next">{step.readNext}</div>
+              </article>
+            ))}
+          </div>
         </div>
       ) : (
         <div id="obs-guide-expanded" hidden data-testid="obs-guide-expanded" />
