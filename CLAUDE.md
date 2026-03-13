@@ -37,7 +37,7 @@ Hyperliquid REST/WS → DataManager → Zustand store → useIndicatorObservator
 - **DataManager** (`src/services/dataManager.ts`) — coordinates WebSocket mids subscription + candle polling with bounded recent-window refreshes after initial hydration.
 - **useIndicatorObservatory** — browser model builder combining local candles + server snapshot into one `ObservatorySnapshot`.
 - **useObservatoryState** (`src/hooks/useObservatoryState.ts`) — extracted state hook containing all view state, derived data, and navigation callbacks for the observatory.
-- **Observatory engine** (`src/observatory/engine.ts`) — shared between browser and server. Computes 40 indicators across 5 categories (Trend, Momentum, Volatility, Volume, Structure), bar states, heatmap clusters, correlation edges, and health checks.
+- **Observatory engine** (`src/observatory/engine.ts`) — shared between browser and server. Computes 29 indicators across 5 categories (Trend, Momentum, Volatility, Volume, Structure), bar states, heatmap clusters, correlation edges, and health checks.
 
 ### Serverless API (`/api`)
 

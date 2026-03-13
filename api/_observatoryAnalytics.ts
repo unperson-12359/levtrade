@@ -58,8 +58,9 @@ async function fetchAllLedgerRows(input: {
 }): Promise<LedgerRow[]> {
   const rows: LedgerRow[] = []
   let from = 0
+  const MAX_PAGES = 500
 
-  while (true) {
+  for (let page = 0; page < MAX_PAGES; page += 1) {
     const params = new URLSearchParams()
     params.set('select', 'candle_time,indicator_id,category,is_on')
     params.set('coin', `eq.${input.coin}`)

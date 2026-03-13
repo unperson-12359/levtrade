@@ -150,6 +150,12 @@ async function upsertRows(rows: PersistedStateRow[]): Promise<void> {
     throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.')
   }
 
+  try {
+    new URL(url)
+  } catch {
+    throw new Error(`Invalid SUPABASE_URL: ${url}`)
+  }
+
   for (const chunk of chunkRows(rows, UPSERT_BATCH_SIZE)) {
     const response = await fetch(
       `${url.replace(/\/$/, '')}/rest/v1/observatory_indicator_states?on_conflict=id`,

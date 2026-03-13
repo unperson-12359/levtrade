@@ -40,6 +40,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const analytics = await loadPersistedObservatoryAnalytics({ coin: coin.value, interval: interval.value, days })
+    // Two-tier caching: CDN serves cached responses for 5min (s-maxage=300) while
+    // the client-side staleAfterMs (12-48h) controls when the UI re-fetches fresh analytics.
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
     return res.status(200).json({
       ok: true,

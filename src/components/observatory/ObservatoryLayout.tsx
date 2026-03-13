@@ -441,8 +441,14 @@ export function ObservatoryLayout() {
                                   onClick={() => setSelectedIndicatorId(indicator.id)}
                                   data-testid={`obs-indicator-row-${indicator.id}`}
                                 >
-                                  <span>{indicator.label}</span>
-                                  <span className={`obs-state obs-state--${indicator.currentState}`}>{indicator.currentState}</span>
+                                  <div className="obs-indicator-row__top">
+                                    <span className="obs-indicator-row__label">{indicator.label}</span>
+                                    <span className={`obs-state obs-state--${indicator.currentState}`}>{indicator.currentState}</span>
+                                    <span className="obs-indicator-row__value">{formatValue(indicator.currentValue, indicator.unit)}</span>
+                                  </div>
+                                  <div className="obs-indicator-row__meta">
+                                    {indicator.description}{indicator.thresholdLabel ? ` · ${indicator.thresholdLabel}` : ''}
+                                  </div>
                                 </button>
                               ))}
                             </div>

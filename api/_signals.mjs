@@ -43,7 +43,6 @@ function buildObservatorySnapshot(input) {
     };
   }
   const times = candles.map((candle) => candle.time);
-  const opens = candles.map((candle) => candle.open);
   const highs = candles.map((candle) => candle.high);
   const lows = candles.map((candle) => candle.low);
   const closes = candles.map((candle) => candle.close);
@@ -67,7 +66,7 @@ function buildObservatorySnapshot(input) {
   const bb = bollingerSeries(closes, 20, 2);
   const donchianPos20 = donchianPositionSeries(highs, lows, closes, 20);
   const keltnerPos20 = keltnerPositionSeries(closes, ema21, atr14);
-  const vwapDeviation = vwapDeviationSeries(opens, highs, lows, closes, volumes);
+  const vwapDeviation = vwapDeviationSeries(highs, lows, closes, volumes);
   const volumeZ20 = zScoreSeries(wrapNumericSeries(volumes), 20);
   const tradesZ20 = zScoreSeries(wrapNumericSeries(trades), 20);
   const priceChange1Bar = pctChangeSeries(closes, 1);
@@ -399,6 +398,7 @@ function hydrateMetric(seed, times) {
       category: seed.category,
       unit: seed.unit,
       description: seed.description,
+      thresholdLabel: seed.thresholdLabel,
       currentValue,
       currentState,
       quantileRank: quantiles.currentRank,
@@ -515,23 +515,28 @@ function makeMetric(id, label, category, unit, description, values, classify) {
     category,
     unit,
     description,
+    thresholdLabel: classify.thresholdLabel ?? "",
     values,
     classify
   };
 }
 function signedState(threshold) {
-  return (value) => {
+  const fn = (value) => {
     if (value >= threshold) return "high";
     if (value <= -threshold) return "low";
     return "neutral";
   };
+  fn.thresholdLabel = `high > ${threshold}, low < \u2212${threshold}`;
+  return fn;
 }
 function bandState(low, high) {
-  return (value) => {
+  const fn = (value) => {
     if (value >= high) return "high";
     if (value <= low) return "low";
     return "neutral";
   };
+  fn.thresholdLabel = `high > ${high}, low < ${low}`;
+  return fn;
 }
 function intervalToHours(interval) {
   if (interval === "1h") return 1;
@@ -820,12 +825,12 @@ function keltnerPositionSeries(closes, ema, atr) {
   }
   return output;
 }
-function vwapDeviationSeries(opens, highs, lows, closes, volumes) {
+function vwapDeviationSeries(highs, lows, closes, volumes) {
   const output = Array(closes.length).fill(null);
   let cumulativePV = 0;
   let cumulativeVolume = 0;
   for (let index = 0; index < closes.length; index += 1) {
-    const typicalPrice = ((opens[index] ?? 0) + (highs[index] ?? 0) + (lows[index] ?? 0) + (closes[index] ?? 0)) / 4;
+    const typicalPrice = ((highs[index] ?? 0) + (lows[index] ?? 0) + (closes[index] ?? 0)) / 3;
     const volume = volumes[index] ?? 0;
     cumulativePV += typicalPrice * volume;
     cumulativeVolume += volume;
@@ -1324,7 +1329,7 @@ function buildPersistedObservatoryAnalytics(input) {
 }
 
 // src/observatory/version.ts
-var OBSERVATORY_RULESET_VERSION = "2026-03-12.1";
+var OBSERVATORY_RULESET_VERSION = "2026-03-12.2";
 
 // src/observatory/persistence.ts
 var INTERVAL_MS = {

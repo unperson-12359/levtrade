@@ -66,8 +66,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const priceContext = buildPriceContext({
       candles,
       interval: interval.value,
-      livePrice: typeof midPriceRaw === 'string' ? parseFloat(midPriceRaw) : null,
-      livePriceObservedAtMs: typeof midPriceRaw === 'string' ? generatedAt : null,
+      livePrice: typeof midPriceRaw === 'number' ? midPriceRaw : typeof midPriceRaw === 'string' ? parseFloat(midPriceRaw) : null,
+      livePriceObservedAtMs: typeof midPriceRaw === 'number' || typeof midPriceRaw === 'string' ? generatedAt : null,
       generatedAtMs: generatedAt,
     })
     const payload = {

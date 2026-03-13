@@ -55,7 +55,9 @@
       "Bash(sed:*)",
       "Bash(wc:*)",
       "Read(//c/Users/mauri/OneDrive/Pictures/**)",
-      "Bash(ls -la /c/Users/mauri/OneDrive/Desktop/levtrade/api/_signals.* | head -20)"
+      "Bash(ls -la /c/Users/mauri/OneDrive/Desktop/levtrade/api/_signals.* | head -20)",
+      "Bash(find /c/Users/mauri/OneDrive/Desktop/levtrade -name \".env*\" -o -name \"*.env\" 2>/dev/null | head -20)",
+      "Bash(find /c/Users/mauri/OneDrive/Desktop/levtrade/api -name \"*.ts\" -exec wc -l {} + | tail -1)"
     ]
   }
 }

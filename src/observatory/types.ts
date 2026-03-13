@@ -30,6 +30,7 @@ export interface IndicatorMetric {
   category: IndicatorCategory
   unit: string
   description: string
+  thresholdLabel: string
   currentValue: number | null
   currentState: IndicatorState
   quantileRank: number | null

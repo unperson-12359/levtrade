@@ -24,14 +24,17 @@ interface BuildInput {
   candles: Candle[]
 }
 
+type ClassifyFn = ((value: number) => IndicatorState) & { thresholdLabel?: string }
+
 interface MetricSeed {
   id: string
   label: string
   category: IndicatorCategory
   unit: string
   description: string
+  thresholdLabel: string
   values: Series
-  classify: (value: number) => IndicatorState
+  classify: ClassifyFn
 }
 
 interface HydratedMetric {
@@ -71,7 +74,6 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
   }
 
   const times = candles.map((candle) => candle.time)
-  const opens = candles.map((candle) => candle.open)
   const highs = candles.map((candle) => candle.high)
   const lows = candles.map((candle) => candle.low)
   const closes = candles.map((candle) => candle.close)
@@ -96,7 +98,7 @@ export function buildObservatorySnapshot(input: BuildInput): ObservatorySnapshot
   const bb = bollingerSeries(closes, 20, 2)
   const donchianPos20 = donchianPositionSeries(highs, lows, closes, 20)
   const keltnerPos20 = keltnerPositionSeries(closes, ema21, atr14)
-  const vwapDeviation = vwapDeviationSeries(opens, highs, lows, closes, volumes)
+  const vwapDeviation = vwapDeviationSeries(highs, lows, closes, volumes)
   const volumeZ20 = zScoreSeries(wrapNumericSeries(volumes), 20)
   const tradesZ20 = zScoreSeries(wrapNumericSeries(trades), 20)
   const priceChange1Bar = pctChangeSeries(closes, 1)
@@ -445,6 +447,7 @@ function hydrateMetric(seed: MetricSeed, times: number[]): HydratedMetric {
       category: seed.category,
       unit: seed.unit,
       description: seed.description,
+      thresholdLabel: seed.thresholdLabel,
       currentValue,
       currentState,
       quantileRank: quantiles.currentRank,
@@ -585,7 +588,7 @@ function makeMetric(
   unit: string,
   description: string,
   values: Series,
-  classify: (value: number) => IndicatorState,
+  classify: ClassifyFn,
 ): MetricSeed {
   return {
     id,
@@ -593,25 +596,30 @@ function makeMetric(
     category,
     unit,
     description,
+    thresholdLabel: classify.thresholdLabel ?? '',
     values,
     classify,
   }
 }
 
-function signedState(threshold: number) {
-  return (value: number): IndicatorState => {
+function signedState(threshold: number): ClassifyFn {
+  const fn: ClassifyFn = (value: number): IndicatorState => {
     if (value >= threshold) return 'high'
     if (value <= -threshold) return 'low'
     return 'neutral'
   }
+  fn.thresholdLabel = `high > ${threshold}, low < −${threshold}`
+  return fn
 }
 
-function bandState(low: number, high: number) {
-  return (value: number): IndicatorState => {
+function bandState(low: number, high: number): ClassifyFn {
+  const fn: ClassifyFn = (value: number): IndicatorState => {
     if (value >= high) return 'high'
     if (value <= low) return 'low'
     return 'neutral'
   }
+  fn.thresholdLabel = `high > ${high}, low < ${low}`
+  return fn
 }
 
 function intervalToHours(interval: Interval): number {
@@ -944,12 +952,12 @@ function keltnerPositionSeries(closes: number[], ema: Series, atr: Series): Seri
   return output
 }
 
-function vwapDeviationSeries(opens: number[], highs: number[], lows: number[], closes: number[], volumes: number[]): Series {
+function vwapDeviationSeries(highs: number[], lows: number[], closes: number[], volumes: number[]): Series {
   const output: Series = Array(closes.length).fill(null)
   let cumulativePV = 0
   let cumulativeVolume = 0
   for (let index = 0; index < closes.length; index += 1) {
-    const typicalPrice = ((opens[index] ?? 0) + (highs[index] ?? 0) + (lows[index] ?? 0) + (closes[index] ?? 0)) / 4
+    const typicalPrice = ((highs[index] ?? 0) + (lows[index] ?? 0) + (closes[index] ?? 0)) / 3
     const volume = volumes[index] ?? 0
     cumulativePV += typicalPrice * volume
     cumulativeVolume += volume
