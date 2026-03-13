@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { formatCorrelation } from '../../observatory/format'
-import type { CorrelationEdge, IndicatorMetric, CandleHitCluster, IndicatorCategory } from '../../observatory/types'
+import { formatCorrelation, formatPct } from '../../observatory/format'
+import type { CorrelationEdge, IndicatorMetric, CandleHitCluster, IndicatorCategory, IndicatorHitEvent } from '../../observatory/types'
 
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
 
@@ -146,6 +146,32 @@ export function CorrelationInsights({ indicators, edges, timeline }: Correlation
       .slice(0, 6)
   }, [edges, indicatorMap])
 
+  // Panel 4: Emerging & fading signals — recent state transitions
+  const signalTransitions = useMemo(() => {
+    const recentClusters = timeline.slice(-3)
+    const seen = new Set<string>()
+
+    const emerging: (IndicatorHitEvent & { activeRate: number })[] = []
+    const fading: (IndicatorHitEvent & { activeRate: number })[] = []
+
+    for (let i = recentClusters.length - 1; i >= 0; i--) {
+      for (const event of recentClusters[i]!.events) {
+        if (seen.has(event.indicatorId)) continue
+        seen.add(event.indicatorId)
+        const ind = indicatorMap.get(event.indicatorId)
+        const activeRate = ind?.frequency.activeRate ?? 0
+        if (event.kind === 'enter_high' || event.kind === 'enter_low') {
+          if (emerging.length < 6) emerging.push({ ...event, activeRate })
+        } else if (event.kind === 'exit_to_neutral') {
+          if (fading.length < 4) fading.push({ ...event, activeRate })
+        }
+      }
+    }
+
+    emerging.sort((a, b) => b.priority - a.priority)
+    return { emerging, fading }
+  }, [timeline, indicatorMap])
+
   return (
     <div className="obs-insights" data-testid="obs-correlation-insights">
       <section className="obs-insights__panel">
@@ -246,6 +272,58 @@ export function CorrelationInsights({ indicators, edges, timeline }: Correlation
           <div className="obs-empty">No correlation breaks detected — correlated indicators agree.</div>
         )}
       </section>
+
+      <section className="obs-insights__panel">
+        <div className="obs-insights__head">
+          <div className="obs-panel__eyebrow">Recent transitions</div>
+          <h3 className="obs-insights__title">What just changed</h3>
+        </div>
+        <p className="obs-panel__copy">
+          Indicators that recently activated or deactivated. Rare activations carry more weight — an indicator that fires on only 15% of bars turning on is more notable than one that is always active.
+        </p>
+        {signalTransitions.emerging.length > 0 && (
+          <div className="obs-insights__sub-section">
+            <div className="obs-insights__sub-title">Emerging</div>
+            <div className="obs-insights__rows">
+              {signalTransitions.emerging.map((event) => (
+                <div key={event.id} className={`obs-insights__row ${event.activeRate < 0.25 ? 'obs-insights__row--rare' : ''}`}>
+                  <div className="obs-insights__row-main">
+                    <strong>{event.indicatorLabel}</strong>
+                    <span className={`obs-insights__state obs-insights__state--${event.toState}`}>{event.toState}</span>
+                  </div>
+                  <div className="obs-insights__row-meta">
+                    <span className="obs-insights__badge obs-insights__badge--category">{event.category}</span>
+                    <span className="obs-insights__rate">fires on {formatPct(event.activeRate)} of bars</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {signalTransitions.fading.length > 0 && (
+          <div className="obs-insights__sub-section">
+            <div className="obs-insights__sub-title">Fading</div>
+            <div className="obs-insights__rows">
+              {signalTransitions.fading.map((event) => (
+                <div key={event.id} className="obs-insights__row obs-insights__row--muted">
+                  <div className="obs-insights__row-main">
+                    <strong>{event.indicatorLabel}</strong>
+                    <span className="obs-insights__state obs-insights__state--neutral">neutral</span>
+                  </div>
+                  <div className="obs-insights__row-meta">
+                    <span className="obs-insights__badge obs-insights__badge--category">{event.category}</span>
+                    <span className="obs-insights__rate">was active for {event.durationBars} bar{event.durationBars === 1 ? '' : 's'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {signalTransitions.emerging.length === 0 && signalTransitions.fading.length === 0 && (
+          <div className="obs-empty">No state transitions on the most recent candles.</div>
+        )}
+      </section>
+
     </div>
   )
 }

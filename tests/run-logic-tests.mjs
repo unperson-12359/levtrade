@@ -432,7 +432,6 @@ function runObservatoryAccessibilitySourceCheck() {
   const reportSource = readFileSync(join(__dirname, '../src/components/observatory/CandleReportPage.tsx'), 'utf8')
   assert.match(layoutSource, /aria-controls="obs-diagnostics-detail"/)
   assert.match(layoutSource, /aria-controls="obs-live-chart-panel"/)
-  assert.match(layoutSource, /aria-controls="obs-catalog-panel"/)
   assert.match(reportSource, /aria-label="Previous candle"/)
   assert.match(reportSource, /aria-label="Next candle"/)
   assert.match(reportSource, /aria-controls="obs-report-chart-panel"/)

@@ -1,12 +1,9 @@
 import {
   formatConnectionStatus,
-  formatCorrelation,
   formatLiveStatus,
   formatPrice,
-  formatPct,
   formatSignedPct,
   formatTickerPrice,
-  formatValue,
   toneFromNumber,
 } from '../../observatory/format'
 import { formatUtcDateTime } from '../../observatory/timeFormat'
@@ -38,19 +35,12 @@ export function ObservatoryLayout() {
     setShowDiagnostics,
     chartCollapsed,
     setChartCollapsed,
-    catalogOpen,
-    setCatalogOpen,
     menuOpen,
     setMenuOpen,
     reportDrawerOpen,
     closeReportDrawer,
     methodologyModalOpen,
     closeMethodologyModal,
-    selectedIndicatorId,
-    setSelectedIndicatorId,
-    selectedIndicator,
-    indicatorsByCategory,
-    selectedEdges,
     selectedClusterTime,
     setSelectedClusterTime,
     selectedTimelineCluster,
@@ -250,10 +240,7 @@ export function ObservatoryLayout() {
           )}
         </header>
 
-        {isAnalyticsPage ? (
-          <AnalyticsPage coin={selectedCoin} timeframe={timeframe} snapshot={snapshot} />
-        ) : (
-          <>
+        <>
             <div className={`obs-workspace ${isTimelineView ? 'obs-workspace--timeline' : ''}`}>
             <main className={`obs-main ${isTimelineView ? 'obs-main--timeline' : ''}`}>
               {isTimelineView ? (
@@ -296,23 +283,27 @@ export function ObservatoryLayout() {
                   </div>
                 </section>
               ) : (
-                <section className="obs-panel obs-panel--insights-surface">
-                  <div className="obs-panel__title-row">
-                    <div>
-                      <div className="obs-panel__eyebrow">Correlation insights</div>
-                      <h2 className="obs-panel__title">What the indicators are telling you</h2>
+                <>
+                  <section className="obs-panel obs-panel--insights-surface">
+                    <div className="obs-panel__title-row">
+                      <div>
+                        <div className="obs-panel__eyebrow">Correlation insights</div>
+                        <h2 className="obs-panel__title">What the indicators are telling you</h2>
+                      </div>
                     </div>
-                  </div>
-                  <CorrelationInsights
-                    indicators={snapshot.indicators}
-                    edges={snapshot.edges}
-                    timeline={snapshot.timeline}
-                  />
-                </section>
+                    <CorrelationInsights
+                      indicators={snapshot.indicators}
+                      edges={snapshot.edges}
+                      timeline={snapshot.timeline}
+                    />
+                  </section>
+                  <AnalyticsPage coin={selectedCoin} timeframe={timeframe} snapshot={snapshot} />
+                </>
               )}
             </main>
 
-            <aside className={`obs-rail ${isTimelineView ? 'obs-rail--timeline' : ''}`}>
+            {isTimelineView && (
+            <aside className="obs-rail obs-rail--timeline">
               {isTimelineView ? (
                 <>
                   <section className="obs-panel obs-panel--rail obs-panel--heatmap-rail">
@@ -373,107 +364,7 @@ export function ObservatoryLayout() {
                   </section>
 
                 </>
-              ) : (
-                <>
-                  <section className="obs-panel obs-panel--rail">
-                    <button
-                      type="button"
-                      className="obs-catalog-toggle"
-                      onClick={() => setCatalogOpen(!catalogOpen)}
-                      aria-expanded={catalogOpen}
-                      aria-controls="obs-catalog-panel"
-                    >
-                      <div>
-                        <div className="obs-panel__eyebrow">Catalog</div>
-                        <h2 className="obs-panel__title">Indicator inventory</h2>
-                      </div>
-                      <span className="obs-catalog-toggle__chevron">{catalogOpen ? '\u2212' : '+'}</span>
-                    </button>
-
-                    {catalogOpen ? (
-                      <div id="obs-catalog-panel" className="obs-panel__scroll">
-                        {CATEGORY_ORDER.map((category) => {
-                          const indicators = indicatorsByCategory[category]
-                          if (indicators.length === 0) return null
-                          return (
-                            <div key={category} className="obs-category">
-                              <div className="obs-category__title">{category}</div>
-                              {indicators.map((indicator) => (
-                                <button
-                                  key={indicator.id}
-                                  type="button"
-                                  className={`obs-indicator-row ${indicator.id === selectedIndicatorId ? 'obs-indicator-row--active' : ''}`}
-                                  onClick={() => setSelectedIndicatorId(indicator.id)}
-                                  data-testid={`obs-indicator-row-${indicator.id}`}
-                                >
-                                  <div className="obs-indicator-row__top">
-                                    <span className="obs-indicator-row__label">{indicator.label}</span>
-                                    <span className={`obs-state obs-state--${indicator.currentState}`}>{indicator.currentState}</span>
-                                    <span className="obs-indicator-row__value">{formatValue(indicator.currentValue, indicator.unit)}</span>
-                                  </div>
-                                  <div className="obs-indicator-row__meta">
-                                    {indicator.description}{indicator.thresholdLabel ? ` · ${indicator.thresholdLabel}` : ''}
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <div id="obs-catalog-panel" className="obs-catalog-badges">
-                        {CATEGORY_ORDER.map((category) => (
-                          <div key={category} className="obs-catalog-badge">
-                            <span className="obs-catalog-badge__label">{category.slice(0, 3)}</span>
-                            <span
-                              className={`obs-catalog-badge__dot ${
-                                indicatorsByCategory[category].some((indicator) => indicator.currentState === 'high')
-                                  ? 'obs-catalog-badge__dot--active'
-                                  : 'obs-catalog-badge__dot--idle'
-                              }`}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-
-                  <section className="obs-panel obs-panel--rail">
-                    <div className="obs-panel__eyebrow">Selected indicator</div>
-                    <h2 className="obs-panel__title">Drilldown</h2>
-                    {selectedIndicator ? (
-                      <>
-                        <div className="obs-detail-head">
-                          <div data-testid="obs-detail-title">{selectedIndicator.label}</div>
-                          <div className={`obs-state obs-state--${selectedIndicator.currentState}`}>{selectedIndicator.currentState}</div>
-                        </div>
-                        <div className="obs-detail-metrics">
-                          <div className="obs-detail-kv"><span>Current</span><span>{formatValue(selectedIndicator.currentValue, selectedIndicator.unit)}</span></div>
-                          <div className="obs-detail-kv"><span>Quantile</span><span>{selectedIndicator.quantileBucket ?? '--'} ({formatPct(selectedIndicator.quantileRank)})</span></div>
-                          <div className="obs-detail-kv"><span>Event active rate</span><span>{formatPct(selectedIndicator.frequency.activeRate)}</span></div>
-                        </div>
-                        <p className="obs-detail-copy">{selectedIndicator.description}</p>
-                        <div className="obs-detail-subtitle">Strongest links</div>
-                        <div className="obs-correlation-list">
-                          {selectedEdges.map((edge) => {
-                            const counterpartId = edge.a === selectedIndicator.id ? edge.b : edge.a
-                            const counterpart = snapshot.indicators.find((indicator) => indicator.id === counterpartId)
-                            if (!counterpart) return null
-                            return (
-                              <button key={`${edge.a}-${edge.b}`} type="button" className="obs-correlation-row" onClick={() => setSelectedIndicatorId(counterpart.id)}>
-                                <span>{counterpart.label}</span>
-                                <span>{formatCorrelation(edge.strength)}</span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="obs-empty">Select an indicator from the list.</div>
-                    )}
-                  </section>
-                </>
-              )}
+              ) : null}
 
               {showDiagnostics && hasDiagnostics && (
                 <section id="obs-diagnostics-detail" className="obs-diagnostics-panel" data-testid="obs-diagnostics-panel">
@@ -521,6 +412,7 @@ export function ObservatoryLayout() {
                 </section>
               )}
             </aside>
+            )}
             </div>
 
             {reportDrawerOpen && reportCluster && (
@@ -539,7 +431,6 @@ export function ObservatoryLayout() {
               </section>
             )}
           </>
-        )}
 
         <MethodologyPage
           coin={selectedCoin}
