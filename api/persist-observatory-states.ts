@@ -14,7 +14,7 @@ interface VercelResponse {
   json: (body: unknown) => void
 }
 
-const PERSISTENCE_INTERVALS: readonly ObservatoryInterval[] = ['4h', '1d']
+const PERSISTENCE_INTERVALS: readonly ObservatoryInterval[] = ['1d']
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const method = req.method ?? 'GET'

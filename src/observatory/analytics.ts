@@ -30,7 +30,7 @@ export interface PersistedAnalyticsCategoryRow {
 
 export interface PersistedObservatoryAnalytics {
   coin: TrackedCoin
-  interval: '4h' | '1d'
+  interval: '1d'
   days: number
   windowBars: number
   totalHits: number
@@ -41,7 +41,7 @@ export interface PersistedObservatoryAnalytics {
 
 export function buildPersistedObservatoryAnalytics(input: {
   coin: TrackedCoin
-  interval: '4h' | '1d'
+  interval: '1d'
   days: number
   rows: AnalyticsBooleanLedgerRow[]
 }): PersistedObservatoryAnalytics {
@@ -150,7 +150,7 @@ export function buildPersistedObservatoryAnalytics(input: {
 }
 
 export function buildSnapshotAnalytics(snapshot: ObservatorySnapshot): PersistedObservatoryAnalytics {
-  const interval = snapshot.interval === '1d' ? '1d' : '4h'
+  const interval = '1d' as const
   const rows = snapshot.barStates.flatMap((barState) => {
     const activeIds = new Set(barState.activeIndicatorIds)
     return snapshot.indicators.map((indicator) => ({

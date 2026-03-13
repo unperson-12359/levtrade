@@ -1,6 +1,6 @@
-export type ObservatoryCandleInterval = '4h' | '1d'
+export type ObservatoryCandleInterval = '1d'
 
-export const INTERVALS: ObservatoryCandleInterval[] = ['4h', '1d']
+export const INTERVALS: ObservatoryCandleInterval[] = ['1d']
 
 export const INTERVAL_CONFIG: Record<ObservatoryCandleInterval, {
   ms: number
@@ -9,13 +9,6 @@ export const INTERVAL_CONFIG: Record<ObservatoryCandleInterval, {
   staleAfterMs: number
   label: string
 }> = {
-  '4h': {
-    ms: 14_400_000,
-    candleCount: 1_080,
-    recentRefreshBars: 18,
-    staleAfterMs: 8 * 3_600_000,
-    label: '4h',
-  },
   '1d': {
     ms: 86_400_000,
     candleCount: 365,

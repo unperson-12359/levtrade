@@ -16,7 +16,7 @@ type AnalyticsSourceMode = 'ledger' | 'live-window'
 
 interface AnalyticsPageProps {
   coin: TrackedCoin
-  timeframe: '4h' | '1d'
+  timeframe: '1d'
   snapshot: ObservatorySnapshot
 }
 

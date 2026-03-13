@@ -66,8 +66,8 @@ export const useStore = create<AppStore>()(
         const persisted = persistedState as Partial<AppStore>
         const merged = { ...currentState, ...persisted }
 
-        if (merged.selectedInterval !== '4h' && merged.selectedInterval !== '1d') {
-          merged.selectedInterval = '4h'
+        if (merged.selectedInterval !== '1d') {
+          merged.selectedInterval = '1d'
         }
         if (typeof merged.observatoryGuideExpanded !== 'boolean') {
           merged.observatoryGuideExpanded = false

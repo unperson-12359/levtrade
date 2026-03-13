@@ -29,7 +29,6 @@ function initCandleStore(): CandleStore {
   const result = {} as CandleStore
   for (const coin of TRACKED_COINS) {
     result[coin] = {
-      '4h': [],
       '1d': [],
     }
   }

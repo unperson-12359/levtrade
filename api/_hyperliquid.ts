@@ -1,6 +1,6 @@
 import { TRACKED_COINS, type RawCandle, type TrackedCoin } from './_signals.mjs'
 
-export type ObservatoryInterval = '4h' | '1d'
+export type ObservatoryInterval = '1d'
 type ParseResult<T> = { ok: true; value: T } | { ok: false; reason: string }
 
 const HYPERLIQUID_API = 'https://api.hyperliquid.xyz/info'
@@ -38,7 +38,7 @@ export function parseObservatoryIntervalParam(raw: string | string[] | undefined
   if (!value) {
     return { ok: false, reason: 'Missing interval query parameter.' }
   }
-  if (value === '4h' || value === '1d') {
+  if (value === '1d') {
     return { ok: true, value }
   }
   return { ok: false, reason: `Unsupported interval '${value}'.` }

@@ -12,7 +12,7 @@ interface PriceContextCandle {
 
 export function buildPriceContext(input: {
   candles: PriceContextCandle[]
-  interval: '4h' | '1d'
+  interval: '1d'
   livePrice: number | null
   livePriceObservedAtMs?: number | null
   generatedAtMs?: number
@@ -21,7 +21,7 @@ export function buildPriceContext(input: {
   const latestCandleTime = input.candles[input.candles.length - 1]?.time ?? null
   const latestClose = input.candles[input.candles.length - 1]?.close ?? null
   const lastPrice = Number.isFinite(input.livePrice) ? input.livePrice : latestClose
-  const barsFor24h = input.interval === '4h' ? 6 : 1
+  const barsFor24h = 1
   const close24hAgo = input.candles[Math.max(0, input.candles.length - 1 - barsFor24h)]?.close ?? null
   const closePrevious = input.candles[Math.max(0, input.candles.length - 2)]?.close ?? null
 

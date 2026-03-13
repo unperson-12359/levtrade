@@ -10,14 +10,14 @@ import {
 } from '../../observatory/format'
 import { formatUtcDateTime } from '../../observatory/timeFormat'
 import type { IndicatorCategory } from '../../observatory/types'
-import { useObservatoryState, ALLOWED_INTERVALS } from '../../hooks/useObservatoryState'
+import { useObservatoryState } from '../../hooks/useObservatoryState'
 import { TRACKED_COINS } from '../../types/market'
 import { PriceChart } from '../chart/PriceChart'
 import { AnalyticsPage } from './AnalyticsPage'
 import { IndicatorClusterLanes } from './IndicatorClusterLanes'
 import { CandleReportPage } from './CandleReportPage'
 import { MethodologyPage } from './MethodologyPage'
-import { PoolMap } from './PoolMap'
+import { CorrelationInsights } from './CorrelationInsights'
 
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
 
@@ -49,8 +49,6 @@ export function ObservatoryLayout() {
     setSelectedIndicatorId,
     selectedIndicator,
     indicatorsByCategory,
-    mapIndicators,
-    mapEdges,
     selectedEdges,
     selectedClusterTime,
     setSelectedClusterTime,
@@ -62,7 +60,6 @@ export function ObservatoryLayout() {
     openAnalytics,
     openMethodology,
     handleSelectCoin,
-    handleSelectInterval,
     onPrev,
     onNext,
     isAnalyticsPage,
@@ -171,7 +168,7 @@ export function ObservatoryLayout() {
                       onClick={() => setPrimaryView('network')}
                       data-testid="obs-view-network"
                     >
-                      Network
+                      Insights
                     </button>
                   </div>
                 </div>
@@ -198,18 +195,6 @@ export function ObservatoryLayout() {
             </div>
 
             <div className="obs-command-bar__utility-group">
-              {ALLOWED_INTERVALS.map((interval) => (
-                <button
-                  key={interval}
-                  type="button"
-                  className={`obs-chip obs-chip--nav ${interval === timeframe ? 'obs-chip--active' : ''}`}
-                  onClick={() => handleSelectInterval(interval)}
-                  data-testid={`obs-interval-${interval}`}
-                >
-                  {interval}
-                </button>
-              ))}
-
               {!isAnalyticsPage && primaryView === 'timeline' && (
                 <div className="obs-toggle-group">
                   <span className="obs-toggle-group__label">Detail</span>
@@ -237,7 +222,7 @@ export function ObservatoryLayout() {
 
             <div className="obs-command-bar__hero obs-command-bar__hero--inline" data-testid="obs-price-strip">
               <div className="obs-command-bar__hero-main">
-                <span className="obs-command-bar__hero-label">{selectedCoin} / {timeframe}</span>
+                <span className="obs-command-bar__hero-label">{selectedCoin}</span>
                 <span className="obs-price-hero__value">{formatPrice(priceContext.lastPrice)}</span>
                 <span className={`obs-price-hero__change obs-price-hero__change--${toneFromNumber(priceContext.change24hPct)}`}>
                   {formatSignedPct(priceContext.change24hPct)}
@@ -312,21 +297,17 @@ export function ObservatoryLayout() {
                   </div>
                 </section>
               ) : (
-                <section className="obs-panel obs-panel--network-surface">
+                <section className="obs-panel obs-panel--insights-surface">
                   <div className="obs-panel__title-row">
                     <div>
-                      <div className="obs-panel__eyebrow">Correlation explorer</div>
-                      <h2 className="obs-panel__title">Indicator relationship map</h2>
+                      <div className="obs-panel__eyebrow">Correlation insights</div>
+                      <h2 className="obs-panel__title">What the indicators are telling you</h2>
                     </div>
-                    <p className="obs-panel__hint">Use this after the live read. Color = sign, thickness = strength, dashed = lag.</p>
                   </div>
-                  <MapLegend />
-                  <PoolMap
-                    indicators={mapIndicators}
-                    edges={mapEdges}
-                    selectedId={selectedIndicatorId}
-                    onSelect={setSelectedIndicatorId}
-                    viewMode={clusterMode === 'pro' ? 'advanced' : 'basic'}
+                  <CorrelationInsights
+                    indicators={snapshot.indicators}
+                    edges={snapshot.edges}
+                    timeline={snapshot.timeline}
                   />
                 </section>
               )}
@@ -574,13 +555,3 @@ export function ObservatoryLayout() {
   )
 }
 
-function MapLegend() {
-  return (
-    <div className="obs-legend" data-testid="obs-map-legend">
-      <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--pos" /> Positive correlation</div>
-      <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--neg" /> Negative correlation</div>
-      <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--thick" /> Thicker = stronger</div>
-      <div className="obs-legend__item"><span className="obs-legend__line obs-legend__line--lag" /> Dashed = lead / lag</div>
-    </div>
-  )
-}

@@ -9,7 +9,7 @@ const LANE_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Vol
 
 interface CandleReportPageProps {
   coin: TrackedCoin
-  timeframe: '4h' | '1d'
+  timeframe: '1d'
   cluster: CandleHitCluster | null
   timeline: CandleHitCluster[]
   allIndicators: IndicatorMetric[]
@@ -389,9 +389,9 @@ function strongestCategory(cluster: CandleHitCluster) {
   return count > 0 ? strongest : null
 }
 
-function formatDuration(hit: IndicatorHitEvent, timeframe: '4h' | '1d') {
+function formatDuration(hit: IndicatorHitEvent, _timeframe: '1d') {
   const bars = Math.max(1, hit.durationBars)
-  const fallbackMs = bars * (timeframe === '4h' ? 4 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000)
+  const fallbackMs = bars * 24 * 60 * 60 * 1000
   const durationMs = Number.isFinite(hit.durationMs) && hit.durationMs > 0 ? hit.durationMs : fallbackMs
   const hours = Math.max(1, Math.round(durationMs / (60 * 60 * 1000)))
   const human = hours % 24 === 0 ? `${hours / 24}d` : `${hours}h`
@@ -410,10 +410,10 @@ function formatCompactValue(value: number | null, unit: string) {
   return value.toFixed(2)
 }
 
-function formatRecurrence(gapBars: number | null, timeframe: '4h' | '1d', active = false) {
+function formatRecurrence(gapBars: number | null, _timeframe: '1d', active = false) {
   if (gapBars === null) return active ? 'New active state' : 'No recent active bars'
   if (gapBars === 0) return 'Active now'
-  const durationHours = gapBars * (timeframe === '4h' ? 4 : 24)
+  const durationHours = gapBars * 24
   return `${gapBars} bars / ${durationHours >= 24 ? `${durationHours / 24}d` : `${durationHours}h`} ago`
 }
 

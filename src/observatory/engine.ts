@@ -15,7 +15,7 @@ import type {
   QuantileBucket,
 } from './types'
 
-type Interval = '1h' | '4h' | '1d'
+type Interval = '1d'
 type Series = Array<number | null>
 
 interface BuildInput {
@@ -622,15 +622,11 @@ function bandState(low: number, high: number): ClassifyFn {
   return fn
 }
 
-function intervalToHours(interval: Interval): number {
-  if (interval === '1h') return 1
-  if (interval === '4h') return 4
+function intervalToHours(_interval: Interval): number {
   return 24
 }
 
-function intervalToMs(interval: Interval): number {
-  if (interval === '1h') return 60 * 60 * 1000
-  if (interval === '4h') return 4 * 60 * 60 * 1000
+function intervalToMs(_interval: Interval): number {
   return 24 * 60 * 60 * 1000
 }
 

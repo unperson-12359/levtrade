@@ -538,14 +538,10 @@ function bandState(low, high) {
   fn.thresholdLabel = `high > ${high}, low < ${low}`;
   return fn;
 }
-function intervalToHours(interval) {
-  if (interval === "1h") return 1;
-  if (interval === "4h") return 4;
+function intervalToHours(_interval) {
   return 24;
 }
-function intervalToMs(interval) {
-  if (interval === "1h") return 60 * 60 * 1e3;
-  if (interval === "4h") return 4 * 60 * 60 * 1e3;
+function intervalToMs(_interval) {
   return 24 * 60 * 60 * 1e3;
 }
 function wrapNumericSeries(values) {
@@ -1218,7 +1214,7 @@ function buildPriceContext(input) {
   const latestCandleTime = input.candles[input.candles.length - 1]?.time ?? null;
   const latestClose = input.candles[input.candles.length - 1]?.close ?? null;
   const lastPrice = Number.isFinite(input.livePrice) ? input.livePrice : latestClose;
-  const barsFor24h = input.interval === "4h" ? 6 : 1;
+  const barsFor24h = 1;
   const close24hAgo = input.candles[Math.max(0, input.candles.length - 1 - barsFor24h)]?.close ?? null;
   const closePrevious = input.candles[Math.max(0, input.candles.length - 2)]?.close ?? null;
   const change24hPct = lastPrice !== null && close24hAgo !== null && close24hAgo !== 0 ? (lastPrice - close24hAgo) / Math.abs(close24hAgo) * 100 : null;
@@ -1333,8 +1329,6 @@ var OBSERVATORY_RULESET_VERSION = "2026-03-12.2";
 
 // src/observatory/persistence.ts
 var INTERVAL_MS = {
-  "1h": 36e5,
-  "4h": 144e5,
   "1d": 864e5
 };
 function intervalToMs2(interval) {

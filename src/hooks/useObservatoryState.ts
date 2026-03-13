@@ -24,7 +24,7 @@ type ClusterPresentationMode = 'simple' | 'pro'
 import type { RuntimeDiagnostic } from '../store/uiSlice'
 
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
-export const ALLOWED_INTERVALS = ['4h', '1d'] as const
+export const ALLOWED_INTERVALS = ['1d'] as const
 export type AllowedInterval = (typeof ALLOWED_INTERVALS)[number]
 export type PrimaryView = 'timeline' | 'network'
 
@@ -141,8 +141,8 @@ export function useObservatoryState(): ObservatoryState {
   const [methodologyModalOpen, setMethodologyModalOpen] = useState(false)
 
   useEffect(() => {
-    if (selectedInterval !== '4h' && selectedInterval !== '1d') {
-      setInterval('4h')
+    if (selectedInterval !== '1d') {
+      setInterval('1d')
     }
   }, [selectedInterval, setInterval])
 
@@ -237,7 +237,7 @@ export function useObservatoryState(): ObservatoryState {
       .slice(0, clusterMode === 'pro' ? 10 : 6)
   }, [clusterMode, selectedIndicator, snapshot.edges])
 
-  const timeframe = (selectedInterval === '1d' ? '1d' : '4h') as AllowedInterval
+  const timeframe = '1d' as AllowedInterval
 
   // Deep-link support: open drawer/modal from URL, then clean URL
   useEffect(() => {

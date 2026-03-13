@@ -31,7 +31,7 @@ export interface UISlice {
 
 export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set) => ({
   selectedCoin: 'BTC',
-  selectedInterval: '4h',
+  selectedInterval: '1d',
   observatoryGuideExpanded: false,
   runtimeDiagnostics: [],
 

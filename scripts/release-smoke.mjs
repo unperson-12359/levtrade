@@ -1,6 +1,6 @@
 const DEFAULT_BASE_URL = 'https://levtrade.vercel.app'
 const DEFAULT_COIN = 'BTC'
-const DEFAULT_INTERVAL = '4h'
+const DEFAULT_INTERVAL = '1d'
 const DEFAULT_DAYS = 180
 
 const args = parseArgs(process.argv.slice(2))

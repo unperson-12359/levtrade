@@ -113,7 +113,7 @@ export interface IndicatorBarState {
 export interface IndicatorStateRecord {
   id: string
   coin: TrackedCoin
-  interval: '1h' | '4h' | '1d'
+  interval: '1d'
   candleTime: number
   indicatorId: string
   category: IndicatorCategory
@@ -122,7 +122,7 @@ export interface IndicatorStateRecord {
 
 export interface ObservatorySnapshot {
   coin: TrackedCoin
-  interval: '1h' | '4h' | '1d'
+  interval: '1d'
   generatedAt: number
   candleCount: number
   indicators: IndicatorMetric[]

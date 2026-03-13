@@ -11,7 +11,7 @@ export const OBSERVATORY_RULESET_VERSION: string
 export function parseCandle(raw: RawCandle): Candle
 export function buildPriceContext(input: {
   candles: Array<{ time: number; close: number }>
-  interval: '4h' | '1d'
+  interval: '1d'
   livePrice: number | null
   livePriceObservedAtMs?: number | null
   generatedAtMs?: number
@@ -19,13 +19,13 @@ export function buildPriceContext(input: {
 
 export function buildObservatorySnapshot(input: {
   coin: TrackedCoin
-  interval: '4h' | '1d'
+  interval: '1d'
   candles: Candle[]
 }): ObservatorySnapshot
 
 export function buildPersistedObservatoryAnalytics(input: {
   coin: TrackedCoin
-  interval: '4h' | '1d'
+  interval: '1d'
   days: number
   rows: Array<{
     candleTime: number

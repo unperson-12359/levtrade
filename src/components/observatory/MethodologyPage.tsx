@@ -10,7 +10,7 @@ import {
 
 interface MethodologyPageProps {
   coin: TrackedCoin
-  timeframe: '4h' | '1d'
+  timeframe: '1d'
   open: boolean
   onClose: () => void
   onOpenObservatory: () => void

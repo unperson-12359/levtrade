@@ -34,11 +34,7 @@ function normalizeSnapshot(snapshot: ObservatorySnapshot): ObservatorySnapshot {
         },
       }
 
-  const intervalMs = snapshotWithHealth.interval === '4h'
-    ? 4 * 60 * 60 * 1000
-    : snapshotWithHealth.interval === '1d'
-      ? 24 * 60 * 60 * 1000
-      : 60 * 60 * 1000
+  const intervalMs = 24 * 60 * 60 * 1000
 
   const timeline = snapshotWithHealth.timeline.map((cluster) => {
     const anyCluster = cluster as typeof cluster & {
@@ -106,7 +102,7 @@ export function useIndicatorObservatory(coin: TrackedCoin) {
   const livePrice = useStore((state) => state.prices[coin])
   const lastUpdate = useStore((state) => state.lastUpdate)
 
-  const observatoryInterval = interval === '1d' ? '1d' : '4h'
+  const observatoryInterval = '1d' as const
   const requestKey = `${coin}:${observatoryInterval}`
 
   const localSnapshot = useMemo(

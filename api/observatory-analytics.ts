@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       meta: buildContractMeta({
         source: 'ledger',
         lastSuccessfulAtMs: analytics.lastPersistedBarTime,
-        staleAfterMs: interval.value === '4h' ? 12 * 60 * 60 * 1000 : 48 * 60 * 60 * 1000,
+        staleAfterMs: 48 * 60 * 60 * 1000,
       }),
     })
   } catch (error) {
@@ -70,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         source: 'ledger',
         lastSuccessfulAtMs: null,
         freshness: 'error',
-        staleAfterMs: interval.value === '4h' ? 12 * 60 * 60 * 1000 : 48 * 60 * 60 * 1000,
+        staleAfterMs: 48 * 60 * 60 * 1000,
       }),
     })
   }

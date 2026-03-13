@@ -256,9 +256,9 @@ function runRuntimeStabilitySourceCheck() {
   assert.match(mainSource, /__levtradeRuntimeHooksInstalled/)
   assert.match(uiSliceSource, /runtimeDiagnostics/)
   assert.match(uiSliceSource, /pushRuntimeDiagnostic/)
-  assert.match(uiSliceSource, /selectedInterval: '4h'/)
+  assert.match(uiSliceSource, /selectedInterval: '1d'/)
   assert.match(uiSliceSource, /observatoryGuideExpanded: false/)
-  assert.match(storeSource, /merged\.selectedInterval = '4h'/)
+  assert.match(storeSource, /merged\.selectedInterval = '1d'/)
   assert.match(storeSource, /merged\.observatoryGuideExpanded = false/)
   assert.match(storeSource, /merged\.runtimeDiagnostics = \[\]/)
   assert.doesNotMatch(storeSource, /expandedSections/)
@@ -277,7 +277,7 @@ function runObservatoryIndicatorHealthTest() {
   const candles = buildObservatoryCandles(280, 100)
   const snapshot = buildObservatorySnapshot({
     coin: 'BTC',
-    interval: '4h',
+    interval: '1d',
     candles,
   })
 
@@ -304,7 +304,7 @@ function runObservatoryBooleanStateTest() {
   const candles = buildObservatoryCandles(180, 140)
   const snapshot = buildObservatorySnapshot({
     coin: 'BTC',
-    interval: '4h',
+    interval: '1d',
     candles,
   })
 
@@ -326,14 +326,14 @@ function runClosedBarPersistenceFilterTest() {
   const candles = buildObservatoryCandles(180, 140)
   const snapshot = buildObservatorySnapshot({
     coin: 'BTC',
-    interval: '4h',
+    interval: '1d',
     candles,
   })
 
   const latestBarTime = candles[candles.length - 1]?.time
   assert.ok(typeof latestBarTime === 'number')
 
-  const stillOpenNow = latestBarTime + 2 * 3_600_000
+  const stillOpenNow = latestBarTime + 12 * 3_600_000
   const closedTimes = getClosedBarTimes(snapshot, stillOpenNow)
   assert.ok(closedTimes.length > 0)
   assert.ok(!closedTimes.includes(latestBarTime))
@@ -342,7 +342,7 @@ function runClosedBarPersistenceFilterTest() {
   assert.ok(closedRecords.length > 0)
   assert.ok(closedRecords.every((record) => record.candleTime !== latestBarTime))
 
-  const afterCloseNow = latestBarTime + 5 * 3_600_000
+  const afterCloseNow = latestBarTime + 25 * 3_600_000
   const afterCloseRecords = buildClosedIndicatorStateRecords(snapshot, { now: afterCloseNow })
   assert.ok(afterCloseRecords.some((record) => record.candleTime === latestBarTime))
 }
@@ -351,16 +351,16 @@ function runPersistedAnalyticsTest() {
   const candles = buildObservatoryCandles(220, 150)
   const snapshot = buildObservatorySnapshot({
     coin: 'BTC',
-    interval: '4h',
+    interval: '1d',
     candles,
   })
   const latestCandle = candles[candles.length - 1]
   assert.ok(latestCandle)
-  const now = latestCandle.time + 5 * 3_600_000
+  const now = latestCandle.time + 25 * 3_600_000
   const rows = buildClosedIndicatorStateRecords(snapshot, { now })
   const analytics = buildPersistedObservatoryAnalytics({
     coin: 'BTC',
-    interval: '4h',
+    interval: '1d',
     days: 180,
     rows: rows.map((row) => ({
       candleTime: row.candleTime,
@@ -371,7 +371,7 @@ function runPersistedAnalyticsTest() {
   })
 
   assert.equal(analytics.coin, 'BTC')
-  assert.equal(analytics.interval, '4h')
+  assert.equal(analytics.interval, '1d')
   assert.equal(analytics.days, 180)
   assert.ok(analytics.windowBars > 0)
   assert.ok(analytics.totalHits > 0)
@@ -549,7 +549,7 @@ function buildObservatoryCandles(count, startPrice) {
     const trades = 480 + Math.cos(index / 5) * 60 + index * 0.45
 
     result.push({
-      time: start + index * 4 * 3_600_000,
+      time: start + index * 24 * 3_600_000,
       open,
       high,
       low,

@@ -42,7 +42,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-selected-cluster-card')).toBeVisible()
     const openReportButton = page.getByTestId('obs-selected-cluster-open-report')
     await expect(openReportButton).toBeVisible()
-    await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
+    await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=1d$/)
     await openReportButton.evaluate((button: HTMLButtonElement) => button.click())
     await expect(page.getByTestId('obs-report-drawer')).toBeVisible()
     await expect(page.getByTestId('obs-candle-report-page')).toBeVisible()
@@ -55,7 +55,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-cluster-report-row').first()).toBeVisible()
     await expect(page.locator('.obs-report__bar-time')).toContainText('UTC')
     // URL should NOT change — report is inline
-    await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
+    await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=1d$/)
     // Close the drawer
     await page.getByTestId('obs-candle-report-back').click()
     await expect(page.getByTestId('obs-report-drawer')).toBeHidden()
@@ -67,8 +67,6 @@ test.describe('Observatory critical flows', () => {
     await page.getByTestId('obs-coin-ETH').click()
     await expect(page.getByTestId('obs-coin-ETH')).toHaveClass(/obs-chip--active/)
 
-    await page.getByTestId('obs-interval-1d').click()
-    await expect(page.getByTestId('obs-interval-1d')).toHaveClass(/obs-chip--active/)
     await seedObservatoryState(page, { selectedCoin: 'ETH', interval: '1d' })
     await expect(page.getByTestId('obs-chart-cluster-overlay')).toBeVisible()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
@@ -161,7 +159,7 @@ test.describe('Observatory critical flows', () => {
     await page.getByTestId('obs-candle-report-back').click()
     await expect(page.getByTestId('obs-report-drawer')).toBeHidden()
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
-    await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=4h$/)
+    await expect(page).toHaveURL(/#\/observatory\?coin=BTC&interval=1d$/)
   })
 
   test('@critical runtime diagnostics keep app visible under failure signals', async ({ page }) => {
@@ -186,7 +184,7 @@ test.describe('Observatory critical flows', () => {
 
 async function seedObservatoryState(
   page: Page,
-  options: { selectedCoin?: 'BTC' | 'ETH' | 'SOL' | 'HYPE'; interval?: '4h' | '1d' } = {},
+  options: { selectedCoin?: 'BTC' | 'ETH' | 'SOL' | 'HYPE'; interval?: '1d' } = {},
 ) {
   const now = Date.now()
   const coins = ['BTC', 'ETH', 'SOL', 'HYPE'] as const
@@ -197,15 +195,14 @@ async function seedObservatoryState(
     HYPE: 25,
   }
 
-  const candlesByCoin: Record<string, { '4h': ReturnType<typeof buildCandles>; '1d': ReturnType<typeof buildCandles> }> = {}
+  const candlesByCoin: Record<string, { '1d': ReturnType<typeof buildCandles> }> = {}
   const prices: Record<string, string> = {}
   const selectedCoin = options.selectedCoin ?? 'BTC'
-  const interval = options.interval ?? '4h'
+  const interval = options.interval ?? '1d'
 
   for (const coin of coins) {
     const base = basePrices[coin]
     candlesByCoin[coin] = {
-      '4h': buildCandles(base, now, 4 * 60 * 60 * 1000, 800),
       '1d': buildCandles(base, now, 24 * 60 * 60 * 1000, 365),
     }
     prices[coin] = String(base)
@@ -224,7 +221,6 @@ async function seedObservatoryState(
       actions.clearRuntimeDiagnostics()
 
       for (const coin of Object.keys(candlesByCoin)) {
-        actions.setCandles(coin, candlesByCoin[coin]['4h'] as any, '4h')
         actions.setCandles(coin, candlesByCoin[coin]['1d'] as any, '1d')
       }
     }, { candlesByCoin, interval, prices, selectedCoin })
@@ -236,7 +232,6 @@ async function seedObservatoryState(
       return (
         state.connectionStatus === 'connected' &&
         !!state.prices.BTC &&
-        state.candles.BTC['4h'].length > 0 &&
         state.candles.BTC['1d'].length > 0
       )
     })

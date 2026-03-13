@@ -9,7 +9,7 @@ export type ClusterPresentationMode = 'simple' | 'pro'
 interface IndicatorClusterLanesProps {
   layout?: 'default' | 'side-rail'
   timeline: CandleHitCluster[]
-  timeframe: '4h' | '1d'
+  timeframe: '1d'
   mode: ClusterPresentationMode
   selectedTime: number | null
   onSelectTime: (time: number) => void
@@ -39,25 +39,23 @@ export function IndicatorClusterLanes({
   const isFullDailySequence = mode === 'simple' && timeframe === '1d'
   const windowSize = isNarrowViewport
     ? mode === 'pro'
-      ? (timeframe === '4h' ? 72 : 54)
-      : (timeframe === '4h' ? 48 : 36)
+      ? 54
+      : 36
     : isDesktopSideRail
       ? mode === 'pro'
-        ? (timeframe === '4h' ? 96 : 72)
-        : (timeframe === '4h' ? 72 : 54)
+        ? 72
+        : 54
       : mode === 'pro'
-        ? (timeframe === '4h' ? 120 : 90)
-        : (timeframe === '4h' ? 96 : 72)
+        ? 90
+        : 72
   const source = useMemo(() => timeline.slice(-windowSize), [timeline, windowSize])
   const clusters = useMemo(() => {
     if (mode === 'pro' || isFullDailySequence) return source
     const targetPoints = isNarrowViewport
-      ? (timeframe === '4h' ? 24 : 18)
+      ? 18
       : isDesktopSideRail
-        ? (timeframe === '4h' ? 30 : 24)
-        : timeframe === '4h'
-          ? 48
-          : 38
+        ? 24
+        : 38
     return downsampleClusters(source, targetPoints)
   }, [isDesktopSideRail, isFullDailySequence, isNarrowViewport, mode, source, timeframe])
 

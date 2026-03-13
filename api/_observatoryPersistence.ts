@@ -13,7 +13,6 @@ const WARMUP_BARS = 220
 const UPSERT_BATCH_SIZE = 500
 
 export const CRON_PERSISTENCE_DAYS: Record<ObservatoryInterval, number> = {
-  '4h': 14,
   '1d': 14,
 }
 
@@ -126,10 +125,6 @@ function countDistinctBarTimes(records: IndicatorStateRecord[]): number {
 }
 
 function toPersistenceRow(record: IndicatorStateRecord): PersistedStateRow {
-  if (record.interval === '1h') {
-    throw new Error('1h persistence is not supported by the current observatory ledger.')
-  }
-
   return {
     id: record.id,
     coin: record.coin,
@@ -186,8 +181,8 @@ function chunkRows(rows: PersistedStateRow[], size: number): PersistedStateRow[]
   return chunks
 }
 
-function intervalToMs(interval: ObservatoryInterval): number {
-  return interval === '4h' ? 4 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000
+function intervalToMs(_interval: ObservatoryInterval): number {
+  return 24 * 60 * 60 * 1000
 }
 
 function firstValue(value: string | string[] | undefined): string | null {

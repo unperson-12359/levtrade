@@ -2,8 +2,6 @@ import { buildIndicatorStateRecords } from './engine'
 import type { IndicatorStateRecord, ObservatorySnapshot } from './types'
 
 const INTERVAL_MS: Record<ObservatorySnapshot['interval'], number> = {
-  '1h': 3_600_000,
-  '4h': 14_400_000,
   '1d': 86_400_000,
 }
 

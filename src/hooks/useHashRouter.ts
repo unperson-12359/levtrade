@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { TRACKED_COINS, type TrackedCoin } from '../types/market'
 
-type AllowedInterval = '4h' | '1d'
+type AllowedInterval = '1d'
 type ObservatoryRoutePage = 'observatory' | 'report' | 'analytics' | 'methodology'
 
 export interface ObservatoryRoute {
@@ -40,7 +40,7 @@ function parseHash(hash: string): ObservatoryRoute {
   const rawTime = query.get('time')
 
   const coin = rawCoin && TRACKED_COINS.includes(rawCoin as TrackedCoin) ? (rawCoin as TrackedCoin) : null
-  const interval: AllowedInterval | null = rawInterval === '4h' || rawInterval === '1d' ? rawInterval : null
+  const interval: AllowedInterval | null = rawInterval === '1d' ? rawInterval : null
   const time = rawTime && Number.isFinite(Number(rawTime)) ? Number(rawTime) : null
 
   return { page, coin, interval, time }
@@ -90,7 +90,7 @@ export function useHashRouter() {
     window.addEventListener('popstate', sync)
 
     if (!window.location.hash) {
-      const defaultHash = buildObservatoryHash({ coin: 'BTC', interval: '4h' })
+      const defaultHash = buildObservatoryHash({ coin: 'BTC', interval: '1d' })
       history.replaceState(null, '', defaultHash)
       setRoute(parseHash(defaultHash))
     }
