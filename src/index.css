@@ -5297,9 +5297,10 @@ button {
 .obs-workspace {
   margin-top: 0.72rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.68fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.68fr);
   gap: 0.72rem;
   align-items: start;
+  overflow: hidden;
 }
 
 .obs-main,
@@ -5861,6 +5862,7 @@ button {
   margin-top: 0.5rem;
   border-top: 1px solid rgba(255 255 255 / 0.06);
   padding-top: 0.5rem;
+  overflow: hidden;
   animation: obs-drawer-open 0.25s ease-out;
 }
 
@@ -6465,7 +6467,7 @@ button {
 }
 
 .obs-workspace {
-  grid-template-columns: minmax(0, 1.52fr) minmax(320px, 0.72fr);
+  grid-template-columns: minmax(0, 1.52fr) minmax(280px, 0.72fr);
   gap: 0.78rem;
 }
 
@@ -6891,7 +6893,7 @@ button {
 
 @media (min-width: 1101px) {
   .obs-workspace--timeline {
-    grid-template-columns: minmax(0, 1.72fr) minmax(400px, 0.98fr);
+    grid-template-columns: minmax(0, 1.72fr) minmax(320px, 0.98fr);
     align-items: stretch;
   }
 
@@ -6911,7 +6913,9 @@ button {
   }
 
   .obs-rail--timeline {
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
   }
 
 .obs-panel--heatmap-rail {
