@@ -393,7 +393,7 @@ export function ObservatoryLayout() {
                   </section>
 
                   {reportDrawerOpen && reportCluster && (
-                    <section className="obs-report-drawer" data-testid="obs-report-drawer">
+                    <section className="obs-report-drawer" data-testid="obs-report-drawer" ref={(el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}>
                       <CandleReportPage
                         coin={selectedCoin}
                         timeframe={timeframe}

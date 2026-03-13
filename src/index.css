@@ -5662,6 +5662,14 @@ button {
 .obs-pulse-row span:last-child {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.obs-panel--selected-cluster {
+  overflow: visible;
 }
 
 .obs-detail-copy,
