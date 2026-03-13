@@ -280,7 +280,7 @@ function runObservatoryIndicatorHealthTest() {
     candles,
   })
 
-  assert.ok(snapshot.indicators.length >= 25, `Expected at least 25 indicators, got ${snapshot.indicators.length}`)
+  assert.ok(snapshot.indicators.length >= 8, `Expected at least 8 indicators, got ${snapshot.indicators.length}`)
   assert.equal(snapshot.health.total, snapshot.indicators.length)
   assert.ok(snapshot.health.valid >= Math.floor(snapshot.indicators.length * 0.8))
   assert.equal(snapshot.timeline.length, candles.length)
@@ -291,12 +291,9 @@ function runObservatoryIndicatorHealthTest() {
   assert.ok(snapshot.indicators.every((indicator) => indicator.category !== 'Flow'))
   assert.ok(snapshot.barStates.every((bar) => bar.activeIndicatorIds.length === bar.activeCount))
 
-  const rsi = snapshot.indicators.find((indicator) => indicator.id === 'momentum_rsi14')
-  const donchian = snapshot.indicators.find((indicator) => indicator.id === 'structure_donchian_pos_20')
-  assert.ok(rsi)
-  assert.ok(donchian)
-  assertIndicatorRange(rsi.series.map((point) => point.value), 0, 100, 1e-3)
-  assertIndicatorRange(donchian.series.map((point) => point.value), 0, 1, 1e-3)
+  const cross = snapshot.indicators.find((indicator) => indicator.id === 'event_ema_8_21_cross')
+  assert.ok(cross, 'Expected event_ema_8_21_cross indicator to exist')
+  assert.ok(snapshot.indicators.every((indicator) => indicator.id.startsWith('event_')), 'All indicators should be event-based')
 }
 
 function runObservatoryBooleanStateTest() {

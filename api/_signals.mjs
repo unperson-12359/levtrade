@@ -13,15 +13,7 @@ function parseCandle(raw) {
 }
 
 // src/observatory/engine.ts
-var BOUNDED_RANGES = {
-  momentum_rsi14: { min: 0, max: 100 },
-  momentum_stoch_k14: { min: 0, max: 100 },
-  momentum_stoch_d14: { min: 0, max: 100 },
-  momentum_williams_r14: { min: -100, max: 0 },
-  volume_mfi14: { min: 0, max: 100 },
-  structure_donchian_pos_20: { min: 0, max: 1 },
-  volatility_bb_percent_b: { min: -0.5, max: 1.5, tolerance: 0.05 }
-};
+var BOUNDED_RANGES = {};
 function buildObservatorySnapshot(input) {
   const candles = input.candles;
   if (candles.length === 0) {
@@ -47,30 +39,14 @@ function buildObservatorySnapshot(input) {
   const lows = candles.map((candle) => candle.low);
   const closes = candles.map((candle) => candle.close);
   const volumes = candles.map((candle) => candle.volume);
-  const trades = candles.map((candle) => candle.trades);
-  const intervalHours = intervalToHours(input.interval);
   const sma20 = smaSeries(closes, 20);
   const sma50 = smaSeries(closes, 50);
   const ema8 = emaSeries(closes, 8);
   const ema21 = emaSeries(closes, 21);
-  const rsi14 = rsiSeries(closes, 14);
   const stoch = stochasticSeries(highs, lows, closes, 14, 3);
   const macd = macdSeries(closes, 12, 26, 9);
-  const atr14 = atrSeries(candles, 14);
-  const roc10 = pctChangeSeries(closes, 10);
-  const roc24 = pctChangeSeries(closes, 24);
-  const momentum10 = momentumPctSeries(closes, 10);
-  const cci20 = cciSeries(candles, 20);
-  const williamsR14 = williamsRSeries(highs, lows, closes, 14);
-  const mfi14 = mfiSeries(candles, 14);
   const bb = bollingerSeries(closes, 20, 2);
   const donchianPos20 = donchianPositionSeries(highs, lows, closes, 20);
-  const keltnerPos20 = keltnerPositionSeries(closes, ema21, atr14);
-  const vwapDeviation = vwapDeviationSeries(highs, lows, closes, volumes);
-  const volumeZ20 = zScoreSeries(wrapNumericSeries(volumes), 20);
-  const tradesZ20 = zScoreSeries(wrapNumericSeries(trades), 20);
-  const priceChange1Bar = pctChangeSeries(closes, 1);
-  const priceChange24h = pctChangeSeries(closes, Math.max(1, Math.round(24 / intervalHours)));
   const ema8_21Cross = crossoverSeries(ema8, ema21);
   const sma20_50Cross = crossoverSeries(sma20, sma50);
   const zeroLine = closes.map(() => 0);
@@ -81,15 +57,6 @@ function buildObservatorySnapshot(input) {
   const volumeSpikeZ = zScoreSeries(wrapNumericSeries(volumes), 20);
   const donchianBreak = donchianBreakSeries(donchianPos20);
   const seeds = [
-    makeMetric(
-      "trend_ema_8_21_spread",
-      "EMA 8/21 Spread",
-      "Trend",
-      "%",
-      "Fast trend acceleration against the core EMA baseline.",
-      ratioDiffSeries(ema8, ema21, 100),
-      signedState(0.35)
-    ),
     makeMetric(
       "event_ema_8_21_cross",
       "EMA 8/21 Cross",
@@ -107,69 +74,6 @@ function buildObservatorySnapshot(input) {
       "Golden/death cross \u2014 medium-term trend reversal signal.",
       sma20_50Cross,
       signedState(0.5)
-    ),
-    makeMetric(
-      "structure_donchian_pos_20",
-      "Donchian Position 20",
-      "Structure",
-      "0-1",
-      "Position of price between 20-bar range low and high.",
-      donchianPos20,
-      bandState(0.2, 0.8)
-    ),
-    makeMetric(
-      "structure_keltner_pos_20",
-      "Keltner Position",
-      "Structure",
-      "xATR",
-      "Price distance from EMA21 expressed in ATR units.",
-      keltnerPos20,
-      signedState(0.8)
-    ),
-    makeMetric(
-      "structure_vwap_dev",
-      "VWAP Deviation",
-      "Structure",
-      "%",
-      "Distance of close from cumulative VWAP.",
-      vwapDeviation,
-      signedState(0.6)
-    ),
-    makeMetric(
-      "momentum_rsi14",
-      "RSI 14",
-      "Momentum",
-      "",
-      "Relative strength momentum oscillator.",
-      rsi14,
-      bandState(30, 70)
-    ),
-    makeMetric(
-      "momentum_stoch_k14",
-      "Stochastic K 14",
-      "Momentum",
-      "",
-      "Close position in rolling 14-bar high-low range.",
-      stoch.k,
-      bandState(20, 80)
-    ),
-    makeMetric(
-      "momentum_stoch_d14",
-      "Stochastic D 14",
-      "Momentum",
-      "",
-      "Smoothed stochastic momentum signal line.",
-      stoch.d,
-      bandState(20, 80)
-    ),
-    makeMetric(
-      "momentum_macd_hist_pct",
-      "MACD Histogram",
-      "Momentum",
-      "%",
-      "Momentum spread between MACD line and signal line.",
-      ratioSeries(macd.histogram, closes, 100),
-      signedState(0.08)
     ),
     makeMetric(
       "event_macd_zero_cross",
@@ -190,60 +94,6 @@ function buildObservatorySnapshot(input) {
       signedState(0.5)
     ),
     makeMetric(
-      "momentum_roc_10",
-      "ROC 10",
-      "Momentum",
-      "%",
-      "10-bar percentage rate of change.",
-      roc10,
-      signedState(1)
-    ),
-    makeMetric(
-      "momentum_roc_24",
-      "ROC 24 Bars",
-      "Momentum",
-      "%",
-      "24-bar percentage rate of change.",
-      roc24,
-      signedState(1.4)
-    ),
-    makeMetric(
-      "momentum_mom_10",
-      "Momentum 10",
-      "Momentum",
-      "%",
-      "10-bar momentum amplitude.",
-      momentum10,
-      signedState(1)
-    ),
-    makeMetric(
-      "momentum_williams_r14",
-      "Williams %R 14",
-      "Momentum",
-      "",
-      "Momentum oscillator normalized between -100 and 0.",
-      williamsR14,
-      bandState(-80, -20)
-    ),
-    makeMetric(
-      "momentum_cci20",
-      "CCI 20",
-      "Momentum",
-      "",
-      "Commodity channel momentum against its mean deviation.",
-      cci20,
-      signedState(100)
-    ),
-    makeMetric(
-      "volatility_bb_percent_b",
-      "Bollinger %B",
-      "Volatility",
-      "",
-      "Relative location inside Bollinger envelope.",
-      bb.percentB,
-      bandState(0.15, 0.85)
-    ),
-    makeMetric(
       "event_bb_squeeze",
       "BB Squeeze Breakout",
       "Volatility",
@@ -251,51 +101,6 @@ function buildObservatorySnapshot(input) {
       "Fires when Bollinger Bands expand after a compression \u2014 volatility regime change.",
       bbSqueeze,
       bandState(0.5, 1.5)
-    ),
-    makeMetric(
-      "volume_mfi14",
-      "MFI 14",
-      "Volume",
-      "",
-      "Volume-weighted momentum oscillator.",
-      mfi14,
-      bandState(30, 70)
-    ),
-    makeMetric(
-      "volume_z20",
-      "Volume Z 20",
-      "Volume",
-      "z",
-      "Relative deviation of volume from 20-bar baseline.",
-      volumeZ20,
-      signedState(1)
-    ),
-    makeMetric(
-      "volume_trades_z20",
-      "Trades Z 20",
-      "Volume",
-      "z",
-      "Relative deviation of trade count from 20-bar baseline.",
-      tradesZ20,
-      signedState(1)
-    ),
-    makeMetric(
-      "momentum_price_change_1h",
-      "Price Change 1 Bar",
-      "Momentum",
-      "%",
-      "Single-bar return for local acceleration mapping.",
-      priceChange1Bar,
-      signedState(0.8)
-    ),
-    makeMetric(
-      "momentum_price_change_24h",
-      "Price Change 24h",
-      "Momentum",
-      "%",
-      "24-hour equivalent return for regime drift mapping.",
-      priceChange24h,
-      signedState(2)
     ),
     makeMetric(
       "event_volume_spike",
@@ -538,9 +343,6 @@ function bandState(low, high) {
   fn.thresholdLabel = `high > ${high}, low < ${low}`;
   return fn;
 }
-function intervalToHours(_interval) {
-  return 24;
-}
 function intervalToMs(_interval) {
   return 24 * 60 * 60 * 1e3;
 }
@@ -616,64 +418,6 @@ function zScoreSeries(values, period) {
   }
   return output;
 }
-function ratioSeries(numerator, denominator, multiplier = 1) {
-  const length = Math.min(numerator.length, denominator.length);
-  const output = Array(length).fill(null);
-  for (let index = 0; index < length; index += 1) {
-    const num = numerator[index];
-    const den = denominator[index];
-    if (!isFiniteNumber(num) || !isFiniteNumber(den) || den === 0) continue;
-    output[index] = num / den * multiplier;
-  }
-  return output;
-}
-function ratioDiffSeries(a, b, multiplier = 100) {
-  const length = Math.min(a.length, b.length);
-  const output = Array(length).fill(null);
-  for (let index = 0; index < length; index += 1) {
-    const left = a[index];
-    const right = b[index];
-    if (!isFiniteNumber(left) || !isFiniteNumber(right) || right === 0) continue;
-    output[index] = (left - right) / Math.abs(right) * multiplier;
-  }
-  return output;
-}
-function pctChangeSeries(values, lag) {
-  const output = Array(values.length).fill(null);
-  for (let index = lag; index < values.length; index += 1) {
-    const current = values[index];
-    const prior = values[index - lag];
-    if (!isFiniteNumber(current) || !isFiniteNumber(prior) || prior === 0) continue;
-    output[index] = (current - prior) / Math.abs(prior) * 100;
-  }
-  return output;
-}
-function momentumPctSeries(values, period) {
-  return pctChangeSeries(values, period);
-}
-function rsiSeries(values, period) {
-  const output = Array(values.length).fill(null);
-  if (values.length <= period) return output;
-  let gainSum = 0;
-  let lossSum = 0;
-  for (let index = 1; index <= period; index += 1) {
-    const delta = (values[index] ?? 0) - (values[index - 1] ?? 0);
-    if (delta >= 0) gainSum += delta;
-    else lossSum += Math.abs(delta);
-  }
-  let avgGain = gainSum / period;
-  let avgLoss = lossSum / period;
-  output[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
-  for (let index = period + 1; index < values.length; index += 1) {
-    const delta = (values[index] ?? 0) - (values[index - 1] ?? 0);
-    const gain = delta > 0 ? delta : 0;
-    const loss = delta < 0 ? Math.abs(delta) : 0;
-    avgGain = (avgGain * (period - 1) + gain) / period;
-    avgLoss = (avgLoss * (period - 1) + loss) / period;
-    output[index] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
-  }
-  return output;
-}
 function stochasticSeries(highs, lows, closes, period, smoothD) {
   const k = Array(closes.length).fill(null);
   for (let index = period - 1; index < closes.length; index += 1) {
@@ -709,40 +453,6 @@ function macdSeries(values, fast, slow, signal) {
   }
   return { line, signal: signalLine, histogram };
 }
-function atrSeries(candles, period) {
-  const output = Array(candles.length).fill(null);
-  const tr = [];
-  for (let index = 0; index < candles.length; index += 1) {
-    const candle = candles[index];
-    if (!candle) {
-      tr.push(0);
-      continue;
-    }
-    if (index === 0) {
-      tr.push(candle.high - candle.low);
-      continue;
-    }
-    const prevClose = candles[index - 1]?.close ?? candle.close;
-    const range1 = candle.high - candle.low;
-    const range2 = Math.abs(candle.high - prevClose);
-    const range3 = Math.abs(candle.low - prevClose);
-    tr.push(Math.max(range1, range2, range3));
-  }
-  let atr = 0;
-  for (let index = 0; index < tr.length; index += 1) {
-    if (index < period) {
-      atr += tr[index] ?? 0;
-      if (index === period - 1) {
-        atr /= period;
-        output[index] = atr;
-      }
-      continue;
-    }
-    atr = (atr * (period - 1) + (tr[index] ?? 0)) / period;
-    output[index] = atr;
-  }
-  return output;
-}
 function bollingerSeries(values, period, deviation) {
   const middle = smaSeries(values, period);
   const std = rollingStdSeries(values, period);
@@ -762,39 +472,6 @@ function bollingerSeries(values, period, deviation) {
   }
   return { percentB, widthPct };
 }
-function cciSeries(candles, period) {
-  const typical = candles.map((candle) => (candle.high + candle.low + candle.close) / 3);
-  const smaTypical = smaSeries(typical, period);
-  const output = Array(candles.length).fill(null);
-  for (let index = period - 1; index < candles.length; index += 1) {
-    const currentTypical = typical[index];
-    const mean = smaTypical[index];
-    if (!isFiniteNumber(currentTypical) || !isFiniteNumber(mean)) continue;
-    let meanDeviation = 0;
-    for (let cursor = index - period + 1; cursor <= index; cursor += 1) {
-      meanDeviation += Math.abs((typical[cursor] ?? currentTypical) - mean);
-    }
-    meanDeviation /= period;
-    if (meanDeviation === 0) continue;
-    output[index] = (currentTypical - mean) / (0.015 * meanDeviation);
-  }
-  return output;
-}
-function williamsRSeries(highs, lows, closes, period) {
-  const output = Array(closes.length).fill(null);
-  for (let index = period - 1; index < closes.length; index += 1) {
-    let highest = -Infinity;
-    let lowest = Infinity;
-    for (let cursor = index - period + 1; cursor <= index; cursor += 1) {
-      highest = Math.max(highest, highs[cursor] ?? -Infinity);
-      lowest = Math.min(lowest, lows[cursor] ?? Infinity);
-    }
-    const spread = highest - lowest;
-    if (spread <= 0 || !isFiniteNumber(spread)) continue;
-    output[index] = (highest - (closes[index] ?? highest)) / spread * -100;
-  }
-  return output;
-}
 function donchianPositionSeries(highs, lows, closes, period) {
   const output = Array(closes.length).fill(null);
   for (let index = period - 1; index < closes.length; index += 1) {
@@ -807,56 +484,6 @@ function donchianPositionSeries(highs, lows, closes, period) {
     const spread = highest - lowest;
     if (spread <= 0 || !isFiniteNumber(spread)) continue;
     output[index] = ((closes[index] ?? lowest) - lowest) / spread;
-  }
-  return output;
-}
-function keltnerPositionSeries(closes, ema, atr) {
-  const output = Array(closes.length).fill(null);
-  for (let index = 0; index < closes.length; index += 1) {
-    const e = ema[index];
-    const a = atr[index];
-    const close = closes[index];
-    if (!isFiniteNumber(e) || !isFiniteNumber(a) || !isFiniteNumber(close) || a === 0) continue;
-    output[index] = (close - e) / a;
-  }
-  return output;
-}
-function vwapDeviationSeries(highs, lows, closes, volumes) {
-  const output = Array(closes.length).fill(null);
-  let cumulativePV = 0;
-  let cumulativeVolume = 0;
-  for (let index = 0; index < closes.length; index += 1) {
-    const typicalPrice = ((highs[index] ?? 0) + (lows[index] ?? 0) + (closes[index] ?? 0)) / 3;
-    const volume = volumes[index] ?? 0;
-    cumulativePV += typicalPrice * volume;
-    cumulativeVolume += volume;
-    if (cumulativeVolume <= 0) continue;
-    const vwap = cumulativePV / cumulativeVolume;
-    const close = closes[index];
-    if (!isFiniteNumber(close) || !isFiniteNumber(vwap) || vwap === 0) continue;
-    output[index] = (close - vwap) / Math.abs(vwap) * 100;
-  }
-  return output;
-}
-function mfiSeries(candles, period) {
-  const output = Array(candles.length).fill(null);
-  const typicalPrices = candles.map((candle) => (candle.high + candle.low + candle.close) / 3);
-  const rawFlow = candles.map((candle, index) => (typicalPrices[index] ?? 0) * candle.volume);
-  for (let index = period; index < candles.length; index += 1) {
-    let positiveFlow = 0;
-    let negativeFlow = 0;
-    for (let cursor = index - period + 1; cursor <= index; cursor += 1) {
-      const currentTypical = typicalPrices[cursor] ?? 0;
-      const previousTypical = typicalPrices[cursor - 1] ?? currentTypical;
-      if (currentTypical >= previousTypical) positiveFlow += rawFlow[cursor] ?? 0;
-      else negativeFlow += rawFlow[cursor] ?? 0;
-    }
-    if (negativeFlow <= 0) {
-      output[index] = 100;
-      continue;
-    }
-    const ratio = positiveFlow / negativeFlow;
-    output[index] = 100 - 100 / (1 + ratio);
   }
   return output;
 }
@@ -1325,7 +952,7 @@ function buildPersistedObservatoryAnalytics(input) {
 }
 
 // src/observatory/version.ts
-var OBSERVATORY_RULESET_VERSION = "2026-03-12.2";
+var OBSERVATORY_RULESET_VERSION = "2026-03-13.1";
 
 // src/observatory/persistence.ts
 var INTERVAL_MS = {

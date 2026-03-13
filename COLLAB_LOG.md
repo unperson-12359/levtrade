@@ -10,6 +10,24 @@ Protocol:
 
 ---
 
+## 2026-03-13 - Opus — Strip to Event-Only Indicators
+
+**Intent:** Remove all 21 persistent/continuous indicators (RSI, MACD histogram, VWAP, Stochastic, CCI, Williams %R, etc.) and keep only the 8 event-based indicators that fire rarely to signal notable conditions. This makes the heatmap meaningful (lights up only when something happens) and the analytics focused on event frequency.
+
+**8 kept indicators:** `event_ema_8_21_cross`, `event_sma_20_50_cross`, `event_macd_zero_cross`, `event_stoch_kd_cross`, `event_bb_squeeze`, `event_volume_spike`, `event_body_anomaly`, `event_donchian_break`
+
+**Files changed:**
+- `src/observatory/engine.ts` — removed 21 persistent indicator definitions, removed 11 unused computation functions (RSI, ATR, CCI, Williams %R, Keltner, VWAP, MFI, etc.), cleaned up unused series variables and BOUNDED_RANGES
+- `src/observatory/version.ts` — bumped ruleset version to `2026-03-13.1`
+- `tests/run-logic-tests.mjs` — updated indicator count assertion (25→8), replaced RSI/Donchian range checks with event-only assertion
+- `api/_signals.mjs` — rebuilt (45.2kb → 33.6kb)
+
+**Verification:** `npm run build` ✓, `npm run test:logic` ✓
+
+**Follow-up:** CorrelationInsights panels 1-3 (correlation-heavy) will often show empty states with sparse event data. This is expected — the frequency/transition panels remain valuable.
+
+---
+
 ## 2026-03-13 - Opus — Remove Insights View Toggle
 
 **Intent:** Eliminate redundant view toggle (Timeline|Insights) from command bar. After unification, both the Insights toggle and Analytics nav button showed identical content. Now Observatory always shows timeline, Analytics (nav button) shows unified insights+analytics.
