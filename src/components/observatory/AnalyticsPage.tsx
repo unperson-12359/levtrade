@@ -238,6 +238,7 @@ export function AnalyticsPage({ coin, timeframe, snapshot }: AnalyticsPageProps)
                 key={row.id}
                 type="button"
                 className={`obs-analytics__row ${selectedIndicator?.id === row.id ? 'obs-analytics__row--active' : ''}`}
+                title={row.description}
                 data-testid="obs-analytics-indicator-row"
                 onClick={() => setSelectedIndicatorId(row.id)}
               >

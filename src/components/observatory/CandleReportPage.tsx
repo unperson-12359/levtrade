@@ -29,6 +29,7 @@ interface IndicatorContext {
 interface ReportIndicatorRow {
   id: string
   label: string
+  description: string
   active: boolean
   event: IndicatorHitEvent | null
   value: number | null
@@ -110,6 +111,7 @@ export function CandleReportPage({
           return {
             id: indicator.id,
             label: indicator.label,
+            description: indicator.description,
             active: activeMap.has(indicator.id),
             event: activeMap.get(indicator.id) ?? null,
             value: indicator.currentValue,
@@ -343,7 +345,7 @@ export function CandleReportPage({
                   key={indicator.id}
                   className={`obs-report__ind ${indicator.active ? 'obs-report__ind--active' : 'obs-report__ind--inactive'}`}
                   data-testid="obs-cluster-report-row"
-                  title={indicator.event?.message ?? indicator.label}
+                  title={indicator.description}
                 >
                   <span className={`obs-report__ind-led obs-report__ind-led--${indicator.active ? 'on' : 'off'}`} />
                   <span className="obs-report__ind-name">{indicator.label}</span>
