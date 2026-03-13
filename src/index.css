@@ -5864,56 +5864,16 @@ button {
 }
 
 .obs-report-drawer {
-  margin-top: 0.5rem;
-  border-top: 1px solid rgba(255 255 255 / 0.06);
-  padding-top: 0.5rem;
-  overflow: visible;
+  margin-top: 0.72rem;
+  padding: 0.88rem;
+  border: 2px solid var(--obs-rule);
+  background: rgba(255, 250, 240, 0.88);
+  box-shadow: var(--obs-shadow);
   animation: obs-drawer-open 0.25s ease-out;
 }
 
-/* --- Drawer-scoped overrides: report lives in ~300px rail sidebar --- */
-
-.obs-report-drawer .obs-report__grid {
-  grid-template-columns: 1fr;
-}
-
-.obs-report-drawer .obs-report__metrics {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.obs-report-drawer .obs-report__insights {
-  grid-template-columns: 1fr;
-}
-
-.obs-report-drawer .obs-report__ind {
-  grid-template-columns: 10px minmax(0, 1fr) auto;
-  min-height: auto;
-  gap: 0.24rem;
-  padding: 0.3rem 0.38rem;
-}
-
-.obs-report-drawer .obs-report__ind-name {
-  min-width: 0;
+.obs-rail--timeline > .obs-panel {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.obs-report-drawer .obs-report__ind-rate,
-.obs-report-drawer .obs-report__ind-rec {
-  grid-column: 2 / -1;
-  text-align: left;
-  font-size: 0.5rem;
-}
-
-.obs-report-drawer .obs-report__event-row {
-  grid-template-columns: 1fr;
-  gap: 0.16rem;
-}
-
-.obs-report-drawer .obs-report__share-row {
-  grid-template-columns: 1fr;
-  gap: 0.16rem;
 }
 
 @keyframes obs-drawer-open {

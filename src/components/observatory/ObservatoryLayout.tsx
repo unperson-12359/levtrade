@@ -392,21 +392,6 @@ export function ObservatoryLayout() {
                     )}
                   </section>
 
-                  {reportDrawerOpen && reportCluster && (
-                    <section className="obs-report-drawer" data-testid="obs-report-drawer" ref={(el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}>
-                      <CandleReportPage
-                        coin={selectedCoin}
-                        timeframe={timeframe}
-                        cluster={reportCluster}
-                        timeline={snapshot.timeline}
-                        allIndicators={snapshot.indicators}
-                        loading={loading}
-                        onBack={closeReportDrawer}
-                        onPrev={onPrev}
-                        onNext={onNext}
-                      />
-                    </section>
-                  )}
                 </>
               ) : (
                 <>
@@ -557,6 +542,22 @@ export function ObservatoryLayout() {
               )}
             </aside>
             </div>
+
+            {reportDrawerOpen && reportCluster && (
+              <section className="obs-report-drawer" data-testid="obs-report-drawer" ref={(el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}>
+                <CandleReportPage
+                  coin={selectedCoin}
+                  timeframe={timeframe}
+                  cluster={reportCluster}
+                  timeline={snapshot.timeline}
+                  allIndicators={snapshot.indicators}
+                  loading={loading}
+                  onBack={closeReportDrawer}
+                  onPrev={onPrev}
+                  onNext={onNext}
+                />
+              </section>
+            )}
           </>
         )}
 
