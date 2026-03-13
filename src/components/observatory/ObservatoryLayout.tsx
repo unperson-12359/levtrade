@@ -78,7 +78,7 @@ export function ObservatoryLayout() {
       <div className="obs-backdrop-grid" />
       <div className="obs-shell-frame">
         <header className="obs-command-bar" data-testid="obs-command-bar">
-          <div className="obs-global-header">
+          <div className="obs-command-bar__row">
             <div className="obs-brand-lockup">
               <div className="obs-brand">LevTrade</div>
               <div className="obs-brand-sub">Observatory / Hyperliquid market forensics</div>
@@ -111,45 +111,6 @@ export function ObservatoryLayout() {
               </button>
             </nav>
 
-            <button
-              type="button"
-              className="obs-header-menu"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-expanded={menuOpen}
-              aria-controls="obs-mobile-nav"
-              data-testid="obs-header-menu-button"
-            >
-              Menu
-            </button>
-          </div>
-
-          {menuOpen && (
-            <nav id="obs-mobile-nav" className="obs-mobile-nav" aria-label="Mobile">
-              <button
-                type="button"
-                className={`obs-chip obs-chip--nav ${!isAnalyticsPage ? 'obs-chip--active' : ''}`}
-                onClick={openObservatory}
-              >
-                Observatory
-              </button>
-              <button
-                type="button"
-                className={`obs-chip obs-chip--nav ${isAnalyticsPage ? 'obs-chip--active' : ''}`}
-                onClick={openAnalytics}
-              >
-                Analytics
-              </button>
-              <button
-                type="button"
-                className="obs-chip obs-chip--nav"
-                onClick={openMethodology}
-              >
-                Methodology
-              </button>
-            </nav>
-          )}
-
-          <div className="obs-command-bar__utility">
             <div className="obs-command-bar__utility-group obs-command-bar__utility-group--view">
               {!isAnalyticsPage ? (
                 <div className="obs-toggle-group">
@@ -250,6 +211,43 @@ export function ObservatoryLayout() {
               ) : null}
             </div>
           </div>
+
+          <button
+            type="button"
+            className="obs-header-menu"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-expanded={menuOpen}
+            aria-controls="obs-mobile-nav"
+            data-testid="obs-header-menu-button"
+          >
+            Menu
+          </button>
+
+          {menuOpen && (
+            <nav id="obs-mobile-nav" className="obs-mobile-nav" aria-label="Mobile">
+              <button
+                type="button"
+                className={`obs-chip obs-chip--nav ${!isAnalyticsPage ? 'obs-chip--active' : ''}`}
+                onClick={openObservatory}
+              >
+                Observatory
+              </button>
+              <button
+                type="button"
+                className={`obs-chip obs-chip--nav ${isAnalyticsPage ? 'obs-chip--active' : ''}`}
+                onClick={openAnalytics}
+              >
+                Analytics
+              </button>
+              <button
+                type="button"
+                className="obs-chip obs-chip--nav"
+                onClick={openMethodology}
+              >
+                Methodology
+              </button>
+            </nav>
+          )}
         </header>
 
         {isAnalyticsPage ? (
