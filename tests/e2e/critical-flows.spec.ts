@@ -97,8 +97,7 @@ test.describe('Observatory critical flows', () => {
     await expect(page).toHaveURL(/#\/observatory\?coin=ETH&interval=1d$/)
 
     await page.getByTestId('obs-view-network').click()
-    await expect(page.getByTestId('obs-map-legend')).toBeVisible()
-    await expect(page.getByTestId('obs-pool-map')).toBeVisible()
+    await expect(page.getByTestId('obs-correlation-insights')).toBeVisible()
 
     // Methodology modal from nav
     await page.getByTestId('obs-nav-methodology').click()

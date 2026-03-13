@@ -90,3 +90,40 @@ export function strongestCategory(cluster: { laneCounts: Partial<Record<Indicato
   }
   return bestCount > 0 ? best : null
 }
+
+export function formatDuration(durationMs: number, durationBars: number): string {
+  const bars = Math.max(1, durationBars)
+  const fallbackMs = bars * 24 * 60 * 60 * 1000
+  const ms = Number.isFinite(durationMs) && durationMs > 0 ? durationMs : fallbackMs
+  const hours = Math.max(1, Math.round(ms / (60 * 60 * 1000)))
+  const human = hours % 24 === 0 ? `${hours / 24}d` : `${hours}h`
+  return `${bars} bar${bars === 1 ? '' : 's'} / ${human}`
+}
+
+export function formatReportPrice(value: number): string {
+  if (!Number.isFinite(value)) return '--'
+  return value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+}
+
+export function formatCompactValue(value: number | null, unit: string): string {
+  if (value === null || !Number.isFinite(value)) return '--'
+  if (unit === '%') return `${value.toFixed(1)}%`
+  if (unit === 'bp') return `${value.toFixed(1)}bp`
+  return value.toFixed(2)
+}
+
+export function formatRecurrence(gapBars: number | null, active = false): string {
+  if (gapBars === null) return active ? 'New active state' : 'No recent active bars'
+  if (gapBars === 0) return 'Active now'
+  const durationHours = gapBars * 24
+  return `${gapBars} bars / ${durationHours >= 24 ? `${durationHours / 24}d` : `${durationHours}h`} ago`
+}
+
+export function formatStreak(value: number): string {
+  if (value <= 0) return 'Idle'
+  return `${value} bars`
+}
+
+export function formatCorrelation(value: number): string {
+  return value.toFixed(2)
+}

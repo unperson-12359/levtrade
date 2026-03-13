@@ -4687,3 +4687,30 @@ Execute the approved multi-track audit program across the current LevTrade obser
 - Follow-up risks / next steps:
   - Analytics page frequency/transition stats will reset since historical data was computed under old ruleset (40 indicators)
   - Supabase `observatory_indicator_states` rows tagged with old `rule_version` will not match new indicator set
+
+## 2026-03-12 — Claude — Observatory UI Consistency Audit
+
+- **Goal:** Comprehensive visual homogenization — dead code removal, formatter consolidation, CSS variable/token normalization
+- **Files changed:**
+  - `src/components/observatory/PoolMap.tsx` — DELETED (unused after CorrelationInsights replacement)
+  - `src/observatory/format.ts` — Added 7 shared formatters: formatDuration, formatReportPrice, formatCompactValue, formatRecurrence, formatStreak, formatCorrelation
+  - `src/components/observatory/CandleReportPage.tsx` — Replaced 5 local formatters with shared imports
+  - `src/components/observatory/CorrelationInsights.tsx` — Added formatCorrelation import, replaced .toFixed(2) calls
+  - `src/components/observatory/ObservatoryLayout.tsx` — Added formatCorrelation import, replaced .toFixed(2) call
+  - `tests/e2e/critical-flows.spec.ts` — Updated PoolMap assertions to CorrelationInsights
+  - `src/index.css` — Major cleanup:
+    - Removed all .obs-pool-map, .obs-legend CSS (~100 lines of dead code)
+    - Added 7 semantic CSS variables (--obs-positive-bright, --obs-negative-bright, etc.)
+    - Replaced hardcoded hex colors with CSS variables (#6ee7b7, #fca5a5, #facc15, rgba gold values)
+    - Replaced hardcoded transition durations (150ms/200ms/300ms) with motion variables
+    - Removed overridden old-theme .obs-panel and .obs-chip blocks
+    - Merged duplicate .obs-chip definitions
+    - Normalized spacing to --space-N tokens
+    - Normalized font-sizes to --text-xs/--text-sm/--text-base scale
+    - Normalized stray line-heights to 1.2/1.45 standard
+- **Verification:**
+  - `npm run build` PASS
+  - `npm run test:logic` PASS
+- **Follow-up:**
+  - Visual verification in dev server recommended for all views
+  - Some old-section CSS blocks remain (health-panel, indicator-row) — overridden but not yet removed

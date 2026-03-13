@@ -1,5 +1,6 @@
 import {
   formatConnectionStatus,
+  formatCorrelation,
   formatLiveStatus,
   formatPrice,
   formatPct,
@@ -463,7 +464,7 @@ export function ObservatoryLayout() {
                             return (
                               <button key={`${edge.a}-${edge.b}`} type="button" className="obs-correlation-row" onClick={() => setSelectedIndicatorId(counterpart.id)}>
                                 <span>{counterpart.label}</span>
-                                <span>{edge.strength.toFixed(2)}</span>
+                                <span>{formatCorrelation(edge.strength)}</span>
                               </button>
                             )
                           })}

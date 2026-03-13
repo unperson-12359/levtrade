@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { PriceChart } from '../chart/PriceChart'
-import { formatPct, formatSignedPct } from '../../observatory/format'
+import { formatPct, formatSignedPct, formatDuration, formatReportPrice, formatCompactValue, formatRecurrence, formatStreak } from '../../observatory/format'
 import { formatUtcDateTime } from '../../observatory/timeFormat'
 import type { CandleHitCluster, IndicatorCategory, IndicatorHitEvent, IndicatorMetric } from '../../observatory/types'
 import type { TrackedCoin } from '../../types/market'
@@ -41,7 +41,6 @@ interface ReportIndicatorRow {
 
 export function CandleReportPage({
   coin,
-  timeframe,
   cluster,
   timeline,
   allIndicators,
@@ -298,7 +297,7 @@ export function CandleReportPage({
                   <span>{formatCompactValue(indicator.value, indicator.unit)}</span>
                   <span>{formatPct(indicator.activeRate)}</span>
                   <span>{formatStreak(indicator.currentStreak)}</span>
-                  <span>{formatRecurrence(indicator.lastSeenGapBars, timeframe, true)}</span>
+                  <span>{formatRecurrence(indicator.lastSeenGapBars, true)}</span>
                 </div>
               ))}
             </div>
@@ -352,8 +351,8 @@ export function CandleReportPage({
                   <span className="obs-report__ind-rate">{formatPct(indicator.activeRate)}</span>
                   <span className="obs-report__ind-rec">
                     {indicator.active && indicator.event
-                      ? formatDuration(indicator.event, timeframe)
-                      : formatRecurrence(indicator.lastSeenGapBars, timeframe)}
+                      ? formatDuration(indicator.event.durationMs, indicator.event.durationBars)
+                      : formatRecurrence(indicator.lastSeenGapBars)}
                   </span>
                 </div>
               ))}
@@ -389,35 +388,3 @@ function strongestCategory(cluster: CandleHitCluster) {
   return count > 0 ? strongest : null
 }
 
-function formatDuration(hit: IndicatorHitEvent, _timeframe: '1d') {
-  const bars = Math.max(1, hit.durationBars)
-  const fallbackMs = bars * 24 * 60 * 60 * 1000
-  const durationMs = Number.isFinite(hit.durationMs) && hit.durationMs > 0 ? hit.durationMs : fallbackMs
-  const hours = Math.max(1, Math.round(durationMs / (60 * 60 * 1000)))
-  const human = hours % 24 === 0 ? `${hours / 24}d` : `${hours}h`
-  return `${bars} bar${bars === 1 ? '' : 's'} / ${human}`
-}
-
-function formatReportPrice(value: number) {
-  if (!Number.isFinite(value)) return '--'
-  return value.toLocaleString(undefined, { maximumFractionDigits: 4 })
-}
-
-function formatCompactValue(value: number | null, unit: string) {
-  if (value === null || !Number.isFinite(value)) return '--'
-  if (unit === '%') return `${value.toFixed(1)}%`
-  if (unit === 'bp') return `${value.toFixed(1)}bp`
-  return value.toFixed(2)
-}
-
-function formatRecurrence(gapBars: number | null, _timeframe: '1d', active = false) {
-  if (gapBars === null) return active ? 'New active state' : 'No recent active bars'
-  if (gapBars === 0) return 'Active now'
-  const durationHours = gapBars * 24
-  return `${gapBars} bars / ${durationHours >= 24 ? `${durationHours / 24}d` : `${durationHours}h`} ago`
-}
-
-function formatStreak(value: number) {
-  if (value <= 0) return 'Idle'
-  return `${value} bars`
-}

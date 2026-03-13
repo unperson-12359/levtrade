@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { formatCorrelation } from '../../observatory/format'
 import type { CorrelationEdge, IndicatorMetric, CandleHitCluster, IndicatorCategory } from '../../observatory/types'
 
 const CATEGORY_ORDER: IndicatorCategory[] = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Structure']
@@ -168,7 +169,7 @@ export function CorrelationInsights({ indicators, edges, timeline }: Correlation
                 <div className="obs-insights__row-meta">
                   <span className="obs-insights__badge">{pair.lagBars}d lead</span>
                   <span className="obs-insights__badge obs-insights__badge--correlation">
-                    r = {pair.lagCorrelation.toFixed(2)}
+                    r = {formatCorrelation(pair.lagCorrelation)}
                   </span>
                   <span className="obs-insights__category">{pair.leaderCategory} → {pair.followerCategory}</span>
                 </div>
@@ -235,7 +236,7 @@ export function CorrelationInsights({ indicators, edges, timeline }: Correlation
                   </span>
                 </div>
                 <div className="obs-insights__row-meta">
-                  <span className="obs-insights__badge">Usually r = {pair.correlation.toFixed(2)}</span>
+                  <span className="obs-insights__badge">Usually r = {formatCorrelation(pair.correlation)}</span>
                   <span className="obs-insights__category">{pair.aCategory} vs {pair.bCategory}</span>
                 </div>
               </div>
