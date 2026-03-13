@@ -280,7 +280,7 @@ function runObservatoryIndicatorHealthTest() {
     candles,
   })
 
-  assert.ok(snapshot.indicators.length >= 8, `Expected at least 8 indicators, got ${snapshot.indicators.length}`)
+  assert.ok(snapshot.indicators.length >= 12, `Expected at least 12 indicators, got ${snapshot.indicators.length}`)
   assert.equal(snapshot.health.total, snapshot.indicators.length)
   assert.ok(snapshot.health.valid >= Math.floor(snapshot.indicators.length * 0.8))
   assert.equal(snapshot.timeline.length, candles.length)

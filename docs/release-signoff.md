@@ -9,7 +9,7 @@
 - [x] Automated: `npm run build`
 - [x] Automated: `npm run test:logic`
 - [x] Automated: `npm run test:e2e:critical`
-- [x] Automated: `npm run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180`
+- [x] Automated: `npm run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 1d --days 180`
 
 ## Manual Checks
 - [x] Manual: Responsive matrix (`360`, `390`, `412`, `960`, `1280`)
@@ -24,8 +24,8 @@
 - Production continuity spot-check passed: methodology, analytics, and observatory navigation all rendered on the live alias and returned to the heatmap shell without blanking the page.
 - Production smoke passed against the alias with:
   - root `200`
-  - `/api/observatory-snapshot?coin=BTC&interval=4h` returning `200`
-  - `/api/observatory-analytics?coin=BTC&interval=4h&days=180` returning `ok: true`
+  - `/api/observatory-snapshot?coin=BTC&interval=1d` returning `200`
+  - `/api/observatory-analytics?coin=BTC&interval=1d&days=180` returning `ok: true`
 - Production smoke was rechecked on `2026-03-11` against `https://levtrade.vercel.app` after the chart heat-circle marker release.
 - Ledger freshness verification passed from the live analytics route with:
   - `windowBars: 1078`

@@ -37,7 +37,7 @@ Hyperliquid REST/WS → DataManager → Zustand store → useIndicatorObservator
 - **DataManager** (`src/services/dataManager.ts`) — coordinates WebSocket mids subscription + candle polling with bounded recent-window refreshes after initial hydration.
 - **useIndicatorObservatory** — browser model builder combining local candles + server snapshot into one `ObservatorySnapshot`.
 - **useObservatoryState** (`src/hooks/useObservatoryState.ts`) — extracted state hook containing all view state, derived data, and navigation callbacks for the observatory.
-- **Observatory engine** (`src/observatory/engine.ts`) — shared between browser and server. Computes 29 indicators across 5 categories (Trend, Momentum, Volatility, Volume, Structure), bar states, heatmap clusters, correlation edges, and health checks.
+- **Observatory engine** (`src/observatory/engine.ts`) — shared between browser and server. Computes 12 event-driven indicators across 5 categories (Trend, Momentum, Volatility, Volume, Structure), bar states, heatmap clusters, correlation edges, and health checks.
 
 ### Serverless API (`/api`)
 
@@ -64,7 +64,7 @@ Tailwind v4 — no `tailwind.config.js`. Uses `@theme` block in `src/index.css` 
 ## Key conventions
 
 - **Tracked coins:** BTC, ETH, SOL, HYPE (defined in `src/types/market.ts` as `TRACKED_COINS`)
-- **Allowed intervals:** `4h` and `1d` only for the observatory
+- **Allowed intervals:** `1d` only for the observatory
 - **Hyperliquid API quirk:** candleSnapshot needs nested `req`: `{type:"candleSnapshot", req:{coin,interval,startTime}}`
 - **Shared code:** `src/observatory/` modules are used by both browser and serverless functions. Changes here affect both runtimes.
 - **Persistence:** `observatory_indicator_states` Supabase table. Each row tagged with `rule_version` from `src/observatory/version.ts`.

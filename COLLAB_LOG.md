@@ -10,6 +10,24 @@ Protocol:
 
 ---
 
+## 2026-03-13 - Opus — Consistency fixes + 4 new event indicators
+
+**Intent:** Fix stale docs (29 indicators → 12, 4h interval → 1d) and add 4 new event-driven indicators: 200 SMA Cross, ATR Expansion, Narrow Range 7 (NR7), Wide Range 7 (WR7).
+
+**Files changed:**
+- `CLAUDE.md` — fixed indicator count and interval references
+- `docs/production-parity-checklist.md` — fixed 4h → 1d throughout
+- `docs/release-signoff.md` — fixed 4h → 1d
+- `docs/release-gate.md` — fixed 4h → 1d, updated E2E scope description
+- `src/observatory/engine.ts` — added 4 new event indicators + 3 helper functions (atrExpansionSeries, extremeRangeSeries for NR7/WR7, sma200/trueRange series)
+- `src/observatory/version.ts` — bumped to `2026-03-13.2`
+- `tests/run-logic-tests.mjs` — updated indicator count assertion (8→12)
+- `api/_signals.mjs` — rebuilt (33.6kb → 36.4kb)
+
+**Verification:** `npm run build` ✓, `npm run test:logic` ✓
+
+---
+
 ## 2026-03-13 - Opus — Strip to Event-Only Indicators
 
 **Intent:** Remove all 21 persistent/continuous indicators (RSI, MACD histogram, VWAP, Stochastic, CCI, Williams %R, etc.) and keep only the 8 event-based indicators that fire rarely to signal notable conditions. This makes the heatmap meaningful (lights up only when something happens) and the analytics focused on event frequency.

@@ -41,14 +41,22 @@ function buildObservatorySnapshot(input) {
   const volumes = candles.map((candle) => candle.volume);
   const sma20 = smaSeries(closes, 20);
   const sma50 = smaSeries(closes, 50);
+  const sma200 = smaSeries(closes, 200);
   const ema8 = emaSeries(closes, 8);
   const ema21 = emaSeries(closes, 21);
   const stoch = stochasticSeries(highs, lows, closes, 14, 3);
   const macd = macdSeries(closes, 12, 26, 9);
   const bb = bollingerSeries(closes, 20, 2);
   const donchianPos20 = donchianPositionSeries(highs, lows, closes, 20);
+  const barRanges = candles.map((candle) => candle.high - candle.low);
+  const trueRange = candles.map((candle, index) => {
+    if (index === 0) return candle.high - candle.low;
+    const prevClose = candles[index - 1]?.close ?? candle.close;
+    return Math.max(candle.high - candle.low, Math.abs(candle.high - prevClose), Math.abs(candle.low - prevClose));
+  });
   const ema8_21Cross = crossoverSeries(ema8, ema21);
   const sma20_50Cross = crossoverSeries(sma20, sma50);
+  const sma200Cross = crossoverSeries(wrapNumericSeries(closes), sma200);
   const zeroLine = closes.map(() => 0);
   const macdZeroCross = crossoverSeries(macd.line, zeroLine);
   const stochKDCross = crossoverSeries(stoch.k, stoch.d);
@@ -56,6 +64,9 @@ function buildObservatorySnapshot(input) {
   const bodyAnomaly = bodyRatioZSeries(candles, 20);
   const volumeSpikeZ = zScoreSeries(wrapNumericSeries(volumes), 20);
   const donchianBreak = donchianBreakSeries(donchianPos20);
+  const atrExpansion = atrExpansionSeries(trueRange, 14);
+  const nr7 = extremeRangeSeries(barRanges, 7, "narrow");
+  const wr7 = extremeRangeSeries(barRanges, 7, "wide");
   const seeds = [
     makeMetric(
       "event_ema_8_21_cross",
@@ -73,6 +84,15 @@ function buildObservatorySnapshot(input) {
       "",
       "Golden/death cross \u2014 medium-term trend reversal signal.",
       sma20_50Cross,
+      signedState(0.5)
+    ),
+    makeMetric(
+      "event_sma_200_cross",
+      "200 SMA Cross",
+      "Trend",
+      "",
+      "Price crosses 200-day SMA \u2014 major long-term trend shift.",
+      sma200Cross,
       signedState(0.5)
     ),
     makeMetric(
@@ -103,6 +123,24 @@ function buildObservatorySnapshot(input) {
       bandState(0.5, 1.5)
     ),
     makeMetric(
+      "event_atr_expansion",
+      "ATR Expansion",
+      "Volatility",
+      "x",
+      "Fires when true range exceeds 1.5\xD7 the 14-bar average \u2014 sudden volatility regime shift.",
+      atrExpansion,
+      bandState(1.5, 999)
+    ),
+    makeMetric(
+      "event_nr7",
+      "Narrow Range 7",
+      "Volatility",
+      "",
+      "Smallest range in 7 bars \u2014 compression setup before a breakout.",
+      nr7,
+      signedState(0.5)
+    ),
+    makeMetric(
       "event_volume_spike",
       "Volume Spike",
       "Volume",
@@ -128,6 +166,15 @@ function buildObservatorySnapshot(input) {
       "Fires when price touches the 20-bar high or low \u2014 range breakout.",
       donchianBreak,
       bandState(0.01, 0.99)
+    ),
+    makeMetric(
+      "event_wr7",
+      "Wide Range 7",
+      "Structure",
+      "",
+      "Largest range in 7 bars \u2014 momentum follow-through signal.",
+      wr7,
+      signedState(0.5)
     )
   ];
   const hydrated = seeds.map((seed) => hydrateMetric(seed, times)).filter((entry) => entry.metric.series.length > 25);
@@ -834,6 +881,48 @@ function donchianBreakSeries(donchianPos) {
     return 0.5;
   });
 }
+function atrExpansionSeries(trueRange, period) {
+  const output = Array(trueRange.length).fill(null);
+  for (let index = period; index < trueRange.length; index += 1) {
+    let sum = 0;
+    let count = 0;
+    for (let cursor = index - period; cursor < index; cursor += 1) {
+      const value = trueRange[cursor];
+      if (isFiniteNumber(value)) {
+        sum += value;
+        count += 1;
+      }
+    }
+    if (count < Math.floor(period * 0.7)) continue;
+    const avg = sum / count;
+    const current = trueRange[index];
+    if (!isFiniteNumber(current) || avg <= 0) continue;
+    output[index] = current / avg;
+  }
+  return output;
+}
+function extremeRangeSeries(ranges, period, mode) {
+  const output = Array(ranges.length).fill(null);
+  for (let index = period - 1; index < ranges.length; index += 1) {
+    const current = ranges[index];
+    if (!isFiniteNumber(current)) continue;
+    let isExtreme = true;
+    for (let cursor = index - period + 1; cursor < index; cursor += 1) {
+      const value = ranges[cursor];
+      if (!isFiniteNumber(value)) continue;
+      if (mode === "narrow" && value <= current) {
+        isExtreme = false;
+        break;
+      }
+      if (mode === "wide" && value >= current) {
+        isExtreme = false;
+        break;
+      }
+    }
+    output[index] = isExtreme ? 1 : 0;
+  }
+  return output;
+}
 
 // src/observatory/priceContext.ts
 function buildPriceContext(input) {
@@ -952,7 +1041,7 @@ function buildPersistedObservatoryAnalytics(input) {
 }
 
 // src/observatory/version.ts
-var OBSERVATORY_RULESET_VERSION = "2026-03-13.1";
+var OBSERVATORY_RULESET_VERSION = "2026-03-13.2";
 
 // src/observatory/persistence.ts
 var INTERVAL_MS = {

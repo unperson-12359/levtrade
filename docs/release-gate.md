@@ -13,7 +13,7 @@ npm.cmd run gate:release
 node scripts/release-gate.mjs --verify-only
 
 # Real production smoke
-npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180
+npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 1d --days 180
 ```
 
 ## Required signoff file
@@ -41,7 +41,7 @@ The gate script requires the signoff file to include:
 
 1. App load, coin switch, interval switch, price chart, and cluster heatmap render
 2. Heatmap cell navigation into the candle report route and return to the heatmap
-3. Timeline/network and basic/advanced mode interactions, including indicator drilldown
+3. Observatory/analytics navigation and simple/pro detail mode interactions
 4. Health detail and runtime diagnostics visibility from the command bar
 5. Runtime diagnostics visibility without losing the observatory shell
 

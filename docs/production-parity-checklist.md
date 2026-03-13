@@ -46,7 +46,7 @@ This checklist is the release contract for the live observatory product.
 npm.cmd run build
 npm.cmd run test:logic
 npm.cmd run test:e2e:critical
-npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 4h --days 180
+npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC --interval 1d --days 180
 ```
 
 ## Browser verification
@@ -58,8 +58,8 @@ npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC -
 - runtime diagnostics remain secondary and do not replace the market-reading surface
 
 ## API verification
-- `/api/observatory-snapshot?coin=BTC&interval=4h` returns `200`
-- `/api/observatory-analytics?coin=BTC&interval=4h&days=180` returns `200`
+- `/api/observatory-snapshot?coin=BTC&interval=1d` returns `200`
+- `/api/observatory-analytics?coin=BTC&interval=1d&days=180` returns `200`
 - the payload returns `ok: true`
 - the snapshot includes the observatory model needed by the shell
 - the analytics payload returns ledger-backed rows and category totals
@@ -71,10 +71,10 @@ npm.cmd run smoke:release -- --base-url https://levtrade.vercel.app --coin BTC -
 
 ## Ledger freshness verification
 - `observatory_indicator_states` has rows for:
-  - `BTC 4h`, `BTC 1d`
-  - `ETH 4h`, `ETH 1d`
-  - `SOL 4h`, `SOL 1d`
-  - `HYPE 4h`, `HYPE 1d`
+  - `BTC 1d`
+  - `ETH 1d`
+  - `SOL 1d`
+  - `HYPE 1d`
 - the latest persisted bar time is within the expected window for the interval under test
 
 ## Known deferred work
