@@ -27,8 +27,6 @@ export function ObservatoryLayout() {
     snapshot,
     priceContext,
     loading,
-    primaryView,
-    setPrimaryView,
     clusterMode,
     setClusterMode,
     showDiagnostics,
@@ -54,7 +52,6 @@ export function ObservatoryLayout() {
     onPrev,
     onNext,
     isAnalyticsPage,
-    isTimelineView,
     healthTone,
     diagnosticsCount,
     hasDiagnostics,
@@ -101,36 +98,6 @@ export function ObservatoryLayout() {
               </button>
             </nav>
 
-            <div className="obs-command-bar__utility-group obs-command-bar__utility-group--view">
-              {!isAnalyticsPage ? (
-                <div className="obs-toggle-group">
-                  <span className="obs-toggle-group__label">View</span>
-                  <div className="obs-toggle-group__chips">
-                    <button
-                      type="button"
-                      className={`obs-chip obs-chip--nav ${primaryView === 'timeline' ? 'obs-chip--active' : ''}`}
-                      onClick={() => setPrimaryView('timeline')}
-                      data-testid="obs-view-timeline"
-                    >
-                      Timeline
-                    </button>
-                    <button
-                      type="button"
-                      className={`obs-chip obs-chip--nav ${primaryView === 'network' ? 'obs-chip--active' : ''}`}
-                      onClick={() => setPrimaryView('network')}
-                      data-testid="obs-view-network"
-                    >
-                      Insights
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="obs-command-bar__page-tag">
-                  Deep dive / Analytics and persistence
-                </div>
-              )}
-            </div>
-
             <div className="obs-command-bar__utility-group obs-command-bar__utility-group--coins">
               {TRACKED_COINS.map((coin) => (
                 <button
@@ -147,7 +114,7 @@ export function ObservatoryLayout() {
             </div>
 
             <div className="obs-command-bar__utility-group">
-              {!isAnalyticsPage && primaryView === 'timeline' && (
+              {!isAnalyticsPage && (
                 <div className="obs-toggle-group">
                   <span className="obs-toggle-group__label">Detail</span>
                   <div className="obs-toggle-group__chips">
@@ -241,9 +208,9 @@ export function ObservatoryLayout() {
         </header>
 
         <>
-            <div className={`obs-workspace ${isTimelineView ? 'obs-workspace--timeline' : ''}`}>
-            <main className={`obs-main ${isTimelineView ? 'obs-main--timeline' : ''}`}>
-              {isTimelineView ? (
+            <div className={`obs-workspace ${!isAnalyticsPage ? 'obs-workspace--timeline' : ''}`}>
+            <main className={`obs-main ${!isAnalyticsPage ? 'obs-main--timeline' : ''}`}>
+              {!isAnalyticsPage ? (
                 <section className="obs-canvas obs-canvas--timeline">
                   <div className="obs-panel obs-panel--canvas">
                     <div className="obs-panel__title-row">
@@ -302,10 +269,8 @@ export function ObservatoryLayout() {
               )}
             </main>
 
-            {isTimelineView && (
+            {!isAnalyticsPage && (
             <aside className="obs-rail obs-rail--timeline">
-              {isTimelineView ? (
-                <>
                   <section className="obs-panel obs-panel--rail obs-panel--heatmap-rail">
                     <IndicatorClusterLanes
                       layout="side-rail"
@@ -362,9 +327,6 @@ export function ObservatoryLayout() {
                       <div className="obs-empty">{loading && snapshot.timeline.length === 0 ? 'Loading indicators\u2026' : 'Select a heatmap cell to explain why that candle mattered, then open the report only if you need deeper context.'}</div>
                     )}
                   </section>
-
-                </>
-              ) : null}
 
               {showDiagnostics && hasDiagnostics && (
                 <section id="obs-diagnostics-detail" className="obs-diagnostics-panel" data-testid="obs-diagnostics-panel">

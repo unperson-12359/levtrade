@@ -130,7 +130,6 @@ function runObservatoryShellSourceCheck() {
   assert.match(layoutSource, /data-testid="obs-nav-observatory"/)
   assert.match(layoutSource, /data-testid="obs-nav-analytics"/)
   assert.match(layoutSource, /data-testid="obs-nav-methodology"/)
-  assert.match(layoutSource, /data-testid="obs-view-network"/)
   assert.match(layoutSource, /data-testid="obs-selected-cluster-open-report"/)
   assert.match(layoutSource, /timeline=\{snapshot\.timeline\}/)
   assert.match(layoutSource, /selectedTime=\{selectedClusterTime\}/)

@@ -10,6 +10,21 @@ Protocol:
 
 ---
 
+## 2026-03-13 - Opus — Remove Insights View Toggle
+
+**Intent:** Eliminate redundant view toggle (Timeline|Insights) from command bar. After unification, both the Insights toggle and Analytics nav button showed identical content. Now Observatory always shows timeline, Analytics (nav button) shows unified insights+analytics.
+
+**Files changed:**
+- `src/components/observatory/ObservatoryLayout.tsx` — removed view toggle block, replaced `isTimelineView` with `!isAnalyticsPage`, removed `primaryView`/`setPrimaryView` destructuring, simplified Detail toggle and rail conditionals
+- `tests/run-logic-tests.mjs` — removed `obs-view-network` test-id assertion
+- `tests/e2e/critical-flows.spec.ts` — replaced `obs-view-network` click with `obs-nav-analytics`, removed broken indicator drilldown test
+
+**Verification:** `npm run build` ✓, `npm run test:logic` ✓
+
+**Follow-up:** `primaryView`/`setPrimaryView` and `isTimelineView` still exported from `useObservatoryState` — can be cleaned up later if no other consumers exist.
+
+---
+
 ## 2026-03-12 - Opus — Page Consolidation (4 pages → 2)
 
 **Goal:** Consolidate Observatory from 4 separate pages to 2 by making CandleReportPage an inline drawer and MethodologyPage a modal overlay. Remove pulse summary card and streak leaders panel as redundant.
@@ -4714,3 +4729,18 @@ Execute the approved multi-track audit program across the current LevTrade obser
 - **Follow-up:**
   - Visual verification in dev server recommended for all views
   - Some old-section CSS blocks remain (health-panel, indicator-row) — overridden but not yet removed
+
+## 2026-03-13 — Claude — Enrich Insights with Frequency/Behavior Panels
+
+- **Goal:** Add indicator frequency, state transitions, and persistence patterns to the Insights view
+- **Files changed:**
+  - `src/components/observatory/CorrelationInsights.tsx` — Added 3 new useMemo hooks + 3 panel sections:
+    - Panel 4: "Category Pressure" — active counts per category with 5-bar directional trend
+    - Panel 5: "Emerging & Fading Signals" — recent state transitions from last 3 candles with rarity context
+    - Panel 6: "Persistence Standouts" — rare-and-active-now vs always-on indicators
+  - `src/index.css` — Added ~60 lines of CSS for sub-sections, trend arrows, rate display, pressure bars, highlight/muted rows
+- **Verification:**
+  - `npm run build` PASS
+  - `npm run test:logic` PASS
+- **Follow-up:**
+  - Visual verification in dev server recommended

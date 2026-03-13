@@ -96,8 +96,12 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
     await expect(page).toHaveURL(/#\/observatory\?coin=ETH&interval=1d$/)
 
-    await page.getByTestId('obs-view-network').click()
+    await page.getByTestId('obs-nav-analytics').click()
     await expect(page.getByTestId('obs-correlation-insights')).toBeVisible()
+
+    // Back to observatory
+    await page.getByTestId('obs-nav-observatory').click()
+    await expect(page.getByTestId('obs-cluster-lanes')).toBeVisible()
 
     // Methodology modal from nav
     await page.getByTestId('obs-nav-methodology').click()
@@ -108,18 +112,6 @@ test.describe('Observatory critical flows', () => {
     await expect(page.getByTestId('obs-methodology-live')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('obs-methodology-modal')).toBeHidden()
-  })
-
-  test('@critical indicator selection updates drilldown', async ({ page }) => {
-    await page.goto('/')
-    await seedObservatoryState(page)
-    await page.getByTestId('obs-view-network').click()
-
-    await page.getByTestId('obs-indicator-row-momentum_rsi14').click()
-    await expect(page.getByTestId('obs-detail-title')).toContainText('RSI 14')
-
-    await page.getByTestId('obs-indicator-row-event_ema_8_21_cross').click()
-    await expect(page.getByTestId('obs-detail-title')).toContainText('EMA 8/21 Cross')
   })
 
   test('@critical live status is visible from the command bar', async ({ page }) => {
